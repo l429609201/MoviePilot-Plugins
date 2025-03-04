@@ -14,7 +14,7 @@ import datetime
 
 class BangumiSync(_PluginBase):
     # 插件名称
-    plugin_name = "Bangumi打格子"
+    plugin_name = "Bangumi打格子-debug"
     # 插件描述
     plugin_desc = "将在看记录同步到bangumi"
     # 插件图标
@@ -30,7 +30,7 @@ class BangumiSync(_PluginBase):
     # 加载顺序
     plugin_order = 20
     # 可使用的用户级别
-    auth_level = 2
+    auth_level = 1
 
     UA = "honue/MoviePilot-Plugins (https://github.com/honue/MoviePilot-Plugins)"
 
