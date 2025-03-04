@@ -12,21 +12,21 @@ import requests
 import re
 import datetime
 
-class BangumiSync(_PluginBase):
+class BangumiSyncDebug(_PluginBase):
     # 插件名称
-    plugin_name = "Bangumi打格子-debug"
+    plugin_name = "Bgm打格子-debug"
     # 插件描述
     plugin_desc = "将在看记录同步到bangumi"
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.8.1"
+    plugin_version = "1.0.0"
     # 插件作者
-    plugin_author = "honue,happyTonakai"
+    plugin_author = "AAA"
     # 作者主页
     author_url = "https://github.com/happyTonakai"
     # 插件配置项ID前缀
-    plugin_config_prefix = "bangumisync_"
+    plugin_config_prefix = "bangumisyncdebug_"
     # 加载顺序
     plugin_order = 20
     # 可使用的用户级别
@@ -48,7 +48,7 @@ class BangumiSync(_PluginBase):
             self._token = config.get('token') if config.get('token') else None
             self._tmdb_key = settings.TMDB_API_KEY
             headers = {"Authorization": f"Bearer {self._token}",
-                    "User-Agent": BangumiSync.UA,
+                    "User-Agent": BangumiSyncDebug.UA,
                     "content-type": "application/json"}
             self._request = requests.Session()
             self._request.headers.update(headers)
@@ -73,7 +73,7 @@ class BangumiSync(_PluginBase):
             return
         # 根据路径判断是不是番剧
         path = event_info.item_path
-        if not BangumiSync.is_anime(path):
+        if not BangumiSyncDebug.is_anime(path):
             return
 
         if event_info.item_type in ["TV"]:
@@ -401,6 +401,6 @@ class BangumiSync(_PluginBase):
 
 
 if __name__ == "__main__":
-    subject_id = BangumiSync.get_subjectid_by_title("葬送的芙莉莲", 1)
-    bangumi = BangumiSync()
+    subject_id = BangumiSyncDebug.get_subjectid_by_title("葬送的芙莉莲", 1)
+    bangumi = BangumiSyncDebug()
     bangumi.sync_watching_status(subject_id, 1)
