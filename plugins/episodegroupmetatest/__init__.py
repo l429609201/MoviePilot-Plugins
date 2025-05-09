@@ -794,7 +794,7 @@ class EpisodeGroupMetaTest(_PluginBase):
                      # 👇 插入新功能：使用emby官方API，修改tvshow.nfo添加 TmdbEg 到 ProviderIds  联动emby神医助手
                     self.update_provider_ids_with_tmdbeg(
                           server_type=existsinfo.server_type,
-                          itemid=_id,
+                          itemid=existsinfo.itemid,
                           tmdbeg_id=id,  # 这里的 id 来自外层 for 循环中的 episode_group.get('id')
                           mediaserver_instance=mediaserver_instance
                         )
