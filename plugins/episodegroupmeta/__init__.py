@@ -38,17 +38,17 @@ class ExistMediaInfo(BaseModel):
 
 class EpisodeGroupMetaTest(_PluginBase):
     # 插件名称
-    plugin_name = "TMDB剧集组刮削"
+    plugin_name = "TMDB剧集组刮削Test"
     # 插件描述
-    plugin_desc = "从TMDB剧集组刮削季集的实际顺序。"
+    plugin_desc = "测试，fork叮叮当插件，增加使用EMBY官方API修改tvshow.nfo，增加TmdbEg字段，联动emby神医助手剧集组刮削功能"
     # 插件图标
     plugin_icon = "Element_A.png"
     # 主题色
     plugin_color = "#098663"
     # 插件版本
-    plugin_version = "2.6"
+    plugin_version = "1.0.0"
     # 插件作者
-    plugin_author = "叮叮当"
+    plugin_author = "AAA"
     # 作者主页
     author_url = "https://github.com/cikezhu"
     # 插件配置项ID前缀
