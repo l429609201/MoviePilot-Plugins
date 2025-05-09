@@ -46,7 +46,7 @@ class EpisodeGroupMetaTest(_PluginBase):
     # 主题色
     plugin_color = "#098663"
     # 插件版本
-    plugin_version = "1.0.0"
+    plugin_version = "1.0.1"
     # 插件作者
     plugin_author = "AAA"
     # 作者主页
