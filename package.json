@@ -21,7 +21,7 @@
         "level": 1,
         "v2": true,
         "history": {
-            "v1.0.0": "增加手动选择剧集组的功能"
+            "v1.0.0": "测试，fork叮叮当插件，增加使用EMBY官方API修改tvshow.nfo，增加TmdbEg字段，联动emby神医助手剧集组刮削功能"
         }
     }
 }
