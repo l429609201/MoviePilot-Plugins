@@ -15,7 +15,7 @@
         "name": "TMDB剧集组刮削Test",
         "description": "从TMDB剧集组刮削季集的实际顺序。",
         "labels": "刮削",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "icon": "Element_A.png",
         "author": "AAA",
         "level": 1,
