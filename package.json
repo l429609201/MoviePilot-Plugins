@@ -10,5 +10,18 @@
     "history": {
       "v1.0.0": "让未认证用户可以使用bgm打格子（自用）"
     }
-  }
+  },
+    "EpisodeGroupMetaTest": {
+        "name": "TMDB剧集组刮削Test",
+        "description": "从TMDB剧集组刮削季集的实际顺序。",
+        "labels": "刮削",
+        "version": "1.0.0",
+        "icon": "Element_A.png",
+        "author": "AAA",
+        "level": 1,
+        "v2": true,
+        "history": {
+            "v1.0.0": "增加手动选择剧集组的功能"
+        }
+    }
 }
