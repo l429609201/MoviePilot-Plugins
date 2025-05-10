@@ -46,7 +46,7 @@ class EpisodeGroupMetaTest(_PluginBase):
     # 主题色
     plugin_color = "#098663"
     # 插件版本
-    plugin_version = "1.0.2"
+    plugin_version = "1.0.3"
     # 插件作者
     plugin_author = "AAA"
     # 作者主页
@@ -797,12 +797,17 @@ class EpisodeGroupMetaTest(_PluginBase):
                         continue
                      # 👇 插入新功能：使用emby官方API，修改tvshow.nfo添加 TmdbEg 到 ProviderIds  联动emby神医助手
                     if not tmdbeg_updated:
-                        self.update_provider_ids_with_tmdbeg(
-                           server_type=existsinfo.server_type,
-                           itemid=existsinfo.itemid,
-                           tmdbeg_id=id,
-                           mediaserver_instance=mediaserver_instance
+                         # 判断当前媒体服务器是否为 Emby
+                        if existsinfo.server_type == "emby":
+                            self.log_info(f"你使用的的媒体服务器为: {existsinfo.server_type} ,开始更新TmdbEg")
+                            self.update_provider_ids_with_tmdbeg(
+                            server_type=existsinfo.server_type,
+                            itemid=existsinfo.itemid,
+                            tmdbeg_id=id,
+                            mediaserver_instance=mediaserver_instance
                         )
+                        else:
+                            self.log_info(f"你使用的的媒体服务器为: {existsinfo.server} ,非emby,不进行TmdbEg更新")
                         tmdbeg_updated = True
                     for _index, _ids in enumerate(existsinfo.groupid.get(order)):
                         # 提取出媒体库中集id对应的集数index
