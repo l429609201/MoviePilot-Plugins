@@ -46,7 +46,7 @@ class EpisodeGroupMetaTest(_PluginBase):
     # 主题色
     plugin_color = "#098663"
     # 插件版本
-    plugin_version = "1.0.1"
+    plugin_version = "1.0.2"
     # 插件作者
     plugin_author = "AAA"
     # 作者主页
@@ -752,6 +752,10 @@ class EpisodeGroupMetaTest(_PluginBase):
                      'TagItems', 'Studios', 'PremiereDate', 'DateCreated', 'ProductionYear', 'Video3DFormat',
                      'OfficialRating', 'CustomRating', 'People', 'LockData', 'LockedFields', 'ProviderIds',
                      'PreferredMetadataLanguage', 'PreferredMetadataCountryCode', 'Taglines']
+                                   
+        #新增标志位：确保 update_provider_ids_with_tmdbeg 只执行一次
+        tmdbeg_updated = False
+                                   
         for episode_group in episode_groups:
             if not bool(existsinfo.groupep):
                 break
@@ -792,12 +796,14 @@ class EpisodeGroupMetaTest(_PluginBase):
                         self.log_info(f"媒体库中不存在: {mediainfo.title_year}, 第 {order} 季")
                         continue
                      # 👇 插入新功能：使用emby官方API，修改tvshow.nfo添加 TmdbEg 到 ProviderIds  联动emby神医助手
-                    self.update_provider_ids_with_tmdbeg(
-                          server_type=existsinfo.server_type,
-                          itemid=existsinfo.itemid,
-                          tmdbeg_id=id,  # 这里的 id 来自外层 for 循环中的 episode_group.get('id')
-                          mediaserver_instance=mediaserver_instance
+                    if not tmdbeg_updated:
+                        self.update_provider_ids_with_tmdbeg(
+                           server_type=existsinfo.server_type,
+                           itemid=existsinfo.itemid,
+                           tmdbeg_id=id,
+                           mediaserver_instance=mediaserver_instance
                         )
+                        tmdbeg_updated = True
                     for _index, _ids in enumerate(existsinfo.groupid.get(order)):
                         # 提取出媒体库中集id对应的集数index
                         ep_num = ep[_index]
