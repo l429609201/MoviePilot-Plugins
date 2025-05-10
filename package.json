@@ -15,12 +15,13 @@
         "name": "TMDB剧集组刮削Test",
         "description": "从TMDB剧集组刮削季集的实际顺序。",
         "labels": "刮削",
-        "version": "1.0.2",
+        "version": "1.0.3",
         "icon": "Element_A.png",
         "author": "AAA",
         "level": 1,
         "v2": true,
         "history": {
+            "v1.0.3": "增加媒体服务器类型判断，非emby服务器时不进行TmdbEg字段更新（神医插件EMBY独有）",
             "v1.0.2": "修复TMDBED重复更新的BUG",
             "v1.0.1": "修复局部变量BUG",
             "v1.0.0": "测试，fork叮叮当插件，增加使用EMBY官方API修改tvshow.nfo，增加TmdbEg字段，联动emby神医助手剧集组刮削功能"
