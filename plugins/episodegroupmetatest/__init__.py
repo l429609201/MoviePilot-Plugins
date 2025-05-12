@@ -421,7 +421,7 @@ class EpisodeGroupMetaTest(_PluginBase):
             with open(log_path, 'r', encoding='utf-8') as f:
                 log_content = f.read()
         except FileNotFoundError:
-            log_content = "日志文件未找到"
+                self.log_warn("日志文件未找到")
         
         return schemas.Response(success=True, message=log_content)
     
