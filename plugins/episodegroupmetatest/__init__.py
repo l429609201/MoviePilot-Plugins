@@ -40,13 +40,13 @@ class EpisodeGroupMetaTest(_PluginBase):
     # 插件名称
     plugin_name = "TMDB剧集组刮削Test"
     # 插件描述
-    plugin_desc = "fork叮叮当插件，增加使用EMBY官方API修改tvshow.nfo，增加TmdbEg字段，联动emby神医助手剧集组刮削功能"
+    plugin_desc = "fork叮叮当插件，增加使用EMBY官方API，增加TmdbEg字段，联动emby神医助手剧集组刮削功能"
     # 插件图标
     plugin_icon = "Element_A.png"
     # 主题色
     plugin_color = "#098663"
     # 插件版本
-    plugin_version = "1.0.4"
+    plugin_version = "1.0.5"
     # 插件作者
     plugin_author = "AAA"
     # 作者主页
@@ -124,6 +124,13 @@ class EpisodeGroupMetaTest(_PluginBase):
                 "methods": ["GET"],
                 "summary": "剧集组刮削",
                 "description": "刮削指定剧集组",
+            },
+            {
+                "path": "/get_plugin_log",
+                "endpoint": self.get_plugin_log,
+                "methods": ["GET"],
+                "summary": "获取剧集组插件日志",
+                "description": "返回插件运行日志内容"
             }
         ]
 
@@ -400,7 +407,23 @@ class EpisodeGroupMetaTest(_PluginBase):
         return str(obj).startswith("{") \
             or str(obj).startswith("[") \
             or str(obj).startswith("(")
+    def get_plugin_log(self, apikey: str) -> schemas.Response:
+        """
+        获取插件运行日志（供前端调用）
+        """
+        if apikey != settings.API_TOKEN:
+            return schemas.Response(success=False, message="API密钥错误")
 
+        # 示例：从日志文件或内存中读取日志内容
+        log_path = Path(__file__).parent.parent / "logs" / f"{self.plugin_name}.log"
+        try:
+            with open(log_path, 'r', encoding='utf-8') as f:
+                log_content = f.read()
+        except FileNotFoundError:
+            log_content = "日志文件未找到"
+        
+        return schemas.Response(success=True, message=log_content)
+    
     def get_page(self) -> List[dict]:
         """
         拼装插件详情页面，需要返回页面配置，同时附带数据
@@ -543,8 +566,8 @@ class EpisodeGroupMetaTest(_PluginBase):
                                                 'apikey': settings.API_TOKEN,
                                                 'tmdb_id': tmdb_id
                                             }
-                                        }
-                                    },
+                                        },
+                                    }
                                 }
                             ]
                         }
@@ -562,7 +585,85 @@ class EpisodeGroupMetaTest(_PluginBase):
                     }
                 }
             ]
-        
+
+        # 新增的日志展示卡片
+        log_card = {
+            'component': 'VCard',
+            'props': {'variant': 'outlined', 'class': 'mb-3'},
+            'content': [
+                {
+                    'component': 'VCardTitle',
+                    'text': '插件运行日志'
+                },
+                {
+                    'component': 'VDivider'
+                },
+                {
+                    'component': 'VCardText',
+                    'content': [
+                        {
+                            'component': 'VTextarea',
+                            'props': {
+                                'model': 'plugin_log_content',
+                                'label': '运行日志',
+                                'rows': 8,
+                                'readonly': True,
+                                'auto-grow': True
+                            }
+                        },
+                        {
+                            'component': 'VBtn',
+                            'props': {
+                                'color': 'primary',
+                                'elevation': 20,
+                                'rounded': 'xl'
+                            },
+                            'text': '手动刷新日志',
+                            'events': {
+                                'click': {
+                                    'api': 'plugin/EpisodeGroupMetaTest/get_plugin_log',
+                                    'method': 'get',
+                                    'onSuccess': "function(res) { plugin_log_content = res.message; }"
+                                }
+                            }
+                        },
+                        {
+                            'component': 'VSwitch',
+                            'props': {
+                                'model': 'auto_refresh',
+                                'label': '自动刷新日志'
+                            }
+                        },
+                        {
+                            'component': 'VTextField',
+                            'props': {
+                                'model': 'refresh_interval',
+                                'label': '自动刷新间隔（秒）',
+                                'type': 'number',
+                                'value': 10
+                            }
+                        },
+                        {
+                            'component': 'VScript',
+                            'text': '''
+                                if (auto_refresh && refresh_interval > 0) {
+                                    setInterval(function() {
+                                        fetch('plugin/EpisodeGroupMetaTest/get_plugin_log')
+                                            .then(response => response.json())
+                                            .then(data => {
+                                                if (data.success) {
+                                                    plugin_log_content = data.message;
+                                                }
+                                            });
+                                    }, refresh_interval * 1000);
+                                }
+                            '''
+                        }
+                    ]
+                }
+            ]
+        }
+
         return [
             {
                 'component': 'VRow',
@@ -594,7 +695,8 @@ class EpisodeGroupMetaTest(_PluginBase):
                     'class': 'grid gap-6 grid-info-card',
                 },
                 'content': contents
-            }
+            },
+            log_card  # 👈 将日志卡片添加到页面最下方
         ]
 
     @eventmanager.register(EventType.TransferComplete)
