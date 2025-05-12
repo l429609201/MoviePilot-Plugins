@@ -46,7 +46,7 @@ class EpisodeGroupMetaTest(_PluginBase):
     # 主题色
     plugin_color = "#098663"
     # 插件版本
-    plugin_version = "1.0.7"
+    plugin_version = "1.0.8"
     # 插件作者
     plugin_author = "AAA"
     # 作者主页
@@ -124,13 +124,6 @@ class EpisodeGroupMetaTest(_PluginBase):
                 "methods": ["GET"],
                 "summary": "剧集组刮削",
                 "description": "刮削指定剧集组",
-            },
-            {
-                "path": "/get_plugin_log",
-                "endpoint": self.get_plugin_log,
-                "methods": ["GET"],
-                "summary": "获取剧集组插件日志",
-                "description": "返回插件运行日志内容"
             }
         ]
 
@@ -587,54 +580,7 @@ class EpisodeGroupMetaTest(_PluginBase):
                 }
             ]
 
-        # 新增的日志展示卡片
-        log_card = {
-            'component': 'VCard',
-            'props': {'variant': 'outlined', 'class': 'mb-3'},
-            'content': [
-                {
-                    'component': 'VCardTitle',
-                    'text': '插件运行日志'
-                },
-                {
-                    'component': 'VDivider'
-                },
-                {
-                    'component': 'VCardText',
-                    'content': [
-                        {
-                            'component': 'VTextarea',
-                            'props': {
-                                'model': 'plugin_log_content',
-                                'label': '运行日志',
-                                'rows': 8,
-                                'readonly': True,
-                                'auto-grow': True
-                            }
-                        },
-                        {
-                            'component': 'VBtn',
-                            'props': {
-                                'color': 'primary',
-                                'elevation': 20,
-                                'rounded': 'xl'
-                            },
-                            'text': '手动刷新日志',
-                            'events': {
-                                'click': {
-                                    'api': 'plugin/EpisodeGroupMetaTest/get_plugin_log',
-                                    'method': 'get',
-                                    'onSuccess': "function(res) { plugin_log_content = res.message; }",
-                                    'params': {
-                                                'apikey': settings.API_TOKEN    
-                                    }
-                                }
-                            }
-                        }
-                    ]
-                }
-            ]
-        }
+       
 
         return [
             {
@@ -667,8 +613,7 @@ class EpisodeGroupMetaTest(_PluginBase):
                     'class': 'grid gap-6 grid-info-card',
                 },
                 'content': contents
-            },
-            log_card  # 👈 将日志卡片添加到页面最下方
+            }
         ]
 
     @eventmanager.register(EventType.TransferComplete)
