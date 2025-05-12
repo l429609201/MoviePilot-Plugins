@@ -46,7 +46,7 @@ class EpisodeGroupMetaTest(_PluginBase):
     # 主题色
     plugin_color = "#098663"
     # 插件版本
-    plugin_version = "1.0.6"
+    plugin_version = "1.0.7"
     # 插件作者
     plugin_author = "AAA"
     # 作者主页
@@ -415,7 +415,8 @@ class EpisodeGroupMetaTest(_PluginBase):
             return schemas.Response(success=False, message="API密钥错误")
 
         # 示例：从日志文件或内存中读取日志内容
-        log_path = Path(__file__).parent.parent / "logs" / f"{self.plugin_name}.log"
+        log_path = Path(__file__).parent.parent / "plugins" / f"{self.plugin_name.lower()}.log"
+
         try:
             with open(log_path, 'r', encoding='utf-8') as f:
                 log_content = f.read()
