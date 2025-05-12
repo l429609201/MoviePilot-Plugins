@@ -46,7 +46,7 @@ class EpisodeGroupMetaTest(_PluginBase):
     # 主题色
     plugin_color = "#098663"
     # 插件版本
-    plugin_version = "1.0.5"
+    plugin_version = "1.0.6"
     # 插件作者
     plugin_author = "AAA"
     # 作者主页
@@ -623,41 +623,12 @@ class EpisodeGroupMetaTest(_PluginBase):
                                 'click': {
                                     'api': 'plugin/EpisodeGroupMetaTest/get_plugin_log',
                                     'method': 'get',
-                                    'onSuccess': "function(res) { plugin_log_content = res.message; }"
+                                    'onSuccess': "function(res) { plugin_log_content = res.message; }",
+                                    'params': {
+                                                'apikey': settings.API_TOKEN    
+                                    }
                                 }
                             }
-                        },
-                        {
-                            'component': 'VSwitch',
-                            'props': {
-                                'model': 'auto_refresh',
-                                'label': '自动刷新日志'
-                            }
-                        },
-                        {
-                            'component': 'VTextField',
-                            'props': {
-                                'model': 'refresh_interval',
-                                'label': '自动刷新间隔（秒）',
-                                'type': 'number',
-                                'value': 10
-                            }
-                        },
-                        {
-                            'component': 'VScript',
-                            'text': '''
-                                if (auto_refresh && refresh_interval > 0) {
-                                    setInterval(function() {
-                                        fetch('plugin/EpisodeGroupMetaTest/get_plugin_log')
-                                            .then(response => response.json())
-                                            .then(data => {
-                                                if (data.success) {
-                                                    plugin_log_content = data.message;
-                                                }
-                                            });
-                                    }, refresh_interval * 1000);
-                                }
-                            '''
                         }
                     ]
                 }
