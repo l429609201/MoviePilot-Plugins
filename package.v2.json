@@ -9,7 +9,8 @@
         "level": 1,
         "history": {
             "v1.0.0": "添加在自动分类时同时开启自动 Torrent 管理功能"
-        },
+        }
+    },
     "DownloadSiteTagModNew": {
         "name": "下载任务分类与标签魔改VUE版",
         "description": "(基于叮叮当原版修改，增加按二级分类)自动给下载任务分类与打站点标签、剧集名称标签",
