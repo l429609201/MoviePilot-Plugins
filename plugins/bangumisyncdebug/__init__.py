@@ -104,6 +104,9 @@ class BangumiSyncDebug(_PluginBase):
                 subject_id, subject_name, original_episode_name = self.get_subjectid_by_title(
                     title, season_id, episode_id, unique_id
                 )
+                logger.debug(f"subject_id: {subject_id}")
+                logger.debug(f"subject_name: {subject_name}")
+                logger.debug(f"original_episode_name: {original_episode_name}")
                 if subject_id is None:
                     return
                 logger.info(f"{self._prefix}: {title} {original_episode_name} => {subject_name} https://bgm.tv/subject/{subject_id}")
