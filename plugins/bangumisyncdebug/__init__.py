@@ -83,23 +83,17 @@ class BangumiSyncDebug(_PluginBase):
                     event='playback.pause' channel='emby' item_type='TV' item_name='咒术回战 S1E47 关门' item_id='22646' item_path='/media/cartoon/动漫/咒术回战 (2020)/Season 1/咒术回战 - S01E47 - 第 47 集.mkv' season_id=1 episode_id=47 tmdb_id=None overview='渋谷事変の最終局面に呪術師が集うなかで、脹相は夏油の亡骸に寄生する“黒幕”の正体に気付く。そして、絶体絶命の危機に現れた特級術師・九十九由基。九十九と“黒幕”がそれぞれ語る人類の未来（ネクストステージ...' percentage=2.5705228512861966 ip='127.0.0.1' device_name='Chrome Windows' client='Emby Web' user_name='honue' image_url=None item_favorite=None save_reason=None item_isvirtual=None media_type='Episode'
                 """
                 # 标题，mp 的 tmdb 搜索 api 有点问题，带空格的搜不出来，直接使用 emby 事件的标题
-                #tmdb_id = event_info.tmdb_id
-                webhook_data = event_info.json_object
-                logger.debug(f"提取的webhook_data: {webhook_data}")
-                #logger.info(f"匹配播放事件 {event_info.item_name} tmdb id = {tmdb_id}...")
+                tmdb_id = event_info.tmdb_id
+                logger.info(f"匹配播放事件 {event_info.item_name} tmdb id = {tmdb_id}...")
                 match = re.match(r"^(.+)\sS\d+E\d+\s.+", event_info.item_name)
                 if match:
                     title = match.group(1)
                 else:
                     title = event_info.item_name.split(' ')[0]
-                    
-                #logger.debug(f"收到webhook事件: {event.event_data}")
-                item_data=webhook_data.get("Item") 
+
                 # 季 集
-                #season_id, episode_id = map(int, [item_data.get("ParentIndexNumber"), item_data.get("IndexNumber")])
-                tmdb_id = item_data.get("ProviderIds", {}).get("Tmdb")
-                season_id = int(item_data.get("ParentIndexNumber"))
-                episode_id = int(item_data.get("IndexNumber"))
+                season_id, episode_id = map(int, [event_info.season_id, event_info.episode_id])
+                logger.debug(f"转换后的title: {title}")
                 logger.debug(f"转换后的season_id: {tmdb_id}")
                 logger.debug(f"转换后的season_id: {season_id}")
                 logger.debug(f"转换后的episode_id: {episode_id}")
