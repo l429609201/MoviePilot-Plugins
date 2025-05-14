@@ -94,7 +94,7 @@ class BangumiSyncDebug(_PluginBase):
                 # 季 集
                 season_id, episode_id = map(int, [event_info.season_id, event_info.episode_id])
                 self._prefix = f"{title} 第{season_id}季 第{episode_id}集"
-                unique_id = int(tmdb_id) if tmdb_id else None
+                unique_id = tmdb_id and int(tmdb_id)
                 logger.debug(f"转换后的title: {title}")
                 logger.debug(f"转换后的season_id: {tmdb_id}")
                 logger.debug(f"转换后的season_id: {season_id}")
