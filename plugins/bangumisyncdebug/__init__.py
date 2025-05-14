@@ -96,7 +96,7 @@ class BangumiSyncDebug(_PluginBase):
                 logger.debug(f"收到webhook事件: {event.event_data}")
                 
                 # 季 集
-                season_id, episode_id = map(int, [event_info.season_id, event_info.episode_id])
+                season_id, episode_id = map(int, [webhook_data.Item.ParentIndexNumber, webhook_data.Item.IndexNumber])
                 self._prefix = f"{title} 第{season_id}季 第{episode_id}集"
                 unique_id = int(tmdb_id) if tmdb_id else None
                 # 使用 tmdb airdate 来定位季，提高准确率
