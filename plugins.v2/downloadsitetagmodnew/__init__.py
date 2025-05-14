@@ -697,11 +697,17 @@ class DownloadSiteTagModNew(_PluginBase):
                     # 尝试设置种子分类, 如果失败, 则创建再设置一遍
                     try:
                         _torrent.setCategory(category=_cat)
+                        # ✅ 新增：启用自动 Torrent 管理 (ATM)
+                        downloader_obj.qbc.torrents_set_auto_tmm(enable=True, torrent_hashes=[_hash])
+                        logger.debug(f"{self.LOG_TAG}种子 {_hash} 已启用自动 Torrent 管理 (ATM)")
                     except Exception as e:
                         logger.warn(f"下载器 {service.name} 种子id: {_hash} 设置分类 {_cat} 失败：{str(e)}, "
                                     f"尝试创建分类再设置 ...")
                         downloader_obj.qbc.torrents_createCategory(name=_cat)
                         _torrent.setCategory(category=_cat)
+                        # ✅ 新增：设置分类成功后也启用 ATM
+                        downloader_obj.qbc.torrents_set_auto_tmm(enable=True, torrent_hashes=[_hash])
+                        logger.debug(f"{self.LOG_TAG}种子 {_hash} 已启用自动 Torrent 管理 (ATM) [延迟启用]")
             else:
                 # 设置标签
                 if _tags:
