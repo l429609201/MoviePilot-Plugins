@@ -99,7 +99,8 @@ class BangumiSyncDebug(_PluginBase):
                 logger.debug(f"转换前的episode_id: {item_data.get("IndexNumber")}")
                 # 季 集
                 #season_id, episode_id = map(int, [item_data.get("ParentIndexNumber"), item_data.get("IndexNumber")])
-                tmdb_id = int(item_data.get("ProviderIds").get("Tmdb"))
+                tmdb_id = item_data.get("ProviderIds", {}).get("Tmdb")
+                tmdb_id = int(tmdb_id) if tmdb_id is not None else None
                 season_id = int(item_data.get("ParentIndexNumber"))
                 episode_id = int(item_data.get("IndexNumber"))
                 logger.debug(f"转换后的season_id: {tmdb_id}")
