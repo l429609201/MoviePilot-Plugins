@@ -697,17 +697,11 @@ class DownloadSiteTagModNew(_PluginBase):
                     # 尝试设置种子分类, 如果失败, 则创建再设置一遍
                     try:
                         _torrent.setCategory(category=_cat)
-                        # ✅ 新增：启用自动 Torrent 管理 (ATM)
-                        downloader_obj.qbc.torrents_set_auto_tmm(enable=True, torrent_hashes=[_hash])
-                        logger.debug(f"{self.LOG_TAG}种子 {_hash} 已启用自动 Torrent 管理 (ATM)")
                     except Exception as e:
                         logger.warn(f"下载器 {service.name} 种子id: {_hash} 设置分类 {_cat} 失败：{str(e)}, "
                                     f"尝试创建分类再设置 ...")
                         downloader_obj.qbc.torrents_createCategory(name=_cat)
                         _torrent.setCategory(category=_cat)
-                        # ✅ 新增：设置分类成功后也启用 ATM
-                        downloader_obj.qbc.torrents_set_auto_tmm(enable=True, torrent_hashes=[_hash])
-                        logger.debug(f"{self.LOG_TAG}种子 {_hash} 已启用自动 Torrent 管理 (ATM) [延迟启用]")
             else:
                 # 设置标签
                 if _tags:
@@ -720,7 +714,50 @@ class DownloadSiteTagModNew(_PluginBase):
                     downloader_obj.set_torrent_tag(ids=_hash, tags=_tags)
             logger.warn(
                 f"{self.LOG_TAG}下载器: {service.name} 种子id: {_hash} {('  标签: ' + ','.join(_tags)) if _tags else ''} {('  分类: ' + _cat) if _cat else ''}")
+    def _enable_auto_tmm(self, service: ServiceInfo, torrent_hash: str):
+        """
+        启用自动 torrent 管理 (Auto TMM)
+        """
+        if service.type != "qbittorrent":
+            logger.warning(f"{self.LOG_TAG}当前下载器不支持自动 torrent 管理")
+            return
 
+        downloader_obj = service.instance
+        qb_client = downloader_obj.qbc  # 获取 qBittorrent 客户端实例
+
+        # 提取 SID（假设 qb_client.session.cookies['SID'] 存在）
+        try:
+            sid = qb_client.session.cookies.get('SID')
+            if not sid:
+                logger.error(f"{self.LOG_TAG}无法获取 SID，请确保已登录 qBittorrent Web UI")
+                return
+        except Exception as e:
+            logger.error(f"{self.LOG_TAG}获取 SID 失败: {str(e)}")
+            return
+
+        # 构建请求 URL 和数据
+        url = f"{qb_client._base_url}command/setAutoTMM"
+        data = {
+            'hashes': torrent_hash,
+            'enable': 'true'
+        }
+
+        # 设置请求头和 Cookie
+        headers = {
+            'User-Agent': 'Fiddler',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+        cookies = {'SID': sid}
+
+        try:
+            response = requests.post(url, headers=headers, cookies=cookies, data=data)
+            if response.status_code == 200:
+                logger.info(f"{self.LOG_TAG}成功为种子 {torrent_hash} 启用自动 torrent 管理")
+            else:
+                logger.error(
+                    f"{self.LOG_TAG}启用自动 torrent 管理失败，状态码: {response.status_code}, 响应: {response.text}")
+        except Exception as e:
+            logger.error(f"{self.LOG_TAG}启用自动 torrent 管理时发生异常: {str(e)}", exc_info=True)
     @eventmanager.register(EventType.DownloadAdded)
     def download_added(self, event: Event):
         """
@@ -787,6 +824,10 @@ class DownloadSiteTagModNew(_PluginBase):
             if _hash and (_tags or _cat):
                 # 执行通用方法, 设置种子标签与分类
                 self._set_torrent_info(service=service, _hash=_hash, _tags=_tags, _cat=_cat)
+
+                # 如果设置了分类，则启用自动 torrent 管理
+                if _cat:
+                    self._enable_auto_tmm(service=service, torrent_hash=_hash)
         except Exception as e:
             logger.error(
                 f"{self.LOG_TAG}分析下载事件时发生了错误: {str(e)}", exc_info=True)
