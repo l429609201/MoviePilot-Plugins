@@ -86,17 +86,20 @@ class BangumiSyncDebug(_PluginBase):
                 tmdb_id = event_info.tmdb_id
                 webhook_data = event_info.json_object
                 logger.debug(f"提取的webhook_data: {webhook_data}")
-                logger.info(f"匹配播放事件 {event_info.item_name} tmdb id = {tmdb_id}...")
+                #logger.info(f"匹配播放事件 {event_info.item_name} tmdb id = {tmdb_id}...")
                 match = re.match(r"^(.+)\sS\d+E\d+\s.+", event_info.item_name)
                 if match:
                     title = match.group(1)
                 else:
                     title = event_info.item_name.split(' ')[0]
                     
-                logger.debug(f"收到webhook事件: {event.event_data}")
-                
+                #logger.debug(f"收到webhook事件: {event.event_data}")
+                logger.debug(f"转换前的season_id: {webhook_data.Item.ParentIndexNumber}")
+                logger.debug(f"转换前的episode_id: {webhook_data.Item.IndexNumber}")
                 # 季 集
                 season_id, episode_id = map(int, [webhook_data.Item.ParentIndexNumber, webhook_data.Item.IndexNumber])
+                logger.debug(f"转换后的season_id: {season_id}")
+                logger.debug(f"转换后的episode_id: {episode_id}")
                 self._prefix = f"{title} 第{season_id}季 第{episode_id}集"
                 unique_id = int(tmdb_id) if tmdb_id else None
                 # 使用 tmdb airdate 来定位季，提高准确率
