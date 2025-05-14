@@ -20,7 +20,7 @@ class BangumiSyncDebug(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "2.0.0"
+    plugin_version = "2.0.1"
     # 插件作者
     plugin_author = "honue,happyTonakai"
     # 作者主页
@@ -30,7 +30,7 @@ class BangumiSyncDebug(_PluginBase):
     # 加载顺序
     plugin_order = 20
     # 可使用的用户级别
-    auth_level = 2
+    auth_level = 1
 
     UA = "honue/MoviePilot-Plugins (https://github.com/honue/MoviePilot-Plugins)"
 
