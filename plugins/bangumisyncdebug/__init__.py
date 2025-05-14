@@ -84,15 +84,19 @@ class BangumiSyncDebug(_PluginBase):
                 """
                 # 标题，mp 的 tmdb 搜索 api 有点问题，带空格的搜不出来，直接使用 emby 事件的标题
                 tmdb_id = event_info.tmdb_id
+                webhook_data = event_info.json_object
+                logger.debug(f"提取的webhook_data: {webhook_data}")
                 logger.info(f"匹配播放事件 {event_info.item_name} tmdb id = {tmdb_id}...")
                 match = re.match(r"^(.+)\sS\d+E\d+\s.+", event_info.item_name)
                 if match:
                     title = match.group(1)
                 else:
                     title = event_info.item_name.split(' ')[0]
-
+                    
+                logger.debug(f"收到webhook事件: {event.event_data}")
+                
                 # 季 集
-                season_id, episode_id = map(int, [event_info.ParentIndexNumber, event_info.IndexNumber])
+                season_id, episode_id = map(int, [webhook_data.item.ParentIndexNumber, webhook_data.item.IndexNumber])
                 self._prefix = f"{title} 第{season_id}季 第{episode_id}集"
                 unique_id = int(tmdb_id) if tmdb_id else None
                 # 使用 tmdb airdate 来定位季，提高准确率
