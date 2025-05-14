@@ -98,7 +98,9 @@ class BangumiSyncDebug(_PluginBase):
                 logger.debug(f"转换前的season_id: {item_data.get("ParentIndexNumber")}")
                 logger.debug(f"转换前的episode_id: {item_data.get("IndexNumber")}")
                 # 季 集
-                season_id, episode_id = map(int, [item_data.get("ParentIndexNumber"), item_data.get("IndexNumber")])
+                #season_id, episode_id = map(int, [item_data.get("ParentIndexNumber"), item_data.get("IndexNumber")])
+                season_id = int(item_data.get("ParentIndexNumber"))
+                episode_id = int(item_data.get("IndexNumber"))
                 logger.debug(f"转换后的season_id: {season_id}")
                 logger.debug(f"转换后的episode_id: {episode_id}")
                 self._prefix = f"{title} 第{season_id}季 第{episode_id}集"
