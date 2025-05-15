@@ -29,7 +29,7 @@ class DownloadSiteTagModNewTest(_PluginBase):
     # 插件名称
     plugin_name = "下载任务分类与标签魔改VUE版-再魔改版"
     # 插件描述
-    plugin_desc = "(基于叮叮当原版修改，增加按二级分类,添加自动分类时同时开启自动 Torrent 管理)自动给下载任务分类与打站点标签、剧集名称标签"
+    plugin_desc = "(基于叮叮当原版修改)自动给下载任务分类与打站点标签、剧集名称标签"
     # 插件图标
     plugin_icon = "Youtube-dl_B.png"
     # 插件版本
@@ -45,7 +45,7 @@ class DownloadSiteTagModNewTest(_PluginBase):
     # 可使用的用户级别
     auth_level = 1
     # 日志前缀
-    LOG_TAG = "[DownloadSiteTagModNewTest] "
+    LOG_TAG = "[DownloadSiteTagModNew] "
 
     # 退出事件
     _event = threading.Event()
@@ -57,6 +57,8 @@ class DownloadSiteTagModNewTest(_PluginBase):
     _scheduler = None
     _enable = False
     _onlyonce = False
+    # 是否启用 qBittorrent 自动种子管理
+    _enable_auto_torrent_management = False
     _interval = "计划任务"
     _interval_cron = "5 4 * * *"
     _interval_time = 6
@@ -692,22 +694,23 @@ class DownloadSiteTagModNewTest(_PluginBase):
                 # 设置标签
                 if _tags:
                     downloader_obj.set_torrents_tag(ids=_hash, tags=_tags)
-                # 设置分类 <tr暂不支持>
+
+                # 设置分类并自动管理
                 if _cat:
-                    # 尝试设置种子分类, 如果失败, 则创建再设置一遍
                     try:
                         _torrent.setCategory(category=_cat)
-                        # ✅ 新增：启用自动 Torrent 管理 (ATM)
-                        downloader_obj.qbc.torrents_set_auto_tmm(enable=True, torrent_hashes=[_hash])
-                        logger.debug(f"{self.LOG_TAG}种子 {_hash} 已启用自动 Torrent 管理 (ATM)")
                     except Exception as e:
-                        logger.warn(f"下载器 {service.name} 种子id: {_hash} 设置分类 {_cat} 失败：{str(e)}, "
-                                    f"尝试创建分类再设置 ...")
+                        logger.warn(f"下载器 {service.name} 种子id: {_hash} 设置分类 {_cat} 失败：{str(e)}, 尝试创建分类再设置 ...")
                         downloader_obj.qbc.torrents_createCategory(name=_cat)
                         _torrent.setCategory(category=_cat)
-                        # ✅ 新增：设置分类成功后也启用 ATM
-                        downloader_obj.qbc.torrents_set_auto_tmm(enable=True, torrent_hashes=[_hash])
-                        logger.debug(f"{self.LOG_TAG}种子 {_hash} 已启用自动 Torrent 管理 (ATM) [延迟启用]")
+
+                # 如果启用了分类，并且下载器是QB，则启用自动种子管理
+                if self._enable_category and _cat:
+                    try:
+                        downloader_obj.qbc.torrents_set_auto_managed(torrent_hashes=_hash, enable=True)
+                        logger.info(f"种子 {_hash} 已启用 qBittorrent 自动管理")
+                    except Exception as e:
+                        logger.warn(f"启用自动管理失败：{str(e)}")
             else:
                 # 设置标签
                 if _tags:
@@ -720,7 +723,7 @@ class DownloadSiteTagModNewTest(_PluginBase):
                     downloader_obj.set_torrent_tag(ids=_hash, tags=_tags)
             logger.warn(
                 f"{self.LOG_TAG}下载器: {service.name} 种子id: {_hash} {('  标签: ' + ','.join(_tags)) if _tags else ''} {('  分类: ' + _cat) if _cat else ''}")
-
+    
     @eventmanager.register(EventType.DownloadAdded)
     def download_added(self, event: Event):
         """
@@ -787,6 +790,8 @@ class DownloadSiteTagModNewTest(_PluginBase):
             if _hash and (_tags or _cat):
                 # 执行通用方法, 设置种子标签与分类
                 self._set_torrent_info(service=service, _hash=_hash, _tags=_tags, _cat=_cat)
+
+
         except Exception as e:
             logger.error(
                 f"{self.LOG_TAG}分析下载事件时发生了错误: {str(e)}", exc_info=True)
