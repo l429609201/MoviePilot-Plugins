@@ -45,7 +45,7 @@ class DownloadSiteTagModNewTest(_PluginBase):
     # 可使用的用户级别
     auth_level = 1
     # 日志前缀
-    LOG_TAG = "[DownloadSiteTagModNew] "
+    LOG_TAG = "[DownloadSiteTagModNewTest] "
 
     # 退出事件
     _event = threading.Event()
