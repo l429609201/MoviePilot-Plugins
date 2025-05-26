@@ -489,10 +489,8 @@ class BangumiSyncV2Test(_PluginBase):
         return [] # 返回空列表比 pass 更符合接口定义
 
     def get_form(self) -> Tuple[List[dict], Dict[str, Any]]:
-        # media_servers_list 相关逻辑已移除
-            
-        return [
-            { # VCard for 基础设置 (保留V2Test的VCard结构)
+        form_structure = [
+            {  # VCard for 基础设置 (保留V2Test的VCard结构)
                 "component": "VCard",
                 "props": {"variant": "outlined", "class": "mb-3"},
                 "content": [
@@ -511,85 +509,84 @@ class BangumiSyncV2Test(_PluginBase):
                     {
                         "component": "VCardText",
                         "content": [
-                            { # 原版的 VForm 和 VRow/VCol 结构
-                                'component': 'VForm',
-                                'content': [
+                            {
+                                "component": "VForm",
+                                "content": [
                                     {
-                                        'component': 'VRow',
-                                        'content': [
+                                        "component": "VRow",
+                                        "content": [
                                             {
-                                                'component': 'VCol',
-                                                'props': { # 还原原版 props
-                                                    'cols': 12,
-                                                    'md': 4
+                                                "component": "VCol",
+                                                "props": {
+                                                    "cols": 12,
+                                                    "md": 4
                                                 },
-                                                'content': [
+                                                "content": [
                                                     {
-                                                        'component': 'VSwitch',
-                                                        'props': {
-                                                            'model': 'enable',
-                                                            'label': '启用插件',
+                                                        "component": "VSwitch",
+                                                        "props": {
+                                                            "model": "enable",
+                                                            "label": "启用插件",
                                                         }
                                                     }
                                                 ]
                                             },
                                             {
-                                                'component': 'VCol',
-                                                'props': { # 还原原版 props
-                                                    'cols': 12,
-                                                    'md': 4
+                                                "component": "VCol",
+                                                "props": {
+                                                    "cols": 12,
+                                                    "md": 4
                                                 },
-                                                'content': [
+                                                "content": [
                                                     {
-                                                        'component': 'VSwitch',
-                                                        'props': {
-                                                            'model': 'uniqueid_match',
-                                                            'label': '集唯一ID匹配', # 还原原版label
+                                                        "component": "VSwitch",
+                                                        "props": {
+                                                            "model": "uniqueid_match",
+                                                            "label": "集唯一ID匹配",
                                                         }
                                                     }
                                                 ]
                                             },
-                                            # 媒体服务器选择的 VCol 已移除
                                         ]
                                     },
-                                    { # 还原原版 user 和 token 输入行
-                                        'component': 'VRow',
-                                        'content': [
+                                    {
+                                        "component": "VRow",
+                                        "content": [
                                             {
-                                                'component': 'VCol',
-                                                'props': {
-                                                    'cols': 12,
-                                                    'md': 6
+                                                "component": "VCol",
+                                                "props": {
+                                                    "cols": 12,
+                                                    "md": 6
                                                 },
-                                                'content': [
+                                                "content": [
                                                     {
-                                                        'component': 'VTextField',
-                                                        'props': {
-                                                            'model': 'user',
-                                                            'label': '媒体服务器用户名', # 还原原版label
-                                                            'placeholder': '你的Emby/Plex用户名', # 还原原版placeholder
-                                                            'hint': '多个用逗号隔开', # 新增提示，原版无
-                                                            'persistentHint': True,
+                                                        "component": "VTextField",
+                                                        "props": {
+                                                            "model": "user",
+                                                            "label": "媒体服务器用户名",
+                                                            "placeholder": "你的Emby/Plex用户名",
+                                                            "hint": "多个用逗号隔开",
+                                                            "persistentHint": True,
                                                         }
                                                     }
                                                 ]
                                             },
-                                            { # Token 输入框，移到这里以匹配原版布局
-                                                'component': 'VCol',
-                                                'props': {
-                                                    'cols': 12,
-                                                    'md': 6
+                                            {
+                                                "component": "VCol",
+                                                "props": {
+                                                    "cols": 12,
+                                                    "md": 6
                                                 },
-                                                'content': [
+                                                "content": [
                                                     {
-                                                        'component': 'VTextField',
-                                                        'props': {
-                                                            'model': 'token',
-                                                            'label': 'Bangumi Access-token', # 还原原版label
-                                                            'placeholder': 'dY123qxXcdaf234Gj6u3va123Ohh', # 还原原版placeholder
-                                                            'type': 'password',
-                                                            'hint': '用于Token认证方式。', # 简化提示
-                                                            'persistentHint': True,
+                                                        "component": "VTextField",
+                                                        "props": {
+                                                            "model": "token",
+                                                            "label": "Bangumi Access-token",
+                                                            "placeholder": "dY123qxXcdaf234Gj6u3va123Ohh",
+                                                            "type": "password",
+                                                            "hint": "用于Token认证方式。",
+                                                            "persistentHint": True,
                                                         }
                                                     }
                                                 ]
@@ -602,7 +599,7 @@ class BangumiSyncV2Test(_PluginBase):
                     }
                 ]
             },
-            { # VCard for 认证方式和参数设置 (保留V2Test的Tabs结构)
+            {  # VCard for 认证方式和参数设置 (保留V2Test的Tabs结构)
                 "component": "VCard",
                 "props": {"variant": "outlined"},
                 "content": [
@@ -639,7 +636,7 @@ class BangumiSyncV2Test(_PluginBase):
                         "component": "VWindow",
                         "props": {"model": "tab"},
                         "content": [
-                            { # 认证方式 Tab
+                            {  # 认证方式 Tab
                                 "component": "VWindowItem",
                                 "props": {"value": "auth-method-tab"},
                                 "content": [
@@ -647,132 +644,132 @@ class BangumiSyncV2Test(_PluginBase):
                                         "component": "VCardText",
                                         "content": [
                                             {
-                                                'component': 'VRadioGroup',
-                                                'props': {
-                                                    'model': 'auth_method',
-                                                    'inline': False,
-                                                    'label': '选择Bangumi认证方式'
+                                                "component": "VRadioGroup",
+                                                "props": {
+                                                    "model": "auth_method",
+                                                    "inline": False,
+                                                    "label": "选择Bangumi认证方式"
                                                 },
-                                                'content': [
+                                                "content": [
                                                     {
-                                                        'component': 'VRadio',
-                                                        'props': {
-                                                            'label': 'Access Token (推荐)',
-                                                            'value': 'token'
+                                                        "component": "VRadio",
+                                                        "props": {
+                                                            "label": "Access Token (推荐)",
+                                                            "value": "token"
                                                         }
                                                     },
                                                     {
-                                                        'component': 'VRadio',
-                                                        'props': {
-                                                            'label': 'OAuth 2.0 (暂未完全支持)',
-                                                            'value': 'oauth',
-                                                            'disabled': True
+                                                        "component": "VRadio",
+                                                        "props": {
+                                                            "label": "OAuth 2.0 (暂未完全支持)",
+                                                            "value": "oauth",
+                                                            "disabled": True
                                                         }
                                                     }
                                                 ]
-                                            },
+                                            }
                                         ]
                                     }
-                                ],
+                                ]
                             },
-                            { # 参数设置 Tab
+                            {  # 参数设置 Tab
                                 "component": "VWindowItem",
                                 "props": {"value": "params-tab"},
                                 "content": [
                                     {
                                         "component": "VCardText",
                                         "content": [
-                                            # Token 输入 (原先在 auth-method-tab, 移到此处)
                                             {
-                                                'component': 'VRow',
-                                                # 'v-if': "auth_method === 'token'", # 前端应处理显隐
-                                                'content': [
+                                                "component": "VRow",
+                                                "content": [
                                                     {
-                                                        'component': 'VCol',
-                                                        'props': {'cols': 12},
-                                                        'content': [
+                                                        "component": "VCol",
+                                                        "props": {"cols": 12},
+                                                        "content": [
                                                             {
-                                                                'component': 'VTextField',
-                                                                'props': {
-                                                                    'model': 'token',
-                                                                    'label': 'Bangumi Access Token',
-                                                                    'placeholder': 'dY123qxXcdaf234Gj6u3va123Ohh',
-                                                                    'type': 'password',
-                                                                    'hint': '用于Token认证方式。获取：https://next.bgm.tv/demo/access-token', # 更新提示
-                                                                    'persistentHint': True,
+                                                                "component": "VTextField",
+                                                                "props": {
+                                                                    "model": "token",
+                                                                    "label": "Bangumi Access Token",
+                                                                    "placeholder": "dY123qxXcdaf234Gj6u3va123Ohh",
+                                                                    "type": "password",
+                                                                    "hint": "用于Token认证方式。获取：https://next.bgm.tv/demo/access-token",
+                                                                    "persistentHint": True,
                                                                 }
                                                             }
                                                         ]
                                                     }
                                                 ]
                                             },
-                                            # OAuth 输入字段 (原先在 auth-method-tab, 移到此处)
                                             {
-                                                'component': 'VRow',
-                                                # 'v-if': "auth_method === 'oauth'", # 前端应处理此条件渲染
-                                                'content': [
+                                                "component": "VRow",
+                                                "content": [
                                                     {
-                                                        'component': 'VCol',
-                                                        'props': {'cols': 12, 'md': 6},
-                                                        'content': [
+                                                        "component": "VCol",
+                                                        "props": {"cols": 12, "md": 6},
+                                                        "content": [
                                                             {
-                                                                'component': 'VTextField',
-                                                                'props': {
-                                                                    'model': 'oauth_app_id',
-                                                                    'label': 'OAuth Application ID',
-                                                                    'placeholder': '在此输入你的App ID',
-                                                                    'hint': '用于OAuth认证方式 (暂不可用)',
-                                                                    'persistentHint': True,
-                                                                    'disabled': True,
+                                                                "component": "VTextField",
+                                                                "props": {
+                                                                    "model": "oauth_app_id",
+                                                                    "label": "OAuth Application ID",
+                                                                    "placeholder": "在此输入你的App ID",
+                                                                    "hint": "用于OAuth认证方式 (暂不可用)",
+                                                                    "persistentHint": True,
+                                                                    "disabled": True,
                                                                 }
                                                             }
                                                         ]
-                                            },
-                                            # OAuth 输入字段 (保留V2Test的，但使其依赖 auth_method)
-                                            {
-                                                'component': 'VRow',
-                                                # 'v-if': "auth_method === 'oauth'", # 前端应处理此条件渲染
-                                                'content': [
+                                                    },
                                                     {
-                                                        'component': 'VCol',
-                                                        'props': {'cols': 12, 'md': 6},
-                                                        'content': [
+                                                        "component": "VRow",
+                                                        "content": [
                                                             {
-                                                                'component': 'VTextField',
-                                                                'props': {
-                                                                    'model': 'oauth_app_secret',
-                                                                    'label': 'OAuth Application Secret',
-                                                                    'placeholder': '在此输入你的App Secret',
-                                                                    'type': 'password',
-                                                                    'hint': '用于OAuth认证方式 (暂不可用)',
-                                                                    'persistentHint': True,
-                                                                    'disabled': True,
-                                                                }
+                                                                "component": "VCol",
+                                                                "props": {"cols": 12, "md": 6},
+                                                                "content": [
+                                                                    {
+                                                                        "component": "VTextField",
+                                                                        "props": {
+                                                                            "model": "oauth_app_secret",
+                                                                            "label": "OAuth Application Secret",
+                                                                            "placeholder": "在此输入你的App Secret",
+                                                                            "type": "password",
+                                                                            "hint": "用于OAuth认证方式 (暂不可用)",
+                                                                            "persistentHint": True,
+                                                                            "disabled": True,
+                                                                        }
+                                                                    }
+                                                                ]
                                                             }
                                                         ]
                                                     }
                                                 ]
                                             },
+                                            {
+                                                "component": "VAlert",
+                                                "props": {
+                                                    "type": "info",
+                                                    "variant": "tonal",
+                                                    "text": (
+                                                        "access-token获取：https://next.bgm.tv/demo/access-token\n"
+                                                        "emby添加你mp的webhook（event要包括播放）： http://[MoviePilot地址]:[端口]/api/v1/webhook?token=moviepilot\n"
+                                                        "感谢@HankunYu的想法"
+                                                    ),
+                                                    "style": "white-space: pre-line;"
+                                                }
+                                            }
                                         ]
-                                    },
-                                    { # 原版提示信息 VAlert (现在也在此Tab下)
-                                        'component': 'VAlert',
-                                        'props': {
-                                            'type': 'info',
-                                            'variant': 'tonal',
-                                            'text': 'access-token获取：https://next.bgm.tv/demo/access-token' + '\n' +
-                                                    'emby添加你mp的webhook（event要包括播放）： http://[MoviePilot地址]:[端口]/api/v1/webhook?token=moviepilot' + '\n' +
-                                                    '感谢@HankunYu的想法',
-                                            'style': 'white-space: pre-line;'
-                                        }
                                     }
                                 ]
                             }
-                        ],
+                        ]
                     }
                 ]
             }
-        ], { # 默认值
+        ]
+
+        default_values = {
             "enable": False,
             "uniqueid_match": False,
             "user": "",
@@ -780,8 +777,10 @@ class BangumiSyncV2Test(_PluginBase):
             "token": "",
             "oauth_app_id": "",
             "oauth_app_secret": "",
-            "tab": "auth-method-tab" # 默认还是显示认证方式选择
+            "tab": "auth-method-tab"  # 默认还是显示认证方式选择
         }
+
+        return form_structure, default_values
 
     def get_page(self) -> List[dict]:
         return []
