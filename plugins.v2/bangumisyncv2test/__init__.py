@@ -745,6 +745,7 @@ class BangumiSyncV2Test(_PluginBase):
                                                         ]
                                                     }
                                                 ]
+                                                ]
                                             },
                                             {
                                                 "component": "VAlert",
