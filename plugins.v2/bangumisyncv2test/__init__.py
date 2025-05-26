@@ -39,7 +39,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.3" # 版本更新
+    plugin_version = "1.0.4" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -649,10 +649,34 @@ class BangumiSyncV2Test(_PluginBase):
 
     def get_api(self) -> List[Dict[str, Any]]:
         return [
-            {"path": "/oauth/authorize", "method": "GET", "function": self._handle_oauth_authorize, "auth": True},
-            {"path": "/oauth/callback", "method": "GET", "function": self._handle_oauth_callback, "auth": False},
-            {"path": "/oauth/status", "method": "GET", "function": self._handle_oauth_status, "auth": True},
-            {"path": "/oauth/deauthorize", "method": "POST", "function": self._handle_oauth_deauthorize, "auth": True},
+            {
+                "path": "/oauth_authorize", 
+                "methods": ["GET"], 
+                "endpoint": self._handle_oauth_authorize,  
+                "summary": "开始Bangumi OAuth授权",
+                "description": "开始Bangumi OAuth授权"
+            },
+            {
+                "path": "/oauth_callback", 
+                "methods": ["GET"], 
+                "endpoint": self._handle_oauth_callback, 
+                "summary": "Bangumi OAuth回调处理",
+                "description": "Bangumi OAuth回调处理"
+            },
+            {
+                "path": "/oauth_status", 
+                "methods": ["GET"], 
+                "endpoint": self._handle_oauth_status, 
+                "summary": "获取Bangumi OAuth状态",
+                "description": "获取Bangumi OAuth授权状态"
+            },
+            {
+                "path": "/oauth_deauthorize", 
+                "methods": ["GET"], 
+                "endpoint": self._handle_oauth_deauthorize, 
+                "summary": "解除Bangumi OAuth授权",
+                "description": "解除Bangumi OAuth授权"
+             },
         ]
 
     async def _handle_oauth_authorize(self, request: Any, user: Any):
@@ -663,7 +687,7 @@ class BangumiSyncV2Test(_PluginBase):
         if not moviepilot_base_url:
             return {"status": "error", "message": "MoviePilot 公开 URL 未配置或无效，无法构建回调地址。"}
 
-        callback_path = f"/api/v1/plugins/{self.plugin_config_prefix.strip('_')}/oauth/callback"
+        callback_path = f"/api/v1/plugins/{self.plugin_config_prefix.strip('_')}/oauth_callback" # 保持与 get_api 中的路径一致
         redirect_uri = f"{moviepilot_base_url}{callback_path}"
         state_data = {"csrf_token": str(uuid.uuid4())} # State中仅保留CSRF token
         
@@ -707,7 +731,7 @@ class BangumiSyncV2Test(_PluginBase):
             logger.error("全局OAuth回调: MoviePilot 公开 URL 未配置或无效，无法构建令牌交换的回调地址。")
             await send_html("插件内部错误：无法确定 MoviePilot 服务器地址。", True); return
 
-        callback_path = f"/api/v1/plugins/{self.plugin_config_prefix.strip('_')}/oauth/callback"
+        callback_path = f"/api/v1/plugins/{self.plugin_config_prefix.strip('_')}/oauth_callback" # 保持与 get_api 中的路径一致
         redirect_uri_for_token = f"{moviepilot_base_url}{callback_path}"
         payload = {"grant_type": "authorization_code", "client_id": self._oauth_app_id, 
                    "client_secret": self._oauth_app_secret, "code": code, "redirect_uri": redirect_uri_for_token}
