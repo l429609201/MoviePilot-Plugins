@@ -78,12 +78,12 @@ class BangumiSyncV2Test(_PluginBase):
             self._user = config.get('user') if config.get('user') else None
             self._token = config.get('token') if config.get('token') else None
 
-            self._auth_method = config.get('auth_method', 'token')
+            self._auth_method = config.get('auth_method') if config.get('token') else None
             self._oauth_app_id = config.get('oauth_app_id') if config.get('oauth_app_id') else None
-            # 增加对 _auth_method 的校验和修正
-            if self._auth_method not in ['token', 'oauth']:
-                logger.warning(f"检测到无效的 auth_method 配置值: '{self._auth_method}'。将重置为默认值 'token'。")
-                self._auth_method = 'token' # 或者您希望的其他默认值
+            # # 增加对 _auth_method 的校验和修正
+            # if self._auth_method not in ['token', 'oauth']:
+            #     logger.warning(f"检测到无效的 auth_method 配置值: '{self._auth_method}'。将重置为默认值 'token'。")
+            #     self._auth_method = 'token' # 或者您希望的其他默认值
 
             self._oauth_app_secret = config.get('oauth_app_secret') if config.get('oauth_app_secret') else None
             self._tab = config.get('tab', 'auth-method-tab') # 加载tab状态
@@ -977,9 +977,8 @@ class BangumiSyncV2Test(_PluginBase):
                                                     {
                                                         "component": "VRadio",
                                                         "props": {
-                                                            "label": "OAuth 2.0", # 保持禁用状态
-                                                            "value": "oauth"#,
-                                                            #"disabled": True 
+                                                            "label": "OAuth 2.0", 
+                                                            "value": "oauth"
                                                         }
                                                     }
                                                 ]
