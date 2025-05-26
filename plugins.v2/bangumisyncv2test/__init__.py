@@ -39,7 +39,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.4" # 版本更新
+    plugin_version = "1.0.5" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -270,6 +270,7 @@ class BangumiSyncV2Test(_PluginBase):
     @eventmanager.register(EventType.WebhookMessage)
     async def hook(self, event: Event):
         if not self._enable:
+            logger.warning(f"{self.plugin_name}: 未开启插件，请到设置界面点击启用插件。")
             return
 
         if self._auth_method == 'token':
@@ -679,7 +680,7 @@ class BangumiSyncV2Test(_PluginBase):
              },
         ]
 
-    async def _handle_oauth_authorize(self, request: Any, user: Any):
+    async def _handle_oauth_authorize(self, request: Any, user: Any):        #开始授权函数
         if not self._oauth_app_id:
             return {"status": "error", "message": "插件未配置Bangumi OAuth Application ID。"}
         
@@ -696,7 +697,7 @@ class BangumiSyncV2Test(_PluginBase):
         logger.info(f"开始全局Bangumi OAuth授权 (操作用户: {getattr(user, 'id', 'Unknown')})，回调至: {redirect_uri}，授权URL: {auth_url}")
         return {"status": "success", "auth_url": auth_url} 
 
-    async def _handle_oauth_callback(self, request: Any, user: Optional[Any] = None):
+    async def _handle_oauth_callback(self, request: Any, user: Optional[Any] = None):            #处理回调
         code = request.query_params.get('code')
         state_param = request.query_params.get('state')
         error_from_bgm = request.query_params.get('error')
@@ -764,7 +765,7 @@ class BangumiSyncV2Test(_PluginBase):
             logger.exception(f"全局OAuth回调处理中发生未知错误: {e}")
             await send_html(f"处理回调时发生内部错误: {e}", True)
 
-    async def _handle_oauth_status(self, request: Any, user: Any):
+    async def _handle_oauth_status(self, request: Any, user: Any):                             #获取当前OAuth状态
         oauth_info = self._get_global_oauth_info()
         if not oauth_info: return {"authorized": False, "nickname": None, "avatar": None}
         
@@ -780,7 +781,7 @@ class BangumiSyncV2Test(_PluginBase):
                 "bangumi_user_id": refreshed_oauth_info.get('bangumi_user_id'),
                 "expire_time_readable": datetime.datetime.fromtimestamp(refreshed_oauth_info.get('expire_time', 0)).strftime('%Y-%m-%d %H:%M:%S') if refreshed_oauth_info.get('expire_time') else "N/A"}
 
-    async def _handle_oauth_deauthorize(self, request: Any, user: Any):
+    async def _handle_oauth_deauthorize(self, request: Any, user: Any):                               #解除授权
         self._delete_global_oauth_info()
         logger.info(f"全局Bangumi OAuth授权已解除 (操作用户: {getattr(user, 'id', 'Unknown')})。")
         return {"status": "success", "message": "已成功解除授权。"}
