@@ -18,7 +18,7 @@ from app.schemas.types import EventType # MediaType 未在原版 BangumiSyncDebu
 from cachetools import cached, TTLCache
 import requests # 注意：在async函数中应使用异步HTTP库如httpx
 from urllib.parse import urlencode, quote_plus # 用于构建URL参数
-from app.core.user import User # 导入User模型以获取用户ID
+#from app.core.user import User # 导入User模型以获取用户ID
 from app.core.request import Request # 导入Request模型以处理API请求和响应
 
 # Bangumi OAuth 相关的 URL
@@ -46,7 +46,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 可使用的用户级别
     auth_level = 1
 
-    UA = "honue/MoviePilot-Plugins (https://github.com/l429609201)"
+    UA = "l429609201/MoviePilot-Plugins (https://github.com/l429609201)"
 
     _enable = True
     _user = None
@@ -59,9 +59,9 @@ class BangumiSyncV2Test(_PluginBase):
     _auth_method = "token" # 'token' or 'oauth'
     _oauth_app_id: Optional[str] = None
     _oauth_app_secret: Optional[str] = None
-
-    # 存储OAuth信息，键为MoviePilot用户ID (str)，值为包含token, refresh_token, expire_time, Bangumi用户信息等的字典
-    _oauth_info_store: Dict[str, Dict[str, Any]] = {}
+    
+    # 存储全局OAuth信息，值为包含token, refresh_token, expire_time, Bangumi用户信息等的字典
+    _global_oauth_info: Optional[Dict[str, Any]] = None
 
     _tab = 'auth-method-tab' # 用于get_form中的标签页
 
@@ -77,11 +77,10 @@ class BangumiSyncV2Test(_PluginBase):
             self._oauth_app_secret = config.get('oauth_app_secret') if config.get('oauth_app_secret') else None
             self._tab = config.get('tab', 'auth-method-tab') # 加载tab状态
 
-            oauth_store_config = config.get('oauth_store')
-            if oauth_store_config and isinstance(oauth_store_config, dict):
-                 self._oauth_info_store = oauth_store_config
-            else:
-                 self._oauth_info_store = {}
+            # 加载全局OAuth信息
+            self._global_oauth_info = config.get('global_oauth_info')
+            if not isinstance(self._global_oauth_info, dict) and self._global_oauth_info is not None: # 兼容旧的空字典或错误类型
+                self._global_oauth_info = None
 
             self._tmdb_key = settings.TMDB_API_KEY
             headers = {"User-Agent": BangumiSyncV2Test.UA, "content-type": "application/json"}
@@ -94,7 +93,7 @@ class BangumiSyncV2Test(_PluginBase):
             logger.info(f"Bangumi在看同步插件 v{BangumiSyncV2Test.plugin_version} 初始化成功")
         else:
             # 首次加载或无配置时，确保默认值被应用和保存
-            self._oauth_info_store = {} # 确保默认是空字典
+            self._global_oauth_info = None # 确保默认是None
             self.__update_config()
 
 
@@ -120,19 +119,19 @@ class BangumiSyncV2Test(_PluginBase):
         return f"{proto}://{host}"
 
 
-    def _get_oauth_info(self, moviepilot_user_id: str) -> Optional[Dict[str, Any]]:
-        """获取指定MoviePilot用户的OAuth信息"""
-        return self._oauth_info_store.get(moviepilot_user_id)
+    def _get_global_oauth_info(self) -> Optional[Dict[str, Any]]:
+        """获取全局OAuth信息"""
+        return self._global_oauth_info
 
-    def _store_oauth_info(self, moviepilot_user_id: str, oauth_data: Dict[str, Any]):
-        """存储指定MoviePilot用户的OAuth信息并更新配置"""
-        self._oauth_info_store[moviepilot_user_id] = oauth_data
+    def _store_global_oauth_info(self, oauth_data: Optional[Dict[str, Any]]):
+        """存储全局OAuth信息并更新配置"""
+        self._global_oauth_info = oauth_data
         self.__update_config()
 
-    def _delete_oauth_info(self, moviepilot_user_id: str):
-        """删除指定MoviePilot用户的OAuth信息并更新配置"""
-        if moviepilot_user_id in self._oauth_info_store:
-            del self._oauth_info_store[moviepilot_user_id]
+    def _delete_global_oauth_info(self):
+        """删除全局OAuth信息并更新配置"""
+        if self._global_oauth_info is not None:
+            self._global_oauth_info = None
             self.__update_config()
 
     def _is_token_expired(self, oauth_info: Dict[str, Any]) -> bool:
@@ -143,12 +142,12 @@ class BangumiSyncV2Test(_PluginBase):
         # 增加一个5分钟的缓冲期，避免在临界点刷新失败
         return time.time() >= (expire_time - 300)
 
-    async def _refresh_access_token(self, moviepilot_user_id: str) -> Tuple[Optional[str], Optional[str]]:
+    async def _refresh_access_token(self) -> Tuple[Optional[str], Optional[str]]:
         """
-        刷新指定MoviePilot用户的Bangumi OAuth访问令牌。
+        刷新全局Bangumi OAuth访问令牌。
         返回 (新的access_token, 错误信息)
         """
-        oauth_info = self._get_oauth_info(moviepilot_user_id)
+        oauth_info = self._get_global_oauth_info()
         if not oauth_info or not oauth_info.get('refresh_token'):
             return None, "未找到有效的刷新令牌 (Refresh Token)。"
 
@@ -183,8 +182,8 @@ class BangumiSyncV2Test(_PluginBase):
             if 'refresh_token' in token_data: # Bangumi有时会返回新的refresh_token
                 oauth_info['refresh_token'] = token_data['refresh_token']
             
-            self._store_oauth_info(moviepilot_user_id, oauth_info)
-            logger.info(f"MoviePilot用户 {moviepilot_user_id} 的Bangumi令牌刷新成功。")
+            self._store_global_oauth_info(oauth_info)
+            logger.info(f"全局Bangumi令牌刷新成功。")
             return token_data['access_token'], None
 
         except requests.exceptions.HTTPError as http_err:
@@ -194,38 +193,37 @@ class BangumiSyncV2Test(_PluginBase):
                 error_message += f". 响应: {error_json}"
             except ValueError:
                 error_message += f". 响应文本: {http_err.response.text}"
-            logger.error(f"MoviePilot用户 {moviepilot_user_id} 刷新Bangumi令牌失败: {error_message}")
+            logger.error(f"刷新全局Bangumi令牌失败: {error_message}")
             if http_err.response.status_code == 400 and "invalid_grant" in http_err.response.text:
                  # refresh_token可能已失效，需要用户重新授权
-                 self._delete_oauth_info(moviepilot_user_id)
-                 logger.warning(f"MoviePilot用户 {moviepilot_user_id} 的Refresh Token已失效，已清除授权信息，请重新授权。")
+                 self._delete_global_oauth_info()
+                 logger.warning(f"全局Refresh Token已失效，已清除授权信息，请重新授权。")
                  return None, "Refresh Token已失效，请重新授权。"
             return None, error_message
         except Exception as e:
-            logger.error(f"MoviePilot用户 {moviepilot_user_id} 刷新Bangumi令牌时发生未知错误: {e}")
+            logger.error(f"刷新全局Bangumi令牌时发生未知错误: {e}")
             return None, f"刷新令牌时发生未知错误: {e}"
 
-    async def _get_valid_access_token(self, moviepilot_user_id: str) -> Optional[str]:
+    async def _get_valid_access_token(self) -> Optional[str]:
         """获取有效的访问令牌，如果过期则尝试刷新"""
-        oauth_info = self._get_oauth_info(moviepilot_user_id)
+        oauth_info = self._get_global_oauth_info()
         if not oauth_info or not oauth_info.get('access_token'):
-            logger.debug(f"MoviePilot用户 {moviepilot_user_id}: 未找到OAuth信息或访问令牌。")
+            logger.debug(f"全局: 未找到OAuth信息或访问令牌。")
             return None
 
         if self._is_token_expired(oauth_info):
-            logger.info(f"MoviePilot用户 {moviepilot_user_id}: Bangumi访问令牌已过期，尝试刷新...")
-            access_token, error = await self._refresh_access_token(moviepilot_user_id)
+            logger.info(f"全局: Bangumi访问令牌已过期，尝试刷新...")
+            access_token, error = await self._refresh_access_token()
             if error:
-                logger.warning(f"MoviePilot用户 {moviepilot_user_id}: 令牌刷新失败: {error}")
+                logger.warning(f"全局: 令牌刷新失败: {error}")
                 return None
             return access_token
         
         return oauth_info['access_token']
 
-    async def _bangumi_api_request(self, method: str, url: str, moviepilot_user_id_for_oauth: Optional[str], **kwargs) -> requests.Response:
+    async def _bangumi_api_request(self, method: str, url: str, **kwargs) -> requests.Response:
         """
         统一的Bangumi API请求方法，处理认证。
-        moviepilot_user_id_for_oauth: 进行OAuth认证的MoviePilot用户ID。
         """
         headers = kwargs.pop('headers', {}) # 获取传入的headers，如果没有则为空字典
         headers.update({"User-Agent": self.UA}) # 确保UA存在
@@ -235,11 +233,9 @@ class BangumiSyncV2Test(_PluginBase):
                 raise ValueError("Access Token认证方式未配置Token。")
             headers["Authorization"] = f"Bearer {self._token}"
         elif self._auth_method == 'oauth':
-            if not moviepilot_user_id_for_oauth:
-                raise ValueError("OAuth认证方式需要提供MoviePilot用户ID。")
-            access_token = await self._get_valid_access_token(moviepilot_user_id_for_oauth)
+            access_token = await self._get_valid_access_token()
             if not access_token:
-                raise ValueError(f"MoviePilot用户 {moviepilot_user_id_for_oauth} 未找到有效的Bangumi OAuth访问令牌。")
+                raise ValueError(f"全局: 未找到有效的Bangumi OAuth访问令牌。")
             headers["Authorization"] = f"Bearer {access_token}"
         else:
             raise ValueError(f"未知的认证方式: {self._auth_method}")
@@ -266,23 +262,16 @@ class BangumiSyncV2Test(_PluginBase):
         if not self._enable:
             return
 
-        moviepilot_user_id_for_sync = None 
         if self._auth_method == 'token':
             if not self._token:
                 logger.warning(f"{self.plugin_name}: Token认证方式未配置Access Token，插件功能受限。")
                 return
         elif self._auth_method == 'oauth':
-            if not self._oauth_info_store:
-                logger.warning(f"{self.plugin_name}: OAuth认证方式已选择，但没有任何用户完成授权。")
+            if not self._global_oauth_info:
+                logger.warning(f"{self.plugin_name}: OAuth认证方式已选择，但尚未完成授权。")
                 return
             
-            moviepilot_user_id_for_sync = next(iter(self._oauth_info_store.keys()), None)
-            
-            if not moviepilot_user_id_for_sync:
-                logger.warning(f"{self.plugin_name}: OAuth认证方式已选择，但未找到存储的OAuth信息。请在插件设置中完成授权。")
-                return
-            
-            access_token = await self._get_valid_access_token(moviepilot_user_id_for_sync)
+            access_token = await self._get_valid_access_token()
             if not access_token:
                  logger.warning(f"{self.plugin_name}: OAuth认证令牌无效或无法刷新。请在插件设置中重新授权。")
                  return
@@ -316,7 +305,7 @@ class BangumiSyncV2Test(_PluginBase):
                 unique_id = int(tmdb_id) if tmdb_id and tmdb_id.isdigit() else None
 
                 subject_id, subject_name, original_episode_name = await self.get_subjectid_by_title(
-                    title, season_id, episode_id, unique_id, moviepilot_user_id_for_sync
+                    title, season_id, episode_id, unique_id
                 )
 
                 if subject_id is None:
@@ -324,17 +313,17 @@ class BangumiSyncV2Test(_PluginBase):
                     return
 
                 logger.info(f"{self._prefix} 匹配成功: 本地 '{title}' (原始单集名: {original_episode_name or 'N/A'}) => Bangumi '{subject_name}' (ID: {subject_id}, https://bgm.tv/subject/{subject_id})")
-                await self.sync_watching_status(subject_id, episode_id, original_episode_name, moviepilot_user_id_for_sync)
+                await self.sync_watching_status(subject_id, episode_id, original_episode_name)
 
         except Exception as e:
             logger.exception(f"同步在看状态失败: {e}") 
 
     @cached(TTLCache(maxsize=100, ttl=3600))
-    async def get_subjectid_by_title(self, title: str, season: int, episode: int, unique_id: Optional[int], moviepilot_user_id_for_oauth: Optional[str]) -> Tuple[Optional[int], Optional[str], Optional[str]]:
+    async def get_subjectid_by_title(self, title: str, season: int, episode: int, unique_id: Optional[int]) -> Tuple[Optional[int], Optional[str], Optional[str]]:
         current_prefix = getattr(self, '_prefix', f"[{title} S{season:02d}E{episode:02d}]")
         logger.debug(f"{current_prefix} 尝试使用 bgm api 来获取 subject id...")
         
-        tmdb_data = await self.get_tmdb_id(title, moviepilot_user_id_for_oauth) 
+        tmdb_data = await self.get_tmdb_id(title) 
         tmdb_id, original_name, original_language = tmdb_data if tmdb_data else (None, None, None)
         
         original_episode_name = None
@@ -346,7 +335,7 @@ class BangumiSyncV2Test(_PluginBase):
 
         if tmdb_id is not None and original_name and original_language:
             airdate_info = await self.get_airdate_and_ep_name(
-                tmdb_id, season, episode, unique_id if self._uniqueid_match else None, original_language, moviepilot_user_id_for_oauth 
+                tmdb_id, season, episode, unique_id if self._uniqueid_match else None, original_language
             )
             if airdate_info:
                 start_date, end_date, tmdb_original_episode_name = airdate_info
@@ -360,7 +349,7 @@ class BangumiSyncV2Test(_PluginBase):
         
         url = f"https://api.bgm.tv/v0/search/subjects"
         try:
-            response = await self._bangumi_api_request('POST', url, moviepilot_user_id_for_oauth, json=post_json)
+            response = await self._bangumi_api_request('POST', url, json=post_json)
             response.raise_for_status() 
             resp_json = response.json()
         except (requests.exceptions.RequestException, ValueError, json.JSONDecodeError) as e:
@@ -381,7 +370,7 @@ class BangumiSyncV2Test(_PluginBase):
 
 
     @cached(TTLCache(maxsize=100, ttl=3600))
-    async def get_tmdb_id(self, title: str, moviepilot_user_id_for_oauth: Optional[str]): 
+    async def get_tmdb_id(self, title: str): 
         current_prefix = getattr(self, '_prefix', f"[{title}]")
         logger.debug(f"{current_prefix} 尝试使用 tmdb api 来获取 subject id...")
         if not self._tmdb_key: 
@@ -405,7 +394,7 @@ class BangumiSyncV2Test(_PluginBase):
         return None, None, None
 
     @cached(TTLCache(maxsize=100, ttl=3600))
-    async def get_airdate_and_ep_name(self, tmdbid: int, season_id: int, episode: int, unique_id: Optional[int], original_language: str, moviepilot_user_id_for_oauth: Optional[str]):
+    async def get_airdate_and_ep_name(self, tmdbid: int, season_id: int, episode: int, unique_id: Optional[int], original_language: str):
         current_prefix = getattr(self, '_prefix', f"[TMDBID:{tmdbid} S{season_id:02d}E{episode:02d}]")
         if not self._tmdb_key: 
             logger.warning(f"{current_prefix} TMDB API Key未配置。")
@@ -488,13 +477,13 @@ class BangumiSyncV2Test(_PluginBase):
         return start_date, end_date, original_episode_name
 
     @cached(TTLCache(maxsize=10, ttl=600))
-    async def sync_watching_status(self, subject_id: int, episode: int, original_episode_name: Optional[str], moviepilot_user_id_for_oauth: Optional[str]):
+    async def sync_watching_status(self, subject_id: int, episode: int, original_episode_name: Optional[str]):
         current_prefix = getattr(self, '_prefix', f"[BGM Subject:{subject_id} E{episode:02d}]")
         bgm_uid_to_pass = None
         if self._auth_method == 'token':
             if not self._bgm_uid:
                 try:
-                    response = await self._bangumi_api_request('GET', BANGUMI_USER_INFO_URL, moviepilot_user_id_for_oauth)
+                    response = await self._bangumi_api_request('GET', BANGUMI_USER_INFO_URL)
                     response.raise_for_status()
                     self._bgm_uid = response.json().get("id")
                     if not self._bgm_uid: 
@@ -506,17 +495,17 @@ class BangumiSyncV2Test(_PluginBase):
                     return
             bgm_uid_to_pass = self._bgm_uid
         elif self._auth_method == 'oauth':
-            oauth_info = self._get_oauth_info(moviepilot_user_id_for_oauth) if moviepilot_user_id_for_oauth else None
+            oauth_info = self._get_global_oauth_info()
             if not oauth_info or 'bangumi_user_id' not in oauth_info: 
-                logger.error(f"{current_prefix} OAuth模式下未找到Bangumi用户ID。")
+                logger.error(f"{current_prefix} 全局OAuth模式下未找到Bangumi用户ID。")
                 return
             bgm_uid_to_pass = oauth_info['bangumi_user_id']
         else: 
             logger.error(f"{current_prefix} 未知认证方式。")
             return
 
-        await self.update_collection_status(subject_id, moviepilot_user_id_for_oauth, bgm_uid_to_pass)
-        ep_info_list = await self.get_episodes_info(subject_id, moviepilot_user_id_for_oauth)
+        await self.update_collection_status(subject_id, bgm_uid_to_pass)
+        ep_info_list = await self.get_episodes_info(subject_id)
         if not ep_info_list: 
             logger.warning(f"{current_prefix} 未获取到剧集列表。")
             return
@@ -546,7 +535,7 @@ class BangumiSyncV2Test(_PluginBase):
             logger.warning(f"{current_prefix} 未找到匹配的Bangumi剧集。")
             return
         
-        await self.update_episode_status(found_episode_id, moviepilot_user_id_for_oauth)
+        await self.update_episode_status(found_episode_id)
         
         last_episode_flag = False
         if matched_bangumi_ep_info:
@@ -554,17 +543,17 @@ class BangumiSyncV2Test(_PluginBase):
             if main_episodes and matched_bangumi_ep_info.get("id") == main_episodes[-1].get("id"):
                 last_episode_flag = True
         if last_episode_flag:
-            await self.update_collection_status(subject_id, moviepilot_user_id_for_oauth, bgm_uid_to_pass, 2) 
+            await self.update_collection_status(subject_id, bgm_uid_to_pass, 2) 
 
     @cached(TTLCache(maxsize=100, ttl=3600))
-    async def update_collection_status(self, subject_id: int, moviepilot_user_id_for_oauth: Optional[str], bgm_uid_for_get: Optional[int], new_type: int = 3):
+    async def update_collection_status(self, subject_id: int, bgm_uid_for_get: Optional[int], new_type: int = 3):
         current_prefix = getattr(self, '_prefix', f"[BGM Subject:{subject_id}]")
         type_dict = {0:"未收藏", 1:"想看", 2:"看过", 3:"在看", 4:"搁置", 5:"抛弃"}
         old_type = 0
         if bgm_uid_for_get: 
             collection_url = f"https://api.bgm.tv/v0/users/{bgm_uid_for_get}/collections/{subject_id}"
             try:
-                response_get = await self._bangumi_api_request('GET', collection_url, moviepilot_user_id_for_oauth)
+                response_get = await self._bangumi_api_request('GET', collection_url)
                 if response_get.status_code == 200: 
                     old_type = response_get.json().get("type", 0)
                 elif response_get.status_code == 404: 
@@ -581,7 +570,7 @@ class BangumiSyncV2Test(_PluginBase):
         update_url = f"https://api.bgm.tv/v0/users/-/collections/{subject_id}"
         post_data = {"type": new_type, "comment": "", "private": False}
         try:
-            response_post = await self._bangumi_api_request('POST', update_url, moviepilot_user_id_for_oauth, json=post_data)
+            response_post = await self._bangumi_api_request('POST', update_url, json=post_data)
             if response_post.status_code in [201, 202, 204]: 
                 logger.info(f"{current_prefix} 合集状态 {type_dict.get(old_type,old_type)} => {type_dict.get(new_type,new_type)}，更新成功。")
             else:
@@ -590,12 +579,12 @@ class BangumiSyncV2Test(_PluginBase):
              logger.error(f"{current_prefix} 更新Bangumi合集状态失败: {e}")
 
     @cached(TTLCache(maxsize=100, ttl=3600))
-    async def get_episodes_info(self, subject_id: int, moviepilot_user_id_for_oauth: Optional[str]) -> Optional[List[Dict[str, Any]]]:
+    async def get_episodes_info(self, subject_id: int) -> Optional[List[Dict[str, Any]]]:
         current_prefix = getattr(self, '_prefix', f"[BGM Subject:{subject_id}]")
         url = "https://api.bgm.tv/v0/episodes"
         params = {"subject_id": subject_id}
         try:
-            response = await self._bangumi_api_request('GET', url, moviepilot_user_id_for_oauth, params=params)
+            response = await self._bangumi_api_request('GET', url, params=params)
             response.raise_for_status()
             ep_data = response.json().get("data")
             logger.debug(f"{current_prefix} 获取 episode info 成功。")
@@ -605,19 +594,19 @@ class BangumiSyncV2Test(_PluginBase):
         return None
 
     @cached(TTLCache(maxsize=100, ttl=3600))
-    async def update_episode_status(self, episode_id: int, moviepilot_user_id_for_oauth: Optional[str]):
+    async def update_episode_status(self, episode_id: int):
         current_prefix = getattr(self, '_prefix', f"[BGM Episode:{episode_id}]")
         url = f"https://api.bgm.tv/v0/users/-/collections/-/episodes/{episode_id}"
         try:
-            response_get = await self._bangumi_api_request('GET', url, moviepilot_user_id_for_oauth)
+            response_get = await self._bangumi_api_request('GET', url)
             if response_get.status_code == 200 and response_get.json().get("type") == 2:
                 logger.info(f"{current_prefix} 单集已经标记为看过。")
                 return
             elif response_get.status_code not in [200, 404]: 
                 logger.warning(f"{current_prefix} 获取单集信息失败 (code: {response_get.status_code})。")
                 
-
-            response_put = await self._bangumi_api_request('PUT', url, moviepilot_user_id_for_oauth, json={"type": 2}) 
+            # 标记为看过
+            response_put = await self._bangumi_api_request('PUT', url, json={"type": 2}) 
             if response_put.status_code == 204:
                 logger.info(f"{current_prefix} 单集标记为看过成功。")
             else:
@@ -657,17 +646,17 @@ class BangumiSyncV2Test(_PluginBase):
         ]
 
     async def _handle_oauth_authorize(self, request: Request, user: User):
-        moviepilot_user_id = self._get_current_moviepilot_user_id(user)
+        # moviepilot_user_id = self._get_current_moviepilot_user_id(user) # 不再需要将mp_user_id存入state
         if not self._oauth_app_id:
             return {"status": "error", "message": "插件未配置Bangumi OAuth Application ID。"}
         moviepilot_base_url = self._get_moviepilot_base_url(request)
         callback_path = f"/api/v1/plugins/{self.plugin_config_prefix.strip('_')}/oauth/callback"
         redirect_uri = f"{moviepilot_base_url}{callback_path}"
-        state_data = {"mp_user_id": moviepilot_user_id, "csrf_token": str(uuid.uuid4())}
+        state_data = {"csrf_token": str(uuid.uuid4())} # State中仅保留CSRF token
         
         state_param = quote_plus(json.dumps(state_data))
         auth_url = f"{BANGUMI_AUTHORIZE_URL}?client_id={self._oauth_app_id}&redirect_uri={quote_plus(redirect_uri)}&response_type=code&state={state_param}"
-        logger.info(f"MoviePilot用户 {moviepilot_user_id}: 开始Bangumi OAuth授权，重定向到: {auth_url}")
+        logger.info(f"开始全局Bangumi OAuth授权，重定向到: {auth_url} (操作用户: {user.id if user else 'Unknown'})")
         return {"status": "success", "auth_url": auth_url} 
 
     async def _handle_oauth_callback(self, request: Request, user: Optional[User] = None):
@@ -691,10 +680,10 @@ class BangumiSyncV2Test(_PluginBase):
 
         try:
             state_data = json.loads(quote_plus(state_param, inverse=True))
-            moviepilot_user_id = state_data.get('mp_user_id')
+            # moviepilot_user_id = state_data.get('mp_user_id') # 不再从state中获取mp_user_id
             
-            if not moviepilot_user_id: 
-                await send_html("State参数无效或安全校验失败。", True); return
+            if not state_data.get('csrf_token'): # 仅校验CSRF token
+                await send_html("State参数无效或CSRF校验失败。", True); return
         except Exception as e: await send_html(f"解析回调参数时发生错误: {e}", True); return
         
         if not self._oauth_app_id or not self._oauth_app_secret:
@@ -714,37 +703,37 @@ class BangumiSyncV2Test(_PluginBase):
             token_data['expire_time'] = time.time() + token_data.get('expires_in', 0)
             
             profile_data, profile_error = await self._get_user_profile(token_data.get('access_token'))
-            if profile_error: logger.warning(f"MoviePilot用户 {moviepilot_user_id}: 获取Bangumi用户信息失败: {profile_error}。")
+            if profile_error: logger.warning(f"全局OAuth: 获取Bangumi用户信息失败: {profile_error}。")
             
             token_data['bangumi_user_id'] = profile_data.get('id') if profile_data else token_data.get('user_id')
             token_data['nickname'] = profile_data.get('nickname') if profile_data else f"BGM User {token_data.get('user_id')}"
             token_data['avatar'] = profile_data.get('avatar', {}).get('large') if profile_data and profile_data.get('avatar') else None
             token_data['url'] = profile_data.get('url') if profile_data else None
             
-            self._store_oauth_info(moviepilot_user_id, token_data)
-            logger.info(f"MoviePilot用户 {moviepilot_user_id} 成功通过Bangumi OAuth授权，Bangumi用户: {token_data.get('nickname')}")
+            self._store_global_oauth_info(token_data)
+            logger.info(f"全局成功通过Bangumi OAuth授权，Bangumi用户: {token_data.get('nickname')}")
             await send_html(f"成功授权Bangumi账户：{token_data.get('nickname')}")
         except requests.exceptions.HTTPError as http_err:
             error_msg = f"交换令牌时HTTP错误: {http_err}"
             try: error_msg += f". 响应: {http_err.response.json()}"
             except ValueError: error_msg += f". 响应文本: {http_err.response.text}"
-            logger.error(f"MoviePilot用户 {moviepilot_user_id}: {error_msg}")
+            logger.error(f"全局OAuth回调: {error_msg}")
             await send_html(error_msg, True)
         except Exception as e:
-            logger.exception(f"MoviePilot用户 {moviepilot_user_id}: OAuth回调处理中发生未知错误: {e}")
+            logger.exception(f"全局OAuth回调处理中发生未知错误: {e}")
             await send_html(f"处理回调时发生内部错误: {e}", True)
 
     async def _handle_oauth_status(self, request: Request, user: User):
-        moviepilot_user_id = self._get_current_moviepilot_user_id(user)
-        oauth_info = self._get_oauth_info(moviepilot_user_id)
+        # moviepilot_user_id = self._get_current_moviepilot_user_id(user) # 操作用户，但OAuth信息是全局的
+        oauth_info = self._get_global_oauth_info()
         if not oauth_info: return {"authorized": False, "nickname": None, "avatar": None}
         
-        access_token = await self._get_valid_access_token(moviepilot_user_id)
+        access_token = await self._get_valid_access_token()
         if not access_token:
-             self._delete_oauth_info(moviepilot_user_id)
+             self._delete_global_oauth_info()
              return {"authorized": False, "nickname": None, "avatar": None, "message": "令牌已失效或无法刷新，请重新授权。"}
         
-        refreshed_oauth_info = self._get_oauth_info(moviepilot_user_id) 
+        refreshed_oauth_info = self._get_global_oauth_info() # 获取最新的（可能已刷新）
         return {"authorized": True, 
                 "nickname": refreshed_oauth_info.get('nickname'), 
                 "avatar": refreshed_oauth_info.get('avatar'),
@@ -752,9 +741,9 @@ class BangumiSyncV2Test(_PluginBase):
                 "expire_time_readable": datetime.datetime.fromtimestamp(refreshed_oauth_info.get('expire_time', 0)).strftime('%Y-%m-%d %H:%M:%S') if refreshed_oauth_info.get('expire_time') else "N/A"}
 
     async def _handle_oauth_deauthorize(self, request: Request, user: User):
-        moviepilot_user_id = self._get_current_moviepilot_user_id(user)
-        self._delete_oauth_info(moviepilot_user_id)
-        logger.info(f"MoviePilot用户 {moviepilot_user_id} 已解除Bangumi OAuth授权。")
+        # moviepilot_user_id = self._get_current_moviepilot_user_id(user) # 操作用户
+        self._delete_global_oauth_info()
+        logger.info(f"全局Bangumi OAuth授权已解除 (操作用户: {user.id if user else 'Unknown'})。")
         return {"status": "success", "message": "已成功解除授权。"}
 
     async def _get_user_profile(self, access_token: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
@@ -1041,7 +1030,7 @@ class BangumiSyncV2Test(_PluginBase):
             "oauth_app_id": "",     # OAuth App ID
             "oauth_app_secret": "", # OAuth App Secret
             "tab": "auth-method-tab",  # 默认显示的标签页
-            "oauth_store": {} # 确保默认配置中有这个键
+            "global_oauth_info": None # 全局OAuth信息默认为None
         }
 
         return form_structure, default_values
@@ -1160,7 +1149,7 @@ class BangumiSyncV2Test(_PluginBase):
             "oauth_app_id": self._oauth_app_id,
             "oauth_app_secret": self._oauth_app_secret,
             "tab": self._tab, 
-            "oauth_store": self._oauth_info_store
+            "global_oauth_info": self._global_oauth_info
         })
 
     def get_state(self) -> bool:
@@ -1172,6 +1161,8 @@ class BangumiSyncV2Test(_PluginBase):
 import asyncio 
 
 if __name__ == "__main__":
-    subject_id = BangumiSyncV2Test.get_subjectid_by_title("葬送的芙莉莲", 1)
-    bangumi = BangumiSyncV2Test()
-    bangumi.sync_watching_status(subject_id, 1)
+    # 测试代码需要适应全局模式，并且在MoviePilot环境外运行可能受限
+     subject_id, _, _ = asyncio.run(BangumiSyncV2Test().get_subjectid_by_title("葬送的芙莉莲", 1, 1, None))
+     if subject_id:
+        asyncio.run(BangumiSyncV2Test().sync_watching_status(subject_id, 1, None))
+    #print("请在MoviePilot插件环境中运行和测试。")
