@@ -40,7 +40,7 @@ class EpisodeGroupMetaTest(_PluginBase):
     # 插件名称
     plugin_name = "TMDB剧集组刮削Test"
     # 插件描述
-    plugin_desc = "fork叮叮当插件，增加使用EMBY官方API，增加TmdbEg字段，联动emby神医助手剧集组刮削功能"
+    plugin_desc = "fork叮叮当大佬的的插件，添加tmdbed参数，联动神医插件"
     # 插件图标
     plugin_icon = "Element_A.png"
     # 主题色
@@ -48,7 +48,7 @@ class EpisodeGroupMetaTest(_PluginBase):
     # 插件版本
     plugin_version = "1.0.8"
     # 插件作者
-    plugin_author = "AAA"
+    plugin_author = "叮叮当,AAA"
     # 作者主页
     author_url = "https://github.com/l429609201"
     # 插件配置项ID前缀
@@ -182,217 +182,177 @@ class EpisodeGroupMetaTest(_PluginBase):
             return schemas.Response(success=False, message="执行失败, 请查看插件日志")
 
     def get_form(self) -> Tuple[List[dict], Dict[str, Any]]:
-            """
-            拼装插件配置页面，使用多标签页风格
-            """
-            
-            # 基础设置 Tab
-            base_tab = [
-                {
-                    'component': 'VForm',
-                    'content': [
-                        {
-                            'component': 'VRow',
-                            'content': [
-                                {
-                                    'component': 'VCol',
-                                    'props': {'cols': 12, 'md': 3},
-                                    'content': [
-                                        {
-                                            'component': 'VSwitch',
-                                            'props': {
-                                                'model': 'enabled',
-                                                'label': '启用插件',
-                                            }
-                                        }
-                                    ]
+        """
+        拼装插件配置页面，需要返回两块数据：1、页面配置；2、数据结构
+        """
+        return [
+            {
+                'component': 'VForm',
+                'content': [
+                    {
+                        'component': 'VRow',
+                        'content': [
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12,
+                                    'md': 3
                                 },
-                                {
-                                    'component': 'VCol',
-                                    'props': {'cols': 12, 'md': 3},
-                                    'content': [
-                                        {
-                                            'component': 'VCheckboxBtn',
-                                            'props': {
-                                                'model': 'autorun',
-                                                'label': '季集匹配时自动刮削',
-                                            }
+                                'content': [
+                                    {
+                                        'component': 'VSwitch',
+                                        'props': {
+                                            'model': 'enabled',
+                                            'label': '启用插件',
                                         }
-                                    ]
+                                    }
+                                ]
+                            },
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12,
+                                    'md': 3
                                 },
-                                {
-                                    'component': 'VCol',
-                                    'props': {'cols': 12, 'md': 3},
-                                    'content': [
-                                        {
-                                            'component': 'VCheckboxBtn',
-                                            'props': {
-                                                'model': 'ignorelock',
-                                                'label': '锁定的剧集也刮削',
-                                            }
+                                'content': [
+                                    {
+                                        'component': 'VCheckboxBtn',
+                                        'props': {
+                                            'model': 'autorun',
+                                            'label': '季集匹配时自动刮削',
                                         }
-                                    ]
+                                    }
+                                ]
+                            },
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12,
+                                    'md': 3
                                 },
-                                {
-                                    'component': 'VCol',
-                                    'props': {'cols': 12, 'md': 3},
-                                    'content': [
-                                        {
-                                            'component': 'VCheckboxBtn',
-                                            'props': {
-                                                'model': 'notify',
-                                                'label': '开启通知',
-                                            }
+                                'content': [
+                                    {
+                                        'component': 'VCheckboxBtn',
+                                        'props': {
+                                            'model': 'ignorelock',
+                                            'label': '锁定的剧集也刮削',
                                         }
-                                    ]
+                                    }
+                                ]
+                            },
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12,
+                                    'md': 3
                                 },
-                            ]
-                        },
-                        {
-                            'component': 'VRow',
-                            'content': [
-                                {
-                                    'component': 'VCol',
-                                    'props': {'cols': 12},
-                                    'content': [
-                                        {
-                                            'component': 'VTextField',
-                                            'props': {
-                                                'model': 'delay',
-                                                'label': '入库延迟时间（秒）',
-                                                'placeholder': '120'
-                                            }
+                                'content': [
+                                    {
+                                        'component': 'VCheckboxBtn',
+                                        'props': {
+                                            'model': 'notify',
+                                            'label': '开启通知',
                                         }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
-
-            # 白名单设置 Tab
-            allowlist_tab = [
-                {
-                    'component': 'VForm',
-                    'content': [
-                        {
-                            'component': 'VRow',
-                            'content': [
-                                {
-                                    'component': 'VCol',
-                                    'props': {'cols': 12},
-                                    'content': [
-                                        {
-                                            'component': 'VTextarea',
-                                            'props': {
-                                                'model': 'allowlist',
-                                                'label': '刮削白名单',
-                                                'rows': 6,
-                                                'placeholder': '使用英文逗号分隔电视剧名称'
-                                            }
+                                    }
+                                ]
+                            },
+                        ]
+                    },
+                    {
+                        'component': 'VRow',
+                        'content': [
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12,
+                                },
+                                'content': [
+                                    {
+                                        'component': 'VTextField',
+                                        'props': {
+                                            'model': 'delay',
+                                            'label': '入库延迟时间（秒）',
+                                            'placeholder': '120'
                                         }
-                                    ]
-                                }
-                            ]
-                        },
-                        {
-                            'component': 'VRow',
-                            'content': [
-                                {
-                                    'component': 'VCol',
-                                    'props': {'cols': 12},
-                                    'content': [
-                                        {
-                                            'component': 'VAlert',
-                                            'props': {
-                                                'type': 'info',
-                                                'variant': 'tonal',
-                                                'text': '注意：刮削白名单(留空)则全部刮削。否则仅刮削白名单中的电视剧。'
-                                            }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        'component': 'VRow',
+                        'content': [
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12
+                                },
+                                'content': [
+                                    {
+                                        'component': 'VTextarea',
+                                        'props': {
+                                            'model': 'allowlist',
+                                            'label': '刮削白名单',
+                                            'rows': 6,
+                                            'placeholder': '使用,分隔电视剧名称'
                                         }
-                                    ]
-                                }
-                            ]
-                        },
-                        {
-                            'component': 'VRow',
-                            'content': [
-                                {
-                                    'component': 'VCol',
-                                    'props': {'cols': 12},
-                                    'content': [
-                                        {
-                                            'component': 'VAlert',
-                                            'props': {
-                                                'type': 'info',
-                                                'variant': 'tonal',
-                                                'text': '注意：如需刮削已经入库的项目，可通过 MP 重新整理单集即可。'
-                                            }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        'component': 'VRow',
+                        'content': [
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12,
+                                },
+                                'content': [
+                                    {
+                                        'component': 'VAlert',
+                                        'props': {
+                                            'type': 'info',
+                                            'variant': 'tonal',
+                                            'text': '注意：刮削白名单(留空)则全部刮削. 否则仅刮削白名单.'
                                         }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
-
-            return [
-                {
-                    "component": "VCard",
-                    "props": {"variant": "outlined", "class": "mb-3"},
-                    "content": [
-                        {
-                            "component": "VTabs",
-                            "props": {"model": "tab", "grow": True, "color": "primary"},
-                            "content": [
-                                {
-                                    "component": "VTab",
-                                    "props": {"value": "base-tab"},
-                                    "content": [
-                                        {"component": "VIcon", "props": {"icon": "mdi-cog", "start": True, "color": "#098663"}},
-                                        {"component": "span", "text": "基础设置"}
-                                    ],
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        'component': 'VRow',
+                        'content': [
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12,
                                 },
-                                {
-                                    "component": "VTab",
-                                    "props": {"value": "allowlist-tab"},
-                                    "content": [
-                                        {"component": "VIcon", "props": {"icon": "mdi-account-box-multiple", "start": True, "color": "#1976D2"}},
-                                        {"component": "span", "text": "白名单设置"}
-                                    ],
-                                },
-                            ]
-                        },
-                        {"component": "VDivider"},
-                        {
-                            "component": "VWindow",
-                            "props": {"model": "tab"},
-                            "content": [
-                                {
-                                    "component": "VWindowItem",
-                                    "props": {"value": "base-tab"},
-                                    "content": [{"component": "VCardText", "content": base_tab}]
-                                },
-                                {
-                                    "component": "VWindowItem",
-                                    "props": {"value": "allowlist-tab"},
-                                    "content": [{"component": "VCardText", "content": allowlist_tab}]
-                                },
-                            ]
-                        },
-                    ],
-                }
-            ], {
-                "enabled": False,
-                "notify": True,
-                "autorun": True,
-                "ignorelock": False,
-                "allowlist": "",
-                "delay": 120
+                                'content': [
+                                    {
+                                        'component': 'VAlert',
+                                        'props': {
+                                            'type': 'info',
+                                            'variant': 'tonal',
+                                            'text': '注意：如需刮削已经入库的项目, 可通过mp重新整理单集即可.'
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
             }
-    
+        ], {
+            "enabled": False,
+            "notify": True,
+            "autorun": True,
+            "ignorelock": False,
+            "allowlist": "",
+            "delay": 120
+        }
 
     def is_objstr(self, obj: Any):
         if not isinstance(obj, str):
@@ -400,24 +360,7 @@ class EpisodeGroupMetaTest(_PluginBase):
         return str(obj).startswith("{") \
             or str(obj).startswith("[") \
             or str(obj).startswith("(")
-    def get_plugin_log(self, apikey: str) -> schemas.Response:
-        """
-        获取插件运行日志（供前端调用）
-        """
-        if apikey != settings.API_TOKEN:
-            return schemas.Response(success=False, message="API密钥错误")
 
-        # 示例：从日志文件或内存中读取日志内容
-        log_path = Path(__file__).parent.parent / "plugins" / f"{self.plugin_name.lower()}.log"
-
-        try:
-            with open(log_path, 'r', encoding='utf-8') as f:
-                log_content = f.read()
-        except FileNotFoundError:
-                self.log_warn("日志文件未找到")
-        
-        return schemas.Response(success=True, message=log_content)
-    
     def get_page(self) -> List[dict]:
         """
         拼装插件详情页面，需要返回页面配置，同时附带数据
@@ -453,7 +396,7 @@ class EpisodeGroupMetaTest(_PluginBase):
                     },
                     'events': {
                         'click': {
-                            'api': 'plugin/EpisodeGroupMetaTest/start_rt',
+                            'api': 'plugin/EpisodeGroupMeta/start_rt',
                             'method': 'get',
                             'params': {
                                 'apikey': settings.API_TOKEN,
@@ -554,14 +497,14 @@ class EpisodeGroupMetaTest(_PluginBase):
                                     'text': '忽略',
                                     'events': {
                                         'click': {
-                                            'api': 'plugin/EpisodeGroupMetaTest/delete_media_database',
+                                            'api': 'plugin/EpisodeGroupMeta/delete_media_database',
                                             'method': 'get',
                                             'params': {
                                                 'apikey': settings.API_TOKEN,
                                                 'tmdb_id': tmdb_id
                                             }
-                                        },
-                                    }
+                                        }
+                                    },
                                 }
                             ]
                         }
@@ -579,9 +522,7 @@ class EpisodeGroupMetaTest(_PluginBase):
                     }
                 }
             ]
-
-       
-
+        
         return [
             {
                 'component': 'VRow',
@@ -811,10 +752,10 @@ class EpisodeGroupMetaTest(_PluginBase):
                      'TagItems', 'Studios', 'PremiereDate', 'DateCreated', 'ProductionYear', 'Video3DFormat',
                      'OfficialRating', 'CustomRating', 'People', 'LockData', 'LockedFields', 'ProviderIds',
                      'PreferredMetadataLanguage', 'PreferredMetadataCountryCode', 'Taglines']
-                                   
-        #新增标志位：确保 update_provider_ids_with_tmdbeg 只执行一次
+        
+        # ✅ 新增标志位：确保 update_provider_ids_with_tmdbeg 只执行一次
         tmdbeg_updated = False
-                                   
+
         for episode_group in episode_groups:
             if not bool(existsinfo.groupep):
                 break
@@ -854,11 +795,12 @@ class EpisodeGroupMetaTest(_PluginBase):
                     if existsinfo.groupid.get(order) is None:
                         self.log_info(f"媒体库中不存在: {mediainfo.title_year}, 第 {order} 季")
                         continue
-                     # 👇 插入新功能：使用emby官方API，修改tvshow.nfo添加 TmdbEg 到 ProviderIds  联动emby神医助手
+
+                    # 👇 插入新功能：使用emby官方API，修改tvshow.nfo添加 TmdbEg 到 ProviderIds  联动emby神医助手
                     if not tmdbeg_updated:
                          # 判断当前媒体服务器是否为 Emby
                         if existsinfo.server_type == "emby":
-                            self.log_info(f"你使用的的媒体服务器为: {existsinfo.server_type} ,开始更新TmdbEg")
+                            self.log_info(f"你使用的的媒体服务器为: {existsinfo.server} ,开始更新TmdbEg")
                             self.update_provider_ids_with_tmdbeg(
                             server_type=existsinfo.server_type,
                             itemid=existsinfo.itemid,
@@ -868,6 +810,7 @@ class EpisodeGroupMetaTest(_PluginBase):
                         else:
                             self.log_info(f"你使用的的媒体服务器为: {existsinfo.server} ,非emby,不进行TmdbEg更新")
                         tmdbeg_updated = True
+                    
                     for _index, _ids in enumerate(existsinfo.groupid.get(order)):
                         # 提取出媒体库中集id对应的集数index
                         ep_num = ep[_index]
