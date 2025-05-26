@@ -40,7 +40,7 @@ class EpisodeGroupMetaTest(_PluginBase):
     # 插件名称
     plugin_name = "TMDB剧集组刮削Test"
     # 插件描述
-    plugin_desc = "从TMDB剧集组刮削季集的实际顺序。"
+    plugin_desc = "fork叮叮当大佬的插件，添加tmdbed参数写入，联动emby神医助手插件。"
     # 插件图标
     plugin_icon = "Element_A.png"
     # 主题色
