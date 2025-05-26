@@ -2,15 +2,13 @@
   "BangumiSyncDebug": {
     "name": "Bgm打格子-debug",
     "description": "将你在媒体库上的番剧观看，同步到Bangumi在看状态",
-    "version": "2.1.0",
+    "version": "2.1.1",
     "v2": true,
     "icon": "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg",
-    "author": "AAA",
+    "author": "honue,happyTonakai,AAA",
     "level": 1,
     "history": {
-      "v2.1.0": "尝试添加OAuth方式",
-      "v2.0.1": "调整可见权限，未认证用户测试用",
-      "v2.0.0": "fork happyTonakai V1.9.0测试代码用，魔改后测试"
+      "v2.1.1": "回退代码"
     }
   },
     "EpisodeGroupMetaTest": {
