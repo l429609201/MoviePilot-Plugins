@@ -39,7 +39,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.5" # 版本更新
+    plugin_version = "1.0.7" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -95,6 +95,22 @@ class BangumiSyncV2Test(_PluginBase):
             self._request.headers.update(headers)
             if settings.PROXY:
                 self._request.proxies.update(settings.PROXY)
+
+            # --- 在此处打印加载的配置参数 ---
+            logger.info(f"插件 {self.plugin_name} 初始化配置如下:")
+            logger.info(f"  启用状态 (_enable): {self._enable}")
+            logger.info(f"  唯一ID匹配 (_uniqueid_match): {self._uniqueid_match}")
+            logger.info(f"  媒体服务器用户 (_user): {self._user}")
+            logger.info(f"  认证方式 (_auth_method): {self._auth_method}")
+            # 出于安全考虑，Token 和 Secret 通常不建议直接打印到日志，
+            # 但如果确实需要调试，可以取消下面行的注释，并确保在生产环境中移除或使用更安全的方式。
+            # logger.info(f"  Bangumi Token (_token): {'******' if self._token else '未配置'}")
+            # logger.info(f"  OAuth App ID (_oauth_app_id): {self._oauth_app_id if self._oauth_app_id else '未配置'}")
+            # logger.info(f"  OAuth App Secret (_oauth_app_secret): {'******' if self._oauth_app_secret else '未配置'}")
+            logger.info(f"  TMDB API Key (_tmdb_key): {'已配置' if self._tmdb_key else '未配置'}")
+            logger.info(f"  上次选择的标签页 (_tab): {self._tab}")
+            logger.info(f"  全局OAuth信息 (_global_oauth_info): {'已存在' if self._global_oauth_info else '不存在或为空'}")
+            # --- 配置参数打印结束 ---
 
             self.__update_config()
             logger.info(f"Bangumi在看同步插件 v{BangumiSyncV2Test.plugin_version} 初始化成功")
