@@ -39,7 +39,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.7" # 版本更新
+    plugin_version = "1.0.8" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -80,6 +80,11 @@ class BangumiSyncV2Test(_PluginBase):
 
             self._auth_method = config.get('auth_method', 'token')
             self._oauth_app_id = config.get('oauth_app_id') if config.get('oauth_app_id') else None
+            # 增加对 _auth_method 的校验和修正
+            if self._auth_method not in ['token', 'oauth']:
+                logger.warning(f"检测到无效的 auth_method 配置值: '{self._auth_method}'。将重置为默认值 'token'。")
+                self._auth_method = 'token' # 或者您希望的其他默认值
+
             self._oauth_app_secret = config.get('oauth_app_secret') if config.get('oauth_app_secret') else None
             self._tab = config.get('tab', 'auth-method-tab') # 加载tab状态
             # self._moviepilot_public_url = config.get('moviepilot_public_url') # 移除加载
