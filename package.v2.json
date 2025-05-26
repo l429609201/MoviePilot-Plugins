@@ -35,7 +35,7 @@
         }
     },
     "BangumiSyncV2Test": {
-        "name": "Bgm打格子-debug",
+        "name": "bgm-V2-测试",
         "description": "将你在媒体库上的番剧观看，同步到Bangumi在看状态",
         "labels": "bgm",
         "version": "1.0.0",
