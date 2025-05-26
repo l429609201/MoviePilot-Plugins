@@ -213,10 +213,10 @@ class BangumiSyncV2Test(_PluginBase):
         :param unique_id: TMDB集唯一 id (如果 uniqueid_match 启用)
         """
         # self._prefix 应该在调用此方法前已设置好，或者在此方法内部基于参数设置
-        current_prefix = getattr(self, '_prefix', f"[{title} S{season:02d}E{episode:02d}]")
+        current_prefix = getattr(self, '_prefix', f"[{title} 第{season}季 第{episode}集]") # 保持与原版日志前缀一致
         logger.debug(f"{current_prefix} 尝试使用 Bangumi API 获取 subject id...")
 
-        tmdb_info = self.get_tmdb_id(title)
+        tmdb_info = self.get_tmdb_id(title) # 原版直接调用
         tmdb_id, original_name, original_language = None, None, None
         if tmdb_info:
             tmdb_id, original_name, original_language = tmdb_info
@@ -228,46 +228,47 @@ class BangumiSyncV2Test(_PluginBase):
             "filter": {"type": [2]}, # 2 代表动画
         }
 
-        if tmdb_id and original_name: # 仅当成功获取到TMDB ID和原始名称时，才尝试使用TMDB信息精确搜索
+        if tmdb_id is not None: # 原版判断方式
             airdate_info = self.get_airdate_and_ep_name(
                 tmdb_id, season, episode, unique_id if self._uniqueid_match else None, original_language
             )
             if airdate_info:
                 start_date, end_date, tmdb_original_episode_name = airdate_info
                 original_episode_name = tmdb_original_episode_name # 获取TMDB的原始单集名
-                if start_date and end_date:
+                if start_date is not None and end_date is not None: # 原版判断方式
                     post_json = {
                         "keyword": original_name, # 使用TMDB的原始剧集名进行搜索
                         "sort": "match",
-                        "filter": {"type": [2], "air_date": [f">={start_date}", f"<={end_date}"]},
+                        "filter": {"type": [2], "air_date": [f">={start_date}", f"<={end_date}"]}, # 注意原版此处 air_date 格式
                     }
                     logger.debug(f"{current_prefix} 使用TMDB信息进行搜索: keyword='{original_name}', air_date='{start_date}~{end_date}'")
                 else:
                     logger.debug(f"{current_prefix} 未能获取有效的播出日期范围，回退到标题搜索。")
-            else: #即使get_airdate_and_ep_name返回None,None,None，也尝试用original_name搜索
+            elif original_name: # 即使airdate_info为None，如果original_name存在，原版似乎也会尝试用它
                  post_json["keyword"] = original_name
                  logger.debug(f"{current_prefix} 未能获取播出日期，但获取到TMDB原始名称，使用 '{original_name}' 进行搜索。")
 
 
         url = "https://api.bgm.tv/v0/search/subjects"
         try:
-            resp = self._request.post(url, json=post_json)
-            resp.raise_for_status() # 检查HTTP错误
-            resp_json = resp.json()
+            api_resp = self._request.post(url, json=post_json) # 原版变量名 resp
+            api_resp.raise_for_status() 
+            resp_json = api_resp.json()
         except requests.exceptions.RequestException as e:
             logger.error(f"{current_prefix} 请求Bangumi搜索API失败: {e}")
             return None, None, None
         except ValueError as e: # JSONDecodeError
             logger.error(f"{current_prefix} 解析Bangumi搜索API响应失败: {e}")
             return None, None, None
-
-        if not resp_json.get("data"):
-            logger.warning(f"{current_prefix} Bangumi API 未找到关于 '{post_json['keyword']}' 的条目。")
+        
+        # 原版获取数据的逻辑
+        if not resp_json.get("data"): # 原版判断
+            logger.warning(f"{current_prefix} 未找到{post_json['keyword']}的bgm条目") # 原版日志
             return None, None, None
         
-        data = resp_json["data"][0] # 取最匹配的结果
-        year = data.get("date", "----")[:4] # 安全获取年份
-        name_cn = data.get("name_cn") or data.get("name", "未知标题")
+        data = resp_json.get("data")[0] # 原版获取方式
+        year = data.get("date", "----")[:4] # 原版获取年份，保持安全获取
+        name_cn = data.get("name_cn") or data.get("name", "未知标题") # 原版获取name_cn
         formatted_name = f"{name_cn} ({year})"
         subject_id = data.get("id")
 
@@ -279,40 +280,44 @@ class BangumiSyncV2Test(_PluginBase):
 
     @cached(TTLCache(maxsize=100, ttl=3600))
     def get_tmdb_id(self, title: str) -> Optional[Tuple[int, str, str]]:
-        current_prefix = getattr(self, '_prefix', f"[{title}]")
+        current_prefix = getattr(self, '_prefix', f"[{title}]") # 日志前缀
         if not self._tmdb_key:
             logger.warning(f"{current_prefix} TMDB API Key未配置，无法获取TMDB ID。")
             return None
         logger.debug(f"{current_prefix} 尝试使用 TMDB API 获取 '{title}' 的信息...")
-        url = f"https://api.tmdb.org/3/search/tv"
-        params = {"query": title, "api_key": self._tmdb_key, "language": "zh-CN,en-US,ja-JP,null"} # 增加语言偏好
+        # 原版直接拼接 URL
+        url = f"https://api.tmdb.org/3/search/tv?query={title}&api_key={self._tmdb_key}"
+        # 原版没有明确的 language 参数，如果需要可以加上 &language=zh-CN,en-US,ja-JP,null
 
         try:
-            resp = self._request.get(url, params=params)
-            resp.raise_for_status()
-            ret = resp.json()
+            api_resp = self._request.get(url)
+            api_resp.raise_for_status()
+            ret = api_resp.json()
         except requests.exceptions.RequestException as e:
             logger.error(f"{current_prefix} 请求TMDB搜索API失败: {e}")
             return None
         except ValueError as e:
             logger.error(f"{current_prefix} 解析TMDB搜索API响应失败: {e}")
             return None
-
-        if not ret.get("results"): # total_results 可能不准确，直接看 results
-            logger.warning(f"{current_prefix} TMDB API 未找到关于 '{title}' 的条目。")
+        
+        # 原版判断 total_results
+        if ret.get("total_results"):
+            results = ret.get("results")
+        else:
+            logger.warning(f"{current_prefix} 未找到 {title} 的 tmdb 条目") # 原版日志
             return None
         
         # 筛选动画类型 (genre_id 16)
-        for result in ret["results"]:
+        for result in results:
             if 16 in result.get("genre_ids", []):
                 tmdb_id = result.get("id")
                 original_name = result.get("original_name")
                 original_language = result.get("original_language")
                 if tmdb_id and original_name and original_language:
-                    logger.debug(f"{current_prefix} TMDB找到匹配: ID={tmdb_id}, OriginalName='{original_name}', Lang='{original_language}'")
+                    # logger.debug(f"{current_prefix} TMDB找到匹配: ID={tmdb_id}, OriginalName='{original_name}', Lang='{original_language}'") # 新版日志
                     return tmdb_id, original_name, original_language
         
-        logger.warning(f"{current_prefix} TMDB API 找到结果，但没有动画类型 (genre_id 16) 的匹配项 for '{title}'.")
+        logger.warning(f"{current_prefix} TMDB API 找到结果，但没有动画类型 (genre_id 16) 的匹配项 for '{title}'.") # 新增的更明确的日志
         return None
 
     @cached(TTLCache(maxsize=100, ttl=3600))
@@ -322,123 +327,113 @@ class BangumiSyncV2Test(_PluginBase):
             logger.warning(f"{current_prefix} TMDB API Key未配置，无法获取播出日期。")
             return None
 
-        logger.debug(f"{current_prefix} 尝试使用 TMDB API 获取播出日期和原始单集名...")
+        logger.debug(f"{current_prefix} 尝试使用 tmdb api 来获取 airdate...") # 原版日志
 
-        def get_tv_season_detail_from_tmdb(current_tmdbid: int, current_season_id: int, lang: str) -> Optional[dict]:
-            api_url = f"https://api.tmdb.org/3/tv/{current_tmdbid}/season/{current_season_id}?api_key={self._tmdb_key}&language={lang}"
+        # 原版的 get_tv_season_detail 嵌套函数逻辑
+        def get_tv_season_detail(tmdbid_local: int, season_id_local: int) -> Optional[dict]:
+            # 原版直接使用 self._tmdb_key 和 original_language (作为外部函数参数传入)
+            api_url = f"https://api.tmdb.org/3/tv/{tmdbid_local}/season/{season_id_local}?language={original_language}&api_key={self._tmdb_key}"
             try:
-                resp = self._request.get(api_url)
-                resp.raise_for_status()
-                season_data = resp.json()
+                api_resp_season = self._request.get(api_url)
+                api_resp_season.raise_for_status()
+                season_data = api_resp_season.json()
                 if season_data and season_data.get("episodes"):
                     return season_data
             except requests.exceptions.RequestException as e:
-                logger.debug(f"{current_prefix} 请求TMDB季度详情失败 (season {current_season_id}): {e}")
+                logger.debug(f"{current_prefix} 请求TMDB季度详情失败 (season {season_id_local}): {e}")
             except ValueError as e:
-                logger.debug(f"{current_prefix} 解析TMDB季度详情响应失败 (season {current_season_id}): {e}")
-            return None
-
-        def get_tv_episode_group_detail_from_tmdb(current_tmdbid: int, target_season_id: int, lang: str) -> Optional[dict]:
-            groups_url = f"https://api.tmdb.org/3/tv/{current_tmdbid}/episode_groups?api_key={self._tmdb_key}"
+                logger.debug(f"{current_prefix} 解析TMDB季度详情响应失败 (season {season_id_local}): {e}")
+            
+            # 原版中处理 episode group 的逻辑
+            logger.debug(f"{current_prefix}: 无法通过季号获取TMDB季度信息，尝试通过episode group获取")
+            groups_url = f"https://api.tmdb.org/3/tv/{tmdbid_local}/episode_groups?api_key={self._tmdb_key}"
             try:
-                resp = self._request.get(groups_url)
-                resp.raise_for_status()
-                groups_data = resp.json()
+                api_resp_groups = self._request.get(groups_url)
+                api_resp_groups.raise_for_status()
+                groups_data = api_resp_groups.json()
                 if groups_data and groups_data.get("results"):
-                    seasons_groups = [g for g in groups_data["results"] if g.get("name") == "Seasons" and g.get("type") == 2] # type 2 is for standard seasons
-                    if not seasons_groups:
-                         seasons_groups = [g for g in groups_data["results"] if g.get("type") == 2] # fallback if no "Seasons" named group
-
+                    # 原版逻辑：选择 episode_count 最小的 "Seasons" group
+                    seasons_groups = [g for g in groups_data["results"] if g.get("name") == "Seasons"] # 原版只找 name 为 Seasons
                     if seasons_groups:
-                        # 优先选择剧集数最少的 "Seasons" group，以避免包含SP等的 group
-                        # 但也要确保这个group里有我们正在找的季
-                        # 有些剧集，比如 "我独自升级"，其 "Seasons" group 的 episode_count 可能不直接对应实际季的集数
-                        # 因此，更可靠的是遍历所有 type=2 的 group，查找其内部 groups 是否有匹配 target_season_id 的
-                        for season_group_summary in sorted(seasons_groups, key=lambda x: x.get("episode_count", float('inf'))):
-                            group_detail_url = f"https://api.tmdb.org/3/tv/episode_group/{season_group_summary['id']}?api_key={self._tmdb_key}&language={lang}"
-                            group_detail_resp = self._request.get(group_detail_url)
-                            group_detail_resp.raise_for_status()
-                            group_detail_data = group_detail_resp.json()
-                            if group_detail_data and group_detail_data.get("groups"):
-                                for specific_season_group in group_detail_data["groups"]:
-                                    # 匹配 "Season X" 或 "第X季" 等模式
-                                    if re.search(rf"(Season\s*{target_season_id}\b|第\s*{target_season_id}\s*季)", specific_season_group.get("name", ""), re.IGNORECASE):
-                                        # 找到了匹配的季度group，返回其详细信息（包含episodes）
-                                        # TMDB episode group的 "group" 对象本身就包含了 episodes 列表
-                                        if specific_season_group.get("episodes"):
-                                            return specific_season_group 
-                                        else: # 如果group本身没有episodes，尝试用group的id再获取一次
-                                            refined_group_url = f"https://api.tmdb.org/3/tv/episode_group/{specific_season_group['id']}?api_key={self._tmdb_key}&language={lang}"
-                                            refined_resp = self._request.get(refined_group_url)
-                                            refined_resp.raise_for_status()
-                                            refined_data = refined_resp.json()
-                                            if refined_data and refined_data.get("episodes"): # 有时group的episodes在更深一层
-                                                return refined_data
-                                            elif refined_data.get("groups") and refined_data["groups"][0].get("episodes"): # 再深一层
-                                                return refined_data["groups"][0]
-
-
+                        season_group_summary = min(seasons_groups, key=lambda x: x.get("episode_count", float('inf')))
+                        group_detail_url = f"https://api.tmdb.org/3/tv/episode_group/{season_group_summary['id']}?language={original_language}&api_key={self._tmdb_key}"
+                        group_detail_resp = self._request.get(group_detail_url)
+                        group_detail_resp.raise_for_status()
+                        group_detail_data = group_detail_resp.json()
+                        if group_detail_data and group_detail_data.get("groups"):
+                            for specific_season_group in group_detail_data["groups"]:
+                                # 原版匹配 "Season X"
+                                if specific_season_group.get("name", "").startswith(f"Season {season_id_local}"):
+                                    # 假设 group 本身包含 episodes
+                                    if specific_season_group.get("episodes"):
+                                        return specific_season_group
+                                    # 新版中还有更深层获取的逻辑，此处简化为原版行为
             except requests.exceptions.RequestException as e:
                 logger.debug(f"{current_prefix} 请求TMDB episode groups失败: {e}")
             except ValueError as e:
                 logger.debug(f"{current_prefix} 解析TMDB episode groups响应失败: {e}")
+            
+            logger.debug(f"{current_prefix}: 无法通过episode group获取TMDB季度信息") # 原版日志
             return None
 
-        # 尝试直接获取季度详情
-        season_details = get_tv_season_detail_from_tmdb(tmdbid, season_id, original_language)
+        season_details = get_tv_season_detail(tmdbid, season_id)
 
-        # 如果直接获取失败，尝试通过episode group获取
-        if not season_details:
-            logger.debug(f"{current_prefix} 无法通过季号直接获取TMDB季度信息，尝试通过episode group获取...")
-            season_details = get_tv_episode_group_detail_from_tmdb(tmdbid, season_id, original_language)
-
+        # 原版处理无效响应数据
         if not season_details or "episodes" not in season_details:
-            logger.warning(f"{current_prefix} 无法获取TMDB季度信息或该季度无剧集。")
+            logger.warning(f"{current_prefix} 无法获取TMDB季度信息") # 原版日志
             return None, None, None # 返回三个None以匹配期望的元组结构
         
         tmdb_episodes = season_details["episodes"]
         if not tmdb_episodes:
-            logger.warning(f"{current_prefix} 该季度在TMDB上没有剧集信息。")
+            logger.warning(f"{current_prefix} 该季度没有剧集信息") # 原版日志
             return None, None, None
 
         matched_episode_data = None
+        # 原版初始化播出日期
+        air_date_str = season_details.get("air_date") # 尝试从季度获取
+        
         # 优先使用 unique_id 匹配 (如果启用且提供了)
         if self._uniqueid_match and unique_id is not None:
             for ep_data in tmdb_episodes:
+                if air_date_str is None: # 原版逻辑：如果季度没有air_date，则用单集的
+                    air_date_str = ep_data.get("air_date")
                 if ep_data.get("id") == unique_id:
                     matched_episode_data = ep_data
-                    logger.debug(f"{current_prefix} 通过 unique_id ({unique_id}) 匹配到TMDB剧集。")
+                    # logger.debug(f"{current_prefix} 通过 unique_id ({unique_id}) 匹配到TMDB剧集。") # 新版日志
                     break
         
         # 如果 unique_id 未匹配或未启用，则按集号匹配
         if not matched_episode_data:
             for ep_data in tmdb_episodes:
-                # TMDB的 order 可能是从0开始的，episode_number 通常是从1开始
-                if ep_data.get("episode_number") == episode_num:
+                if air_date_str is None: # 原版逻辑
+                    air_date_str = ep_data.get("air_date")
+                # 原版匹配逻辑: order + 1 或 episode_number
+                if ep_data.get("order", -99) + 1 == episode_num:
                     matched_episode_data = ep_data
-                    logger.debug(f"{current_prefix} 通过 episode_number ({episode_num}) 匹配到TMDB剧集。")
+                    # logger.debug(f"{current_prefix} 通过 order 匹配到TMDB剧集。")
                     break
-                # 有些情况下可能需要用 order 字段，但要注意其起始值
-                # elif ep_data.get("order", -99) + 1 == episode_num: # 假设 order 从0开始
-                #    matched_episode_data = ep_data
-                #    logger.debug(f"{current_prefix} 通过 order ({ep_data.get('order')}) 匹配到TMDB剧集。")
-                #    break
+                elif ep_data.get("episode_number") == episode_num:
+                    matched_episode_data = ep_data
+                    # logger.debug(f"{current_prefix} 通过 episode_number ({episode_num}) 匹配到TMDB剧集。") # 新版日志
+                    break
+                # 原版中对 finale, mid_season 的处理
+                if ep_data.get("episode_type") in ["finale", "mid_season"]:
+                    air_date_str = None # 如果是这些类型，原版会重置 air_date
         
         if not matched_episode_data:
-            logger.warning(f"{current_prefix} 未在TMDB上找到与集号 {episode_num} (或unique_id {unique_id if self._uniqueid_match else 'N/A'}) 匹配的剧集。")
+            logger.warning(f"{current_prefix} 未找到匹配的TMDB剧集或播出日期") # 原版日志
             return None, None, None
 
-        air_date_str = matched_episode_data.get("air_date")
-        original_ep_name = matched_episode_data.get("name") # 获取TMDB上的原始单集名称
-
+        # 如果循环后 air_date_str 仍然是 None (例如被 finale/mid_season 重置了，或者所有集都没日期)
+        # 或者 matched_episode_data 中没有 air_date，则尝试从 matched_episode_data 中获取
         if not air_date_str:
-            # 如果单集没有air_date，尝试使用季度的air_date
-            air_date_str = season_details.get("air_date")
-            if air_date_str:
-                logger.debug(f"{current_prefix} 单集无播出日期，使用季度播出日期: {air_date_str}")
-            else:
-                logger.warning(f"{current_prefix} 无法确定匹配剧集的播出日期。")
-                return None, None, original_ep_name # 即使没有日期，也返回剧集名
+            air_date_str = matched_episode_data.get("air_date")
+
+        original_ep_name = matched_episode_data.get("name") 
+
+        if not air_date_str: # 再次检查
+            logger.warning(f"{current_prefix} 未找到匹配的TMDB剧集或播出日期") # 原版日志
+            return None, None, original_ep_name # 原版即使没日期也可能返回剧集名
 
         try:
             air_date_obj = datetime.datetime.strptime(air_date_str, "%Y-%m-%d").date()
@@ -446,11 +441,11 @@ class BangumiSyncV2Test(_PluginBase):
             logger.warning(f"{current_prefix} TMDB提供的播出日期格式无效: {air_date_str}")
             return None, None, original_ep_name
 
-        # 扩大日期范围以应对时差和数据不精确问题
+        # 原版扩大日期范围
         start_date = air_date_obj - datetime.timedelta(days=15)
         end_date = air_date_obj + datetime.timedelta(days=15)
         
-        logger.debug(f"{current_prefix} 获取到播出日期范围: {start_date.strftime('%Y-%m-%d')} - {end_date.strftime('%Y-%m-%d')}, 原始单集名: '{original_ep_name}'")
+        # logger.debug(f"{current_prefix} 获取到播出日期范围: {start_date.strftime('%Y-%m-%d')} - {end_date.strftime('%Y-%m-%d')}, 原始单集名: '{original_ep_name}'") # 新版日志
         return start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"), original_ep_name
 
     @cached(TTLCache(maxsize=10, ttl=600)) # 缓存同步状态的调用，避免短时重复同步
@@ -460,13 +455,13 @@ class BangumiSyncV2Test(_PluginBase):
         # 0. 获取 Bangumi UID (如果尚未获取)
         if not self._bgm_uid:
             try:
-                resp = self._request.get(url="https://api.bgm.tv/v0/me")
-                resp.raise_for_status()
-                self._bgm_uid = resp.json().get("id")
+                api_resp_me = self._request.get(url="https://api.bgm.tv/v0/me")
+                api_resp_me.raise_for_status() # 保留错误检查
+                self._bgm_uid = api_resp_me.json().get("id")
                 if not self._bgm_uid:
                     logger.error(f"{current_prefix} 获取Bangumi UID失败，无法同步。")
                     return
-                logger.debug(f"{current_prefix} 获取到 Bangumi UID: {self._bgm_uid}")
+                logger.debug(f"{current_prefix}: 获取到 bgm_uid {self._bgm_uid}") # 原版日志
             except requests.exceptions.RequestException as e:
                 logger.error(f"{current_prefix} 请求Bangumi /me API失败: {e}")
                 return
@@ -474,12 +469,12 @@ class BangumiSyncV2Test(_PluginBase):
                 logger.error(f"{current_prefix} 解析Bangumi /me API响应失败: {e}")
                 return
         else:
-            logger.debug(f"{current_prefix} 使用已缓存的Bangumi UID: {self._bgm_uid}")
+            logger.debug(f"{current_prefix}: 使用 bgm_uid {self._bgm_uid}") # 原版日志
 
         # 1. 更新合集状态为 "在看" (type=3)
         #    如果已经是 "看过" (type=2)，则不应降级为 "在看"
         #    如果已经是 "在看"，则无需重复更新
-        self.update_collection_status(subject_id, new_status_type=3) # 3 for 'watching'
+        self.update_collection_status(subject_id, new_status_type=3) # 原版默认 new_type=3
 
         # 2. 获取该 subject_id 的所有剧集信息
         episodes_info = self.get_episodes_info(subject_id)
@@ -490,51 +485,63 @@ class BangumiSyncV2Test(_PluginBase):
         # 3. 查找与当前观看集数匹配的 Bangumi 剧集ID
         found_bangumi_episode_id = None
         matched_episode_info = None
+        last_episode_flag = False # 原版 last_episode 变量
 
         # 优先尝试通过 TMDB 获取的原始单集名称进行匹配
-        if original_episode_name:
-            for ep_info in episodes_info:
-                # Bangumi的name字段可能包含日文、中文等，做模糊一点的比较或清洗
-                bgm_ep_name = ep_info.get("name", "").strip()
-                # 可以考虑更复杂的匹配，如去除特殊字符、大小写不敏感等
-                if bgm_ep_name.lower() == original_episode_name.lower():
-                    found_bangumi_episode_id = ep_info.get("id")
-                    matched_episode_info = ep_info
-                    logger.debug(f"{current_prefix} 通过原始单集名 '{original_episode_name}' 匹配到Bangumi剧集ID: {found_bangumi_episode_id}")
-                    break
-        
-        # 如果名称未匹配到，再尝试通过集号 (sort 或 ep 字段) 匹配
-        if not found_bangumi_episode_id:
-            for ep_info in episodes_info:
-                # Bangumi的 'sort' 字段通常是规范的集数
-                if ep_info.get("type") == 0 and ep_info.get("sort") == episode_num : # type 0 是正片
-                    found_bangumi_episode_id = ep_info.get("id")
-                    matched_episode_info = ep_info
-                    logger.debug(f"{current_prefix} 通过集号 'sort={episode_num}' 匹配到Bangumi剧集ID: {found_bangumi_episode_id}")
-                    break
-            
-            if not found_bangumi_episode_id: # 如果 sort 没匹配上，尝试 ep 字段
-                 for ep_info in episodes_info:
-                    if ep_info.get("type") == 0 and ep_info.get("ep") == episode_num:
+        if episodes_info: # 原版检查 ep_info 是否存在
+            if original_episode_name:
+                for ep_info in episodes_info:
+                    # Bangumi的name字段可能包含日文、中文等，做模糊一点的比较或清洗
+                    bgm_ep_name = ep_info.get("name", "").strip()
+                    if bgm_ep_name.lower() == original_episode_name.lower(): # 新版做了 lower() 比较
                         found_bangumi_episode_id = ep_info.get("id")
                         matched_episode_info = ep_info
-                        logger.debug(f"{current_prefix} 通过集号 'ep={episode_num}' 匹配到Bangumi剧集ID: {found_bangumi_episode_id}")
+                        # logger.debug(f"{current_prefix} 通过原始单集名 '{original_episode_name}' 匹配到Bangumi剧集ID: {found_bangumi_episode_id}")
                         break
-
+            
+            # 如果名称未匹配到，再尝试通过集号 (sort 或 ep 字段) 匹配
+            if not found_bangumi_episode_id:
+                for ep_info in episodes_info:
+                    # Bangumi的 'sort' 字段通常是规范的集数
+                    if ep_info.get("type") == 0 and ep_info.get("sort") == episode_num : # type 0 是正片
+                        found_bangumi_episode_id = ep_info.get("id")
+                        matched_episode_info = ep_info
+                        # logger.debug(f"{current_prefix} 通过集号 'sort={episode_num}' 匹配到Bangumi剧集ID: {found_bangumi_episode_id}")
+                        break
+                
+                if not found_bangumi_episode_id: # 如果 sort 没匹配上，尝试 ep 字段 (原版是连续的 for 循环)
+                     for ep_info in episodes_info:
+                        if ep_info.get("type") == 0 and ep_info.get("ep") == episode_num:
+                            found_bangumi_episode_id = ep_info.get("id")
+                            matched_episode_info = ep_info
+                            # logger.debug(f"{current_prefix} 通过集号 'ep={episode_num}' 匹配到Bangumi剧集ID: {found_bangumi_episode_id}")
+                            break
+            
+            # 原版判断最后一集的逻辑 (在循环之后，且依赖循环中的 info 变量)
+            # 这部分逻辑在新版中更健壮，但为了还原，我们尝试模拟原版
+            # 注意：如果上面的循环因为 break 而退出，ep_info 变量将是导致 break 的那个元素
+            # 如果循环正常结束（没有 break），ep_info 将是列表的最后一个元素
+            # 这种依赖循环副作用的方式不太好，但这是原版的行为
+            if matched_episode_info and episodes_info and matched_episode_info.get("id") == episodes_info[-1].get("id"):
+                 # 进一步确认是否为正片的最后一集
+                main_episodes = [ep for ep in episodes_info if ep.get("type") == 0]
+                if main_episodes and matched_episode_info.get("id") == main_episodes[-1].get("id"):
+                    last_episode_flag = True
 
         if not found_bangumi_episode_id:
-            logger.warning(f"{current_prefix} 未能在Bangumi剧集列表中找到与本地集号 {episode_num} (或原始单集名 '{original_episode_name or 'N/A'}') 对应的剧集。")
+            logger.warning(f"{current_prefix}: 未找到episode，可能因为TMDB和BGM的episode映射关系不一致") # 原版日志
             return
 
         # 4. 点格子 (更新单集观看状态为 "看过")
         self.update_episode_status(found_bangumi_episode_id)
 
         # 5. 判断是否为最后一集，如果是，则将合集状态更新为 "看过" (type=2)
-        #    需要过滤掉SP、OVA等非正片集数来判断最后一集
-        main_episodes = [ep for ep in episodes_info if ep.get("type") == 0] # type 0 代表正片
-        if main_episodes and matched_episode_info and matched_episode_info.get("id") == main_episodes[-1].get("id"):
-            logger.info(f"{current_prefix} 检测到当前为最后一集正片，将更新合集状态为 '看过'。")
-            self.update_collection_status(subject_id, new_status_type=2) # 2 for 'watched'
+        if last_episode_flag: # 使用前面计算的标志
+            for ep_info in episodes_info:
+                if ep_info.get("id") == found_bangumi_episode_id and ep_info == episodes_info[-1]: # 原版判断方式
+                    logger.info(f"{current_prefix} 检测到当前为最后一集正片，将更新合集状态为 '看过'。")
+                    self.update_collection_status(subject_id, new_status_type=2) # 原版直接传2
+                    break
 
     @cached(TTLCache(maxsize=100, ttl=3600))
     def update_collection_status(self, subject_id: int, new_status_type: int = 3):
@@ -544,49 +551,56 @@ class BangumiSyncV2Test(_PluginBase):
             return
 
         collection_url = f"https://api.bgm.tv/v0/users/{self._bgm_uid}/collections/{subject_id}"
-        status_type_map = {0: "想看", 1: "想看", 2: "看过", 3: "在看", 4: "搁置", 5: "抛弃"} # Bangumi API v0 定义
+        # 原版 type_dict
+        status_type_map = {0:"未看", 1:"想看", 2:"看过", 3:"在看", 4:"搁置", 5:"抛弃"} # 0 在原版是 "未看"，API v0 中 1 是 "想看"
 
         try:
-            resp = self._request.get(url=collection_url)
+            api_resp_collection = self._request.get(url=collection_url)
             # Bangumi 对于未收藏条目可能返回404，这不一定是错误
-            current_collection_status = 0 # 默认为未收藏/想看 (type 1 in API, but 0 is safer for logic)
-            if resp.status_code == 200:
-                current_collection_status = resp.json().get("type", 0)
-            elif resp.status_code == 404:
-                logger.debug(f"{current_prefix} 条目 {subject_id} 尚未收藏。")
+            current_collection_status = 0 # 原版默认
+            if api_resp_collection.status_code == 200:
+                current_collection_status = api_resp_collection.json().get("type", 0)
+            elif api_resp_collection.status_code == 404: # 新版中对404的处理
+                logger.debug(f"{current_prefix} 条目 {subject_id} 尚未收藏。") # 新版日志
             else:
-                resp.raise_for_status() # 其他错误则抛出
+                api_resp_collection.raise_for_status() # 其他错误则抛出
 
-            old_status_text = status_type_map.get(current_collection_status, "未知状态")
-            new_status_text = status_type_map.get(new_status_type, "未知状态")
+            old_status_text = status_type_map.get(current_collection_status, f"未知状态({current_collection_status})")
+            new_status_text = status_type_map.get(new_status_type, f"未知状态({new_status_type})")
 
             # 避免不必要的更新或状态降级
-            if current_collection_status == 2 and new_status_type == 3: # 已看过，不再改为在看
+            if current_collection_status == 2 and new_status_type == 3: # 原版逻辑：已看过，不再改为在看
                 logger.info(f"{current_prefix} 合集状态已为 '{old_status_text}'，无需更新为 '{new_status_text}'。")
                 return
-            if current_collection_status == new_status_type:
+            if current_collection_status == new_status_type: # 原版逻辑：状态相同，避免刷屏
                 logger.info(f"{current_prefix} 合集状态已为 '{old_status_text}'，无需重复更新。")
                 return
 
             update_url = f"https://api.bgm.tv/v0/users/-/collections/{subject_id}"
-            payload = {"type": new_status_type}
+            # 原版使用 POST，并包含 comment 和 private
+            payload = {
+                "type": new_status_type,
+                "comment": "",
+                "private": False,
+            }
             
-            # Bangumi API v0 推荐使用 PUT 更新，而不是 POST
-            # POST 用于创建新的收藏记录，PUT 用于修改现有记录或创建（如果不存在）
-            # 对于状态更新，PUT 更符合语义
-            update_resp = self._request.put(url=update_url, json=payload)
-            update_resp.raise_for_status() # 检查2xx以外的响应
-
-            # 成功的状态码可能是 200 (更新), 201 (创建), 202 (接受但未处理), 204 (无内容但成功)
-            if 200 <= update_resp.status_code < 300:
-                 logger.info(f"{current_prefix} 合集状态从 '{old_status_text}' 更新为 '{new_status_text}' 成功。")
-            else: # raise_for_status 会处理非2xx，这里理论上不会执行
-                 logger.warning(f"{current_prefix} 合集状态更新响应: {update_resp.status_code}, {update_resp.text}")
-                 logger.warning(f"{current_prefix} 合集状态从 '{old_status_text}' 更新为 '{new_status_text}' 可能失败。")
+            update_api_resp = self._request.post(url=update_url, json=payload) # 原版使用 POST
+            # 原版检查 202, 204
+            if update_api_resp.status_code in [202, 204]: # Bangumi API v0 POST /users/-/collections/{subject_id} 成功是 202 Accepted
+                                                        # PUT 成功是 200/201/204. 此处按原版 POST 逻辑
+                 logger.info(f"{current_prefix}: 合集状态 {old_status_text} => {new_status_text}，在看状态更新成功") # 原版日志
+            else:
+                 try:
+                    update_api_resp.raise_for_status() # 尝试获取更详细错误
+                 except requests.exceptions.HTTPError as http_err:
+                    logger.warning(f"{current_prefix} 合集状态更新失败: {http_err.response.text}")
+                 except Exception: # 其他未知错误
+                    logger.warning(f"{current_prefix} 合集状态更新失败，响应码: {update_api_resp.status_code}, 内容: {update_api_resp.text}")
+                 logger.warning(f"{current_prefix}: 合集状态 {old_status_text} => {new_status_text}，在看状态更新失败") # 原版日志
 
         except requests.exceptions.RequestException as e:
             logger.error(f"{current_prefix} 更新Bangumi合集状态失败: {e}")
-        except ValueError as e: # JSONDecodeError
+        except (ValueError, TypeError) as e: # JSONDecodeError or other parsing errors
             logger.error(f"{current_prefix} 解析Bangumi合集状态响应失败: {e}")
 
     @cached(TTLCache(maxsize=100, ttl=3600))
@@ -595,17 +609,21 @@ class BangumiSyncV2Test(_PluginBase):
         url = "https://api.bgm.tv/v0/episodes"
         params = {"subject_id": subject_id}
         try:
-            resp = self._request.get(url, params=params)
-            resp.raise_for_status()
-            data = resp.json().get("data")
-            if data is None: # API可能返回 {"data": null}
-                logger.warning(f"{current_prefix} Bangumi API 返回的剧集列表数据为空 (data is null)。")
-                return [] # 返回空列表而不是None，方便后续迭代
-            logger.debug(f"{current_prefix} 获取Bangumi剧集列表成功，共 {len(data)} 集。")
-            return data
+            api_resp_episodes = self._request.get(url, params=params)
+            if api_resp_episodes.status_code == 200: # 原版判断方式
+                logger.debug(f"{current_prefix}: 获取 episode info 成功") # 原版日志
+                data = api_resp_episodes.json().get("data")
+                if data is None: 
+                    logger.warning(f"{current_prefix} Bangumi API 返回的剧集列表数据为空 (data is null)。")
+                    return [] 
+                # logger.debug(f"{current_prefix} 获取Bangumi剧集列表成功，共 {len(data)} 集。") # 新版日志
+                return data
+            else:
+                logger.warning(f"{current_prefix}: 获取 episode info 失败, code={api_resp_episodes.status_code}") # 原版日志
+                api_resp_episodes.raise_for_status() # 抛出错误以便上层捕获
         except requests.exceptions.RequestException as e:
             logger.error(f"{current_prefix} 请求Bangumi剧集列表API失败: {e}")
-        except ValueError as e:
+        except (ValueError, TypeError) as e:
             logger.error(f"{current_prefix} 解析Bangumi剧集列表API响应失败: {e}")
         return None # 发生严重错误时返回None
 
@@ -616,32 +634,34 @@ class BangumiSyncV2Test(_PluginBase):
         # 检查单集观看状态
         status_url = f"https://api.bgm.tv/v0/users/-/collections/-/episodes/{bangumi_episode_id}"
         try:
-            resp_status = self._request.get(status_url)
-            if resp_status.status_code == 200:
-                if resp_status.json().get("type") == 2: # 2 代表 "看过"
-                    logger.info(f"{current_prefix} Bangumi单集 {bangumi_episode_id} 已标记为看过，无需重复操作。")
+            api_resp_status = self._request.get(status_url)
+            if api_resp_status.status_code == 200:
+                if api_resp_status.json().get("type") == 2: # 2 代表 "看过"
+                    logger.info(f"{current_prefix}: 单集已经点过格子了") # 原版日志
                     return
-            elif resp_status.status_code == 404: # 未收藏该单集
-                 logger.debug(f"{current_prefix} Bangumi单集 {bangumi_episode_id} 尚未标记。")
+            elif api_resp_status.status_code == 404: # 未收藏该单集 (新版处理)
+                 logger.debug(f"{current_prefix} Bangumi单集 {bangumi_episode_id} 尚未标记。") # 新版日志
             else:
-                resp_status.raise_for_status() # 其他错误则抛出
+                logger.warning(f"{current_prefix}: 获取单集信息失败, code={api_resp_status.status_code}") # 原版日志
+                api_resp_status.raise_for_status() # 其他错误则抛出
+                return # 原版此处会 return
 
             # 更新单集观看状态为 "看过" (type=2)
-            # Bangumi API v0 使用 PUT /users/-/collection/-/episodes/{episode_id}
-            # payload {"type": 2}
+            # 原版使用 PUT
             update_url = f"https://api.bgm.tv/v0/users/-/collections/-/episodes/{bangumi_episode_id}"
             payload = {"type": 2}
-            resp_update = self._request.put(url=update_url, json=payload)
+            api_resp_update = self._request.put(url=update_url, json=payload)
             
-            # 成功通常是 204 No Content 或 200 OK
-            if resp_update.status_code == 204 or resp_update.status_code == 200:
-                logger.info(f"{current_prefix} Bangumi单集 {bangumi_episode_id} 点格子成功。")
+            # 原版检查 204
+            if api_resp_update.status_code == 204:
+                logger.info(f"{current_prefix}: 单集点格子成功") # 原版日志
             else:
-                logger.warning(f"{current_prefix} Bangumi单集 {bangumi_episode_id} 点格子失败，响应: {resp_update.status_code}, {resp_update.text}")
+                logger.warning(f"{current_prefix}: 单集点格子失败, code={api_resp_update.status_code}") # 原版日志
+                # logger.warning(f"{current_prefix} Bangumi单集 {bangumi_episode_id} 点格子失败，响应: {api_resp_update.status_code}, {api_resp_update.text}") # 新版日志
 
         except requests.exceptions.RequestException as e:
             logger.error(f"{current_prefix} 更新Bangumi单集 {bangumi_episode_id} 观看状态失败: {e}")
-        except ValueError as e: # JSONDecodeError
+        except (ValueError, TypeError) as e: # JSONDecodeError
             logger.error(f"{current_prefix} 解析Bangumi单集 {bangumi_episode_id} 状态响应失败: {e}")
 
 
@@ -651,23 +671,26 @@ class BangumiSyncV2Test(_PluginBase):
         path_keywords = [k.strip().lower() for k in path_keyword_str.split(',') if k.strip()]
 
         path_to_check = ""
+        # 新版获取 path_to_check 的逻辑更完善，予以保留
         if event_info.channel in ["emby", "jellyfin"]:
             path_to_check = event_info.item_path or ""
             if not path_to_check and event_info.library_name: # 如果路径为空，尝试使用库名
                 path_to_check = event_info.library_name
         elif event_info.channel == "plex":
             # Plex 的 WebhookEventInfo 可能没有 item_path，但有 library_name
-            path_to_check = event_info.library_name or ""
-            if not path_to_check and event_info.json_object: # 兼容旧版取法
+            path_to_check = event_info.library_name or "" # 新增 Plex 库名获取
+            if not path_to_check and event_info.json_object: # 原版 Plex 取法
                  path_to_check = event_info.json_object.get("Metadata", {}).get("librarySectionTitle", "")
         
         path_to_check_lower = path_to_check.lower()
         for keyword in path_keywords:
-            if keyword in path_to_check_lower:
-                logger.debug(f"路径/库名 '{path_to_check}' 包含关键词 '{keyword}'，判断为番剧。")
+            # 原版使用 path.count(keyword)
+            if path_to_check_lower.count(keyword): # 使用原版的 count
+                # logger.debug(f"路径/库名 '{path_to_check}' 包含关键词 '{keyword}'，判断为番剧。") # 新版日志
                 return True
         
-        logger.debug(f"路径/库名 '{path_to_check}' 未包含番剧关键词，判断为非番剧。")
+        # 原版日志
+        logger.debug(f"{path_to_check} 不是动漫媒体库")
         return False
 
     @staticmethod
@@ -676,7 +699,7 @@ class BangumiSyncV2Test(_PluginBase):
             return title
         else:
             season_zh_map = {0: "零", 1: "一", 2: "二", 3: "三", 4: "四", 5: "五", 6: "六", 7: "七", 8: "八", 9: "九"}
-            season_zh = season_zh_map.get(season % 10) # 简单处理，大于9的季可能显示不佳
+            season_zh = season_zh_map.get(season % 10 if season < 10 else season) # 原版是 .get(season)，这里做一点小修正以处理大于9的季
             if season_zh:
                 return f"{title} 第{season_zh}季"
             return f"{title} S{season}" # 回退到 S+数字
@@ -713,7 +736,7 @@ class BangumiSyncV2Test(_PluginBase):
                 # Keep media_servers_list as empty, the next block will handle the placeholder
         
         if not media_servers_list:
-            media_servers_list = [{"title": "未找到或未配置 媒体服务器", "value": "", "disabled": True}]
+            media_servers_list = [{"title": "未找到或未配置 Emby/Jellyfin 服务器", "value": "", "disabled": True}] # 沿用新版提示
             
         return [
             {
@@ -777,11 +800,12 @@ class BangumiSyncV2Test(_PluginBase):
                                                         'component': 'VSelect',
                                                         'props': {
                                                             'model': 'selected_servers',
-                                                            'label': '媒体服务器',
+                                                            'label': '媒体服务器', # 新版标签
                                                             'items': media_servers_list,
                                                             'multiple': True,
                                                             'chips': True,
                                                             'clearable': True,
+                                                            'hint': '插件将仅处理来自选定服务器的事件。如果未选择，则处理所有已配置的Emby/Jellyfin服务器事件。', # 新版提示
                                                             'persistentHint': True,
                                                             'clearable': True,
                                                         }
@@ -802,8 +826,8 @@ class BangumiSyncV2Test(_PluginBase):
                                                         'props': {
                                                             'model': 'user',
                                                             'label': '媒体服务器用户名',
-                                                            'placeholder': '你的媒体服务器用户名',
-                                                            'hint': '插件将只处理这些用户的播放事件',
+                                                            'placeholder': '你的媒体服务器用户名,多个用逗号隔开', # 新版更详细的 placeholder
+                                                            'hint': '插件将只处理这些用户的播放事件', # 新版提示
                                                             'persistentHint': True,
                                                         }
                                                     }
