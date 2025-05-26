@@ -23,6 +23,7 @@ from app.schemas.types import EventType # MediaType 未在原版 BangumiSyncDebu
 # from app.utils.http import RequestUtils # RequestUtils 未在原版 BangumiSyncDebug 中直接使用，而是通过 requests.Session
 from cachetools import cached, TTLCache
 import requests
+from app.helper.mediaserver import MediaServerHelper # 用于获取媒体服务器列表
 # from app.helper.mediaserver import MediaServerHelper # 用于获取媒体服务器列表，如果需要动态加载
 
 class BangumiSyncV2Test(_PluginBase):
@@ -53,24 +54,24 @@ class BangumiSyncV2Test(_PluginBase):
     _token = None
     _tmdb_key = None
     _request = None
-    _uniqueid_match = False
-    _selected_server = None # 新增：选择的媒体服务器
+    _uniqueid_match = False 
+    _selected_servers: List[str] = [] # 新增：选择的媒体服务器列表
     _auth_method = "token"  # 新增：认证方式，默认为token
     _oauth_app_id = None    # 新增：OAuth App ID
     _oauth_app_secret = None # 新增：OAuth App Secret
     _tab = 'auth-method-tab' # 新增：用于控制tabs的显示
 
     # 如果需要动态获取媒体服务器列表，可以实例化 MediaServerHelper
-    # mediaserver_helper = None
+    mediaserver_helper: Optional[MediaServerHelper] = None
 
     def init_plugin(self, config: dict = None):
-        # self.mediaserver_helper = MediaServerHelper() # 如果需要动态获取服务器
+        self.mediaserver_helper = MediaServerHelper()
         if config:
             self._enable = config.get('enable', False)
             self._uniqueid_match = config.get('uniqueid_match', False)
             self._user = config.get('user')
             self._token = config.get('token')
-            self._selected_server = config.get('selected_server')
+            self._selected_servers = config.get('selected_servers', [])
             self._auth_method = config.get('auth_method', 'token')
             self._oauth_app_id = config.get('oauth_app_id')
             self._oauth_app_secret = config.get('oauth_app_secret')
@@ -131,6 +132,13 @@ class BangumiSyncV2Test(_PluginBase):
             logger.debug(f"收到webhook事件: {event.event_data}")
             event_info: WebhookEventInfo = event.event_data
             
+            # 服务器过滤 (仅当用户选择了特定服务器时)
+            # WebhookEventInfo.source_name 存储的是媒体服务器在MoviePilot中的配置名称
+            if event_info.channel in ("emby", "jellyfin") and self._selected_servers:
+                if not event_info.source_name or event_info.source_name not in self._selected_servers:
+                    logger.debug(f"{self.plugin_name}: 事件来自服务器 '{event_info.source_name}' ({event_info.channel})，但未在选定服务器列表 {self._selected_servers} 中，跳过。")
+                    return
+
             # 用户过滤
             if not self._user:
                 logger.warning(f"{self.plugin_name}: 未配置媒体服务器用户名，跳过处理。")
@@ -688,15 +696,23 @@ class BangumiSyncV2Test(_PluginBase):
         # else:
         #     media_servers_list = [{"title": "未配置媒体服务器", "value": ""}]
         # 由于 MediaServerHelper 未在此插件中初始化，我们先用一个静态的提示
-        # mediaserver_configs = getattr(settings, 'MEDIASERVER_CONFIG', None) # 此行当前未用于列表填充
 
         media_servers_list = []
-        if settings.MEDIASERVER: # 如果MoviePilot有全局的媒体服务器配置
-            media_servers_list = [{"title": name, "value": name} for name in settings.MEDIASERVER.keys()]
+        if self.mediaserver_helper:
+            try:
+                server_configs_dict = self.mediaserver_helper.get_configs()
+                if server_configs_dict: # Ensure it's not None or empty
+                    media_servers_list = [
+                        {"title": cfg_item.name, "value": cfg_item.name}
+                        for cfg_item in server_configs_dict.values()
+                        if hasattr(cfg_item, 'type') and cfg_item.type in ("emby", "jellyfin")
+                    ]
+            except Exception as e:
+                logger.error(f"{self.plugin_name}: 获取媒体服务器列表时出错: {e}")
+                # Keep media_servers_list as empty, the next block will handle the placeholder
         
         if not media_servers_list:
-            # 如果没有获取到服务器列表，提供一个提示
-            media_servers_list = [{"title": "未找到或未配置媒体服务器", "value": "", "disabled": True}]
+            media_servers_list = [{"title": "未找到或未配置 Emby/Jellyfin 服务器", "value": "", "disabled": True}]
             
         return [
             {
@@ -759,10 +775,13 @@ class BangumiSyncV2Test(_PluginBase):
                                                     {
                                                         'component': 'VSelect',
                                                         'props': {
-                                                            'model': 'selected_server',
-                                                            'label': '选择媒体服务器',
+                                                            'model': 'selected_servers',
+                                                            'label': '选择Emby/Jellyfin媒体服务器 (可多选)',
                                                             'items': media_servers_list,
-                                                            'hint': '用于识别事件来源 (可选，未来可能用于获取用户列表)',
+                                                            'multiple': True,
+                                                            'chips': True,
+                                                            'clearable': True,
+                                                            'hint': '插件将仅处理来自选定服务器的事件。如果未选择，则处理所有已配置的Emby/Jellyfin服务器事件。',
                                                             'persistentHint': True,
                                                             'clearable': True,
                                                         }
@@ -979,7 +998,7 @@ class BangumiSyncV2Test(_PluginBase):
             "enable": False,
             "uniqueid_match": False,
             "user": "",
-            "selected_server": None,
+            "selected_servers": [],
             "auth_method": "token",
             "token": "",
             "oauth_app_id": "",
@@ -996,7 +1015,7 @@ class BangumiSyncV2Test(_PluginBase):
             "uniqueid_match": self._uniqueid_match,
             "user": self._user,
             "token": self._token,
-            "selected_server": self._selected_server,
+            "selected_servers": self._selected_servers,
             "auth_method": self._auth_method,
             "oauth_app_id": self._oauth_app_id,
             "oauth_app_secret": self._oauth_app_secret,
@@ -1020,7 +1039,7 @@ if __name__ == "__main__":
         "uniqueid_match": True,
         "user": "testuser", # 你的媒体服务器用户名
         "token": "YOUR_BANGUMI_ACCESS_TOKEN", # 替换为你的真实Token
-        "selected_server": "emby_server_1", # 假设的服务器名
+        "selected_servers": ["emby_server_1"], # 假设的服务器名列表
         "auth_method": "token",
         "oauth_app_id": "",
         "oauth_app_secret": "",
