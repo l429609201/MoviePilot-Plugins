@@ -396,7 +396,7 @@ class EpisodeGroupMetaTest(_PluginBase):
                     },
                     'events': {
                         'click': {
-                            'api': 'plugin/EpisodeGroupMeta/start_rt',
+                            'api': 'plugin/EpisodeGroupMetaTest/start_rt',
                             'method': 'get',
                             'params': {
                                 'apikey': settings.API_TOKEN,
@@ -497,7 +497,7 @@ class EpisodeGroupMetaTest(_PluginBase):
                                     'text': '忽略',
                                     'events': {
                                         'click': {
-                                            'api': 'plugin/EpisodeGroupMeta/delete_media_database',
+                                            'api': 'plugin/EpisodeGroupMetaTest/delete_media_database',
                                             'method': 'get',
                                             'params': {
                                                 'apikey': settings.API_TOKEN,
