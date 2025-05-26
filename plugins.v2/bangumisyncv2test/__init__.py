@@ -629,7 +629,7 @@ class BangumiSyncV2Test(_PluginBase):
                                         "component": "VIcon",
                                         "props": {"icon": "mdi-tune", "start": True, "color": "#8958f4"},
                                     },
-                                    {"component": "span", "text": "参数设置 (提示信息)"}, # 调整Tab标题
+                                    {"component": "span", "text": "参数设置"},
                                 ],
                             },
                         ],
@@ -671,7 +671,42 @@ class BangumiSyncV2Test(_PluginBase):
                                                     }
                                                 ]
                                             },
-                                            # OAuth 输入字段 (保留V2Test的，但使其依赖 auth_method)
+                                        ]
+                                    }
+                                ],
+                            },
+                            { # 参数设置 Tab
+                                "component": "VWindowItem",
+                                "props": {"value": "params-tab"},
+                                "content": [
+                                    {
+                                        "component": "VCardText",
+                                        "content": [
+                                            # Token 输入 (原先在 auth-method-tab, 移到此处)
+                                            {
+                                                'component': 'VRow',
+                                                # 'v-if': "auth_method === 'token'", # 前端应处理显隐
+                                                'content': [
+                                                    {
+                                                        'component': 'VCol',
+                                                        'props': {'cols': 12},
+                                                        'content': [
+                                                            {
+                                                                'component': 'VTextField',
+                                                                'props': {
+                                                                    'model': 'token',
+                                                                    'label': 'Bangumi Access Token',
+                                                                    'placeholder': 'dY123qxXcdaf234Gj6u3va123Ohh',
+                                                                    'type': 'password',
+                                                                    'hint': '用于Token认证方式。获取：https://next.bgm.tv/demo/access-token', # 更新提示
+                                                                    'persistentHint': True,
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            # OAuth 输入字段 (原先在 auth-method-tab, 移到此处)
                                             {
                                                 'component': 'VRow',
                                                 # 'v-if': "auth_method === 'oauth'", # 前端应处理此条件渲染
@@ -692,7 +727,12 @@ class BangumiSyncV2Test(_PluginBase):
                                                                 }
                                                             }
                                                         ]
-                                                    },
+                                            },
+                                            # OAuth 输入字段 (保留V2Test的，但使其依赖 auth_method)
+                                            {
+                                                'component': 'VRow',
+                                                # 'v-if': "auth_method === 'oauth'", # 前端应处理此条件渲染
+                                                'content': [
                                                     {
                                                         'component': 'VCol',
                                                         'props': {'cols': 12, 'md': 6},
@@ -714,32 +754,21 @@ class BangumiSyncV2Test(_PluginBase):
                                                 ]
                                             },
                                         ]
+                                    },
+                                    { # 原版提示信息 VAlert (现在也在此Tab下)
+                                        'component': 'VAlert',
+                                        'props': {
+                                            'type': 'info',
+                                            'variant': 'tonal',
+                                            'text': 'access-token获取：https://next.bgm.tv/demo/access-token' + '\n' +
+                                                    'emby添加你mp的webhook（event要包括播放）： http://[MoviePilot地址]:[端口]/api/v1/webhook?token=moviepilot' + '\n' +
+                                                    '感谢@HankunYu的想法',
+                                            'style': 'white-space: pre-line;'
+                                        }
                                     }
-                                ],
-                            },
-                            { # 参数设置 Tab (原版提示信息)
-                                "component": "VWindowItem",
-                                "props": {"value": "params-tab"},
-                                "content": [
-                                    {
-                                        "component": "VCardText",
-                                        "content": [
-                                            { # 还原原版提示信息 VAlert
-                                                'component': 'VAlert',
-                                                'props': {
-                                                    'type': 'info',
-                                                    'variant': 'tonal',
-                                                    'text': 'access-token获取：https://next.bgm.tv/demo/access-token' + '\n' +
-                                                            'emby添加你mp的webhook（event要包括播放）： http://[MoviePilot地址]:[端口]/api/v1/webhook?token=moviepilot' + '\n' + # 修正原版IP地址为占位符
-                                                            '感谢@HankunYu的想法',
-                                                    'style': 'white-space: pre-line;'
-                                                }
-                                            }
-                                        ]
-                                    }
-                                ],
+                                ]
                             }
-                        ]
+                        ],
                     }
                 ]
             }
@@ -747,43 +776,34 @@ class BangumiSyncV2Test(_PluginBase):
             "enable": False,
             "uniqueid_match": False,
             "user": "",
-            # "selected_servers": [], # 已移除
-            "auth_method": "token", # 保留V2Test的默认认证方式
+            "auth_method": "token",
             "token": "",
             "oauth_app_id": "",
             "oauth_app_secret": "",
-            "tab": "auth-method-tab"
+            "tab": "auth-method-tab" # 默认还是显示认证方式选择
         }
 
     def get_page(self) -> List[dict]:
-        return [] # 返回空列表比 pass 更符合接口定义
+        return []
 
     def __update_config(self):
-        """
-        列新配置 (原版注释)
-        """
         self.update_config({
             "enable": self._enable,
             "uniqueid_match": self._uniqueid_match,
             "user": self._user,
-            "token": self._token, # 还原原版配置项
-            # "selected_servers": self._selected_servers, # 已移除
-            "auth_method": self._auth_method, # 保留V2Test的UI相关配置
-            "oauth_app_id": self._oauth_app_id, # 保留V2Test的UI相关配置
-            "oauth_app_secret": self._oauth_app_secret, # 保留V2Test的UI相关配置
-            "tab": self._tab # 保留V2Test的UI相关配置
+            "token": self._token,
+            "auth_method": self._auth_method,
+            "oauth_app_id": self._oauth_app_id,
+            "oauth_app_secret": self._oauth_app_secret,
+            "tab": self._tab
         })
 
     def get_state(self) -> bool:
         return self._enable
 
     def stop_service(self):
-        pass # 还原原版 pass
+        pass
 
 
 if __name__ == "__main__":
-    # 还原原版测试代码 (尽管它可能无法直接运行)
-    # subject_id = BangumiSyncDebug.get_subjectid_by_title("葬送的芙莉莲", 1) # 需要类名与文件名一致
-    # bangumi = BangumiSyncDebug()
-    # bangumi.sync_watching_status(subject_id, 1)
     pass
