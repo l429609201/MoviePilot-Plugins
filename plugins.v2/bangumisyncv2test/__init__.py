@@ -941,9 +941,9 @@ class BangumiSyncV2Test(_PluginBase):
                                                     {
                                                         "component": "VRadio",
                                                         "props": {
-                                                            "label": "OAuth 2.0 (暂未完全支持)", # 保持禁用状态
-                                                            "value": "oauth",
-                                                            "disabled": True 
+                                                            "label": "OAuth 2.0", # 保持禁用状态
+                                                            "value": "oauth"#,
+                                                            #"disabled": True 
                                                         }
                                                     }
                                                 ]
@@ -996,7 +996,7 @@ class BangumiSyncV2Test(_PluginBase):
                                                                     "model": "oauth_app_id",
                                                                     "label": "OAuth Application ID",
                                                                     "placeholder": "在此输入你的App ID",
-                                                                    "hint": "用于OAuth认证方式 (暂不可用)", # 保持提示
+                                                                    "hint": "用于OAuth认证方式", # 保持提示
                                                                     "persistentHint": True #,
                                                                     #"disabled": True, # 保持禁用
                                                                 }
@@ -1014,7 +1014,7 @@ class BangumiSyncV2Test(_PluginBase):
                                                                     "label": "OAuth Application Secret",
                                                                     "placeholder": "在此输入你的App Secret",
                                                                     "type": "password",
-                                                                    "hint": "用于OAuth认证方式 (暂不可用)", # 保持提示
+                                                                    "hint": "用于OAuth认证方式", # 保持提示
                                                                     "persistentHint": True # ,
                                                                     #"disabled": True, # 保持禁用
                                                                 }
