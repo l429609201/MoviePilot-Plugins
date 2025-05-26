@@ -721,30 +721,24 @@ class BangumiSyncV2Test(_PluginBase):
                                                             }
                                                         ]
                                                     },
-                                                    {
-                                                        "component": "VRow",
+                                                    { # VCol for OAuth Application Secret
+                                                        "component": "VCol",
+                                                        "props": {"cols": 12, "md": 6},
                                                         "content": [
                                                             {
-                                                                "component": "VCol",
-                                                                "props": {"cols": 12, "md": 6},
-                                                                "content": [
-                                                                    {
-                                                                        "component": "VTextField",
-                                                                        "props": {
-                                                                            "model": "oauth_app_secret",
-                                                                            "label": "OAuth Application Secret",
-                                                                            "placeholder": "在此输入你的App Secret",
-                                                                            "type": "password",
-                                                                            "hint": "用于OAuth认证方式 (暂不可用)",
-                                                                            "persistentHint": True,
-                                                                            "disabled": True,
-                                                                        }
-                                                                    }
-                                                                ]
+                                                                "component": "VTextField",
+                                                                "props": {
+                                                                    "model": "oauth_app_secret",
+                                                                    "label": "OAuth Application Secret",
+                                                                    "placeholder": "在此输入你的App Secret",
+                                                                    "type": "password",
+                                                                    "hint": "用于OAuth认证方式 (暂不可用)",
+                                                                    "persistentHint": True,
+                                                                    "disabled": True,
+                                                                }
                                                             }
                                                         ]
                                                     }
-                                                ]
                                                 ]
                                             },
                                             {
