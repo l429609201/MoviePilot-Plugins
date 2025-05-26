@@ -570,26 +570,6 @@ class BangumiSyncV2Test(_PluginBase):
                                                         }
                                                     }
                                                 ]
-                                            },
-                                            {
-                                                "component": "VCol",
-                                                "props": {
-                                                    "cols": 12,
-                                                    "md": 6
-                                                },
-                                                "content": [
-                                                    {
-                                                        "component": "VTextField",
-                                                        "props": {
-                                                            "model": "token",
-                                                            "label": "Bangumi Access-token",
-                                                            "placeholder": "dY123qxXcdaf234Gj6u3va123Ohh",
-                                                            "type": "password",
-                                                            "hint": "用于Token认证方式。",
-                                                            "persistentHint": True,
-                                                        }
-                                                    }
-                                                ]
                                             }
                                         ]
                                     }
