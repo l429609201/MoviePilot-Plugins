@@ -92,7 +92,7 @@ class BangumiSyncV2Test(_PluginBase):
                 self._request.proxies.update(settings.PROXY)
             
             self.__update_config() # 保存一次配置，确保新增字段也被保存
-            logger.info(f"Bangumi在看同步插件 v{BangumiSyncV2Test。plugin_version} 初始化成功")
+            logger.info(f"Bangumi在看同步插件 v{BangumiSyncV2Test.plugin_version} 初始化成功")
         else:
             # 首次加载或无配置时，确保默认值被应用和保存
             self.__update_config()
