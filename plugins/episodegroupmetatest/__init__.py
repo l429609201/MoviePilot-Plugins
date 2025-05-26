@@ -23,7 +23,7 @@ class BangumiSyncDebug(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "2.0.1" # 版本号更新
+    plugin_version = "2.1.0" # 版本号更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
