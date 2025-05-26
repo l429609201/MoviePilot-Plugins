@@ -39,7 +39,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.8" # 版本更新
+    plugin_version = "1.0.4" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -1202,6 +1202,7 @@ class BangumiSyncV2Test(_PluginBase):
 
 
     def __update_config(self):
+        logger.info(f"准备执行 __update_config。当前的 self._auth_method 是: '{self._auth_method}'")
         self.update_config({
             "enable": self._enable,
             "uniqueid_match": self._uniqueid_match,
@@ -1214,6 +1215,7 @@ class BangumiSyncV2Test(_PluginBase):
             # "moviepilot_public_url": self._moviepilot_public_url, # 移除保存
             "global_oauth_info": self._global_oauth_info
         })
+        logger.info(f"__update_config 执行完毕。保存到配置的 auth_method 是: '{self._auth_method}'")
 
     def get_state(self) -> bool:
         return self._enable
