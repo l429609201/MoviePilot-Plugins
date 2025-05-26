@@ -9,17 +9,22 @@ from typing import Any, Dict, List, Optional, Tuple
 # BangumiSyncDebug 插件原有的 imports
 from app.core.event import eventmanager, Event
 from app.core.config import settings
-# from app.core.metainfo import MetaInfo # MetaInfo 未在原版 BangumiSyncDebug 中使用
+from app.core.metainfo import MetaInfo # MetaInfo 未在原版 BangumiSyncDebug 中使用
 from app.log import logger
 from app.plugins import _PluginBase
 from app.schemas import WebhookEventInfo # MediaInfo 未在原版 BangumiSyncDebug 中使用
 from app.schemas.types import EventType # MediaType 未在原版 BangumiSyncDebug 中使用
-# from app.utils.http import RequestUtils # RequestUtils 未在原版 BangumiSyncDebug 中直接使用，而是通过 requests.Session
+from app.utils.http import RequestUtils # RequestUtils 未在原版 BangumiSyncDebug 中直接使用，而是通过 requests.Session
 from cachetools import cached, TTLCache
 import requests # 注意：在async函数中应使用异步HTTP库如httpx
 from urllib.parse import urlencode, quote_plus # 用于构建URL参数
 #from app.core.user import User # 导入User模型以获取用户ID
-from app.core.request import Request # 导入Request模型以处理API请求和响应
+#from app.core.request import Request # 导入Request模型以处理API请求和响应
+# User 和 Request 类型将使用 Any 代替，因为它们在目标环境中不存在
+from typing import Tuple, List, Dict, Any
+
+
+
 
 # Bangumi OAuth 相关的 URL
 BANGUMI_AUTHORIZE_URL = "https://bgm.tv/oauth/authorize" # 授权页面 URL
@@ -60,6 +65,7 @@ class BangumiSyncV2Test(_PluginBase):
     _oauth_app_id: Optional[str] = None
     _oauth_app_secret: Optional[str] = None
     
+    _moviepilot_public_url: Optional[str] = None # 新增：MoviePilot 公开访问 URL
     # 存储全局OAuth信息，值为包含token, refresh_token, expire_time, Bangumi用户信息等的字典
     _global_oauth_info: Optional[Dict[str, Any]] = None
 
@@ -76,6 +82,7 @@ class BangumiSyncV2Test(_PluginBase):
             self._oauth_app_id = config.get('oauth_app_id') if config.get('oauth_app_id') else None
             self._oauth_app_secret = config.get('oauth_app_secret') if config.get('oauth_app_secret') else None
             self._tab = config.get('tab', 'auth-method-tab') # 加载tab状态
+            self._moviepilot_public_url = config.get('moviepilot_public_url')
 
             # 加载全局OAuth信息
             self._global_oauth_info = config.get('global_oauth_info')
@@ -97,26 +104,19 @@ class BangumiSyncV2Test(_PluginBase):
             self.__update_config()
 
 
-    def _get_current_moviepilot_user_id(self, user: User) -> str:
-        """获取当前MoviePilot用户ID"""
-        return str(user.id)
-
-    def _get_moviepilot_base_url(self, request: Request) -> str:
+    def _get_moviepilot_base_url(self) -> Optional[str]:
         """
-        获取MoviePilot的基础URL。
-        注意：这依赖于MoviePilot框架如何提供请求信息。
-        如果MoviePilot运行在反向代理后，可能需要从配置中读取或有更可靠的获取方式。
+        获取MoviePilot的公开基础URL，从配置中读取。
         """
-        parsed_url = request.url
-        # 优先使用 X-Forwarded-Proto 和 X-Forwarded-Host (如果存在且受信任)
-        proto = request.headers.get("X-Forwarded-Proto", parsed_url.scheme)
-        host = request.headers.get("X-Forwarded-Host", parsed_url.netloc)
-        # 移除可能存在的默认端口号
-        if (proto == "http" and host.endswith(":80")) or \
-           (proto == "https" and host.endswith(":443")):
-            host = host.rsplit(":", 1)[0]
-
-        return f"{proto}://{host}"
+        if not self._moviepilot_public_url:
+            logger.warning("MoviePilot 公开 URL 未在插件配置中设置，OAuth 回调可能失败。")
+            return None
+        
+        url = self._moviepilot_public_url.strip()
+        if not url.startswith(("http://", "https://")):
+            logger.warning(f"配置的 MoviePilot 公开 URL '{url}' 格式无效，应以 http:// 或 https:// 开头。")
+            return None
+        return url.rstrip('/')
 
 
     def _get_global_oauth_info(self) -> Optional[Dict[str, Any]]:
@@ -645,21 +645,24 @@ class BangumiSyncV2Test(_PluginBase):
             {"path": "oauth/deauthorize", "method": "POST", "function": self._handle_oauth_deauthorize, "auth": True},
         ]
 
-    async def _handle_oauth_authorize(self, request: Request, user: User):
-        # moviepilot_user_id = self._get_current_moviepilot_user_id(user) # 不再需要将mp_user_id存入state
+    async def _handle_oauth_authorize(self, request: Any, user: Any):
         if not self._oauth_app_id:
             return {"status": "error", "message": "插件未配置Bangumi OAuth Application ID。"}
-        moviepilot_base_url = self._get_moviepilot_base_url(request)
+        
+        moviepilot_base_url = self._get_moviepilot_base_url()
+        if not moviepilot_base_url:
+            return {"status": "error", "message": "MoviePilot 公开 URL 未配置或无效，无法构建回调地址。"}
+
         callback_path = f"/api/v1/plugins/{self.plugin_config_prefix.strip('_')}/oauth/callback"
         redirect_uri = f"{moviepilot_base_url}{callback_path}"
         state_data = {"csrf_token": str(uuid.uuid4())} # State中仅保留CSRF token
         
         state_param = quote_plus(json.dumps(state_data))
         auth_url = f"{BANGUMI_AUTHORIZE_URL}?client_id={self._oauth_app_id}&redirect_uri={quote_plus(redirect_uri)}&response_type=code&state={state_param}"
-        logger.info(f"开始全局Bangumi OAuth授权，重定向到: {auth_url} (操作用户: {user.id if user else 'Unknown'})")
+        logger.info(f"开始全局Bangumi OAuth授权 (操作用户: {getattr(user, 'id', 'Unknown')})，回调至: {redirect_uri}，授权URL: {auth_url}")
         return {"status": "success", "auth_url": auth_url} 
 
-    async def _handle_oauth_callback(self, request: Request, user: Optional[User] = None):
+    async def _handle_oauth_callback(self, request: Any, user: Optional[Any] = None):
         code = request.query_params.get('code')
         state_param = request.query_params.get('state')
         error_from_bgm = request.query_params.get('error')
@@ -689,7 +692,11 @@ class BangumiSyncV2Test(_PluginBase):
         if not self._oauth_app_id or not self._oauth_app_secret:
             await send_html("插件OAuth配置不完整。", True); return
 
-        moviepilot_base_url = self._get_moviepilot_base_url(request)
+        moviepilot_base_url = self._get_moviepilot_base_url()
+        if not moviepilot_base_url:
+            logger.error("全局OAuth回调: MoviePilot 公开 URL 未配置或无效，无法构建令牌交换的回调地址。")
+            await send_html("插件内部错误：MoviePilot 公开 URL 未配置。", True); return
+
         callback_path = f"/api/v1/plugins/{self.plugin_config_prefix.strip('_')}/oauth/callback"
         redirect_uri_for_token = f"{moviepilot_base_url}{callback_path}"
         payload = {"grant_type": "authorization_code", "client_id": self._oauth_app_id, 
@@ -723,8 +730,7 @@ class BangumiSyncV2Test(_PluginBase):
             logger.exception(f"全局OAuth回调处理中发生未知错误: {e}")
             await send_html(f"处理回调时发生内部错误: {e}", True)
 
-    async def _handle_oauth_status(self, request: Request, user: User):
-        # moviepilot_user_id = self._get_current_moviepilot_user_id(user) # 操作用户，但OAuth信息是全局的
+    async def _handle_oauth_status(self, request: Any, user: Any):
         oauth_info = self._get_global_oauth_info()
         if not oauth_info: return {"authorized": False, "nickname": None, "avatar": None}
         
@@ -740,10 +746,9 @@ class BangumiSyncV2Test(_PluginBase):
                 "bangumi_user_id": refreshed_oauth_info.get('bangumi_user_id'),
                 "expire_time_readable": datetime.datetime.fromtimestamp(refreshed_oauth_info.get('expire_time', 0)).strftime('%Y-%m-%d %H:%M:%S') if refreshed_oauth_info.get('expire_time') else "N/A"}
 
-    async def _handle_oauth_deauthorize(self, request: Request, user: User):
-        # moviepilot_user_id = self._get_current_moviepilot_user_id(user) # 操作用户
+    async def _handle_oauth_deauthorize(self, request: Any, user: Any):
         self._delete_global_oauth_info()
-        logger.info(f"全局Bangumi OAuth授权已解除 (操作用户: {user.id if user else 'Unknown'})。")
+        logger.info(f"全局Bangumi OAuth授权已解除 (操作用户: {getattr(user, 'id', 'Unknown')})。")
         return {"status": "success", "message": "已成功解除授权。"}
 
     async def _get_user_profile(self, access_token: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
@@ -842,6 +847,26 @@ class BangumiSyncV2Test(_PluginBase):
                                                             "placeholder": "你的Emby/Plex用户名",
                                                             "hint": "多个用逗号隔开",
                                                             "persistentHint": True,
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            { # 新增 MoviePilot 公开 URL 配置
+                                                "component": "VCol",
+                                                "props": {"cols": 12, "md": 6}, # 与用户名同列显示
+                                                "content": [
+                                                    {
+                                                        "component": "VTextField",
+                                                        "props": {
+                                                            "model": "moviepilot_public_url",
+                                                            "label": "MoviePilot 公开 URL",
+                                                            "placeholder": "例如: http://your-mp-domain.com",
+                                                            "hint": "用于构建OAuth回调地址，必须是外部可访问的MoviePilot地址。",
+                                                            "persistentHint": True,
+                                                            "rules": [ # 添加校验规则
+                                                                "value => !!value || '此项必填。'",
+                                                                "value => /^https?:\/\/.+/.test(value) || 'URL格式不正确，应以 http:// 或 https:// 开头。'"
+                                                            ]
                                                         }
                                                     }
                                                 ]
@@ -1030,6 +1055,7 @@ class BangumiSyncV2Test(_PluginBase):
             "oauth_app_id": "",     # OAuth App ID
             "oauth_app_secret": "", # OAuth App Secret
             "tab": "auth-method-tab",  # 默认显示的标签页
+            "moviepilot_public_url": "", # MoviePilot 公开 URL 默认值
             "global_oauth_info": None # 全局OAuth信息默认为None
         }
 
@@ -1149,6 +1175,7 @@ class BangumiSyncV2Test(_PluginBase):
             "oauth_app_id": self._oauth_app_id,
             "oauth_app_secret": self._oauth_app_secret,
             "tab": self._tab, 
+            "moviepilot_public_url": self._moviepilot_public_url,
             "global_oauth_info": self._global_oauth_info
         })
 
