@@ -144,6 +144,7 @@ class BangumiSyncV2Test(_PluginBase):
                 logger.warning(f"{self.plugin_name}: 未配置媒体服务器用户名，跳过处理。")
                 return
             if event_info.user_name not in self._user.split(','):
+                logger.debug(f"{self.plugin_name}: 用户名 '{event_info.user_name}' 不在配置列表 '{self._user.split(',')}' 中，跳过。")
                 return
 
             play_start = {"playback.start", "media.play", "PlaybackStart"}
@@ -712,7 +713,7 @@ class BangumiSyncV2Test(_PluginBase):
                 # Keep media_servers_list as empty, the next block will handle the placeholder
         
         if not media_servers_list:
-            media_servers_list = [{"title": "未找到或未配置 Emby/Jellyfin 服务器", "value": "", "disabled": True}]
+            media_servers_list = [{"title": "未找到或未配置 媒体服务器", "value": "", "disabled": True}]
             
         return [
             {
@@ -776,12 +777,11 @@ class BangumiSyncV2Test(_PluginBase):
                                                         'component': 'VSelect',
                                                         'props': {
                                                             'model': 'selected_servers',
-                                                            'label': '选择Emby/Jellyfin媒体服务器 (可多选)',
+                                                            'label': '媒体服务器',
                                                             'items': media_servers_list,
                                                             'multiple': True,
                                                             'chips': True,
                                                             'clearable': True,
-                                                            'hint': '插件将仅处理来自选定服务器的事件。如果未选择，则处理所有已配置的Emby/Jellyfin服务器事件。',
                                                             'persistentHint': True,
                                                             'clearable': True,
                                                         }
@@ -802,7 +802,7 @@ class BangumiSyncV2Test(_PluginBase):
                                                         'props': {
                                                             'model': 'user',
                                                             'label': '媒体服务器用户名',
-                                                            'placeholder': '你的Emby/Plex用户名,多个用逗号隔开',
+                                                            'placeholder': '你的媒体服务器用户名',
                                                             'hint': '插件将只处理这些用户的播放事件',
                                                             'persistentHint': True,
                                                         }
