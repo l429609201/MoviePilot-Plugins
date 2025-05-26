@@ -34,7 +34,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.0" # 版本更新
+    plugin_version = "1.0.2" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -93,44 +93,65 @@ class BangumiSyncV2Test(_PluginBase):
             self.__update_config()
             logger.info(f"Bangumi在看同步插件 v{BangumiSyncV2Test.plugin_version} 初始化成功")
         else:
-            self._oauth_info_store = {}
+            # 首次加载或无配置时，确保默认值被应用和保存
+            self._oauth_info_store = {} # 确保默认是空字典
             self.__update_config()
 
 
     def _get_current_moviepilot_user_id(self, user: User) -> str:
+        """获取当前MoviePilot用户ID"""
         return str(user.id)
 
     def _get_moviepilot_base_url(self, request: Request) -> str:
+        """
+        获取MoviePilot的基础URL。
+        注意：这依赖于MoviePilot框架如何提供请求信息。
+        如果MoviePilot运行在反向代理后，可能需要从配置中读取或有更可靠的获取方式。
+        """
         parsed_url = request.url
+        # 优先使用 X-Forwarded-Proto 和 X-Forwarded-Host (如果存在且受信任)
         proto = request.headers.get("X-Forwarded-Proto", parsed_url.scheme)
         host = request.headers.get("X-Forwarded-Host", parsed_url.netloc)
+        # 移除可能存在的默认端口号
         if (proto == "http" and host.endswith(":80")) or \
            (proto == "https" and host.endswith(":443")):
             host = host.rsplit(":", 1)[0]
+
         return f"{proto}://{host}"
 
+
     def _get_oauth_info(self, moviepilot_user_id: str) -> Optional[Dict[str, Any]]:
+        """获取指定MoviePilot用户的OAuth信息"""
         return self._oauth_info_store.get(moviepilot_user_id)
 
     def _store_oauth_info(self, moviepilot_user_id: str, oauth_data: Dict[str, Any]):
+        """存储指定MoviePilot用户的OAuth信息并更新配置"""
         self._oauth_info_store[moviepilot_user_id] = oauth_data
         self.__update_config()
 
     def _delete_oauth_info(self, moviepilot_user_id: str):
+        """删除指定MoviePilot用户的OAuth信息并更新配置"""
         if moviepilot_user_id in self._oauth_info_store:
             del self._oauth_info_store[moviepilot_user_id]
             self.__update_config()
 
     def _is_token_expired(self, oauth_info: Dict[str, Any]) -> bool:
-        expire_time = oauth_info.get('expire_time')
+        """检查存储的OAuth令牌是否已过期"""
+        expire_time = oauth_info.get('expire_time') # 存储的是Unix时间戳
         if expire_time is None:
-            return True
-        return time.time() >= (expire_time - 300) # 5分钟缓冲
+            return True # 没有过期时间，视为已过期
+        # 增加一个5分钟的缓冲期，避免在临界点刷新失败
+        return time.time() >= (expire_time - 300)
 
     async def _refresh_access_token(self, moviepilot_user_id: str) -> Tuple[Optional[str], Optional[str]]:
+        """
+        刷新指定MoviePilot用户的Bangumi OAuth访问令牌。
+        返回 (新的access_token, 错误信息)
+        """
         oauth_info = self._get_oauth_info(moviepilot_user_id)
         if not oauth_info or not oauth_info.get('refresh_token'):
             return None, "未找到有效的刷新令牌 (Refresh Token)。"
+
         if not self._oauth_app_id or not self._oauth_app_secret:
              return None, "插件未配置Bangumi OAuth Application ID或Secret。"
 
@@ -140,27 +161,42 @@ class BangumiSyncV2Test(_PluginBase):
             "client_secret": self._oauth_app_secret,
             "refresh_token": oauth_info['refresh_token'],
         }
-        headers = {"Content-Type": "application/x-www-form-urlencoded", "User-Agent": self.UA}
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": self.UA
+        }
+
         try:
+            # 注意：在async函数中，requests是同步的，会阻塞。应使用httpx。
+            # 为了演示，暂时保留requests，但实际项目中需要替换。
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(None, lambda: requests.post(BANGUMI_TOKEN_URL, data=payload, headers=headers, proxies=self._request.proxies if self._request else None))
             response.raise_for_status()
             token_data = response.json()
+
             expires_in = token_data.get('expires_in', 0)
             new_expire_time = time.time() + expires_in
+            
+            # 更新存储的令牌信息
             oauth_info['access_token'] = token_data['access_token']
             oauth_info['expire_time'] = new_expire_time
-            if 'refresh_token' in token_data:
+            if 'refresh_token' in token_data: # Bangumi有时会返回新的refresh_token
                 oauth_info['refresh_token'] = token_data['refresh_token']
+            
             self._store_oauth_info(moviepilot_user_id, oauth_info)
             logger.info(f"MoviePilot用户 {moviepilot_user_id} 的Bangumi令牌刷新成功。")
             return token_data['access_token'], None
+
         except requests.exceptions.HTTPError as http_err:
             error_message = f"刷新令牌HTTP错误: {http_err}"
-            try: error_json = http_err.response.json(); error_message += f". 响应: {error_json}"
-            except ValueError: error_message += f". 响应文本: {http_err.response.text}"
+            try:
+                error_json = http_err.response.json()
+                error_message += f". 响应: {error_json}"
+            except ValueError:
+                error_message += f". 响应文本: {http_err.response.text}"
             logger.error(f"MoviePilot用户 {moviepilot_user_id} 刷新Bangumi令牌失败: {error_message}")
             if http_err.response.status_code == 400 and "invalid_grant" in http_err.response.text:
+                 # refresh_token可能已失效，需要用户重新授权
                  self._delete_oauth_info(moviepilot_user_id)
                  logger.warning(f"MoviePilot用户 {moviepilot_user_id} 的Refresh Token已失效，已清除授权信息，请重新授权。")
                  return None, "Refresh Token已失效，请重新授权。"
@@ -170,35 +206,51 @@ class BangumiSyncV2Test(_PluginBase):
             return None, f"刷新令牌时发生未知错误: {e}"
 
     async def _get_valid_access_token(self, moviepilot_user_id: str) -> Optional[str]:
+        """获取有效的访问令牌，如果过期则尝试刷新"""
         oauth_info = self._get_oauth_info(moviepilot_user_id)
         if not oauth_info or not oauth_info.get('access_token'):
+            logger.debug(f"MoviePilot用户 {moviepilot_user_id}: 未找到OAuth信息或访问令牌。")
             return None
+
         if self._is_token_expired(oauth_info):
+            logger.info(f"MoviePilot用户 {moviepilot_user_id}: Bangumi访问令牌已过期，尝试刷新...")
             access_token, error = await self._refresh_access_token(moviepilot_user_id)
-            return access_token if not error else None
+            if error:
+                logger.warning(f"MoviePilot用户 {moviepilot_user_id}: 令牌刷新失败: {error}")
+                return None
+            return access_token
+        
         return oauth_info['access_token']
 
     async def _bangumi_api_request(self, method: str, url: str, moviepilot_user_id_for_oauth: Optional[str], **kwargs) -> requests.Response:
-        headers = kwargs.pop('headers', {})
-        headers.update({"User-Agent": self.UA})
+        """
+        统一的Bangumi API请求方法，处理认证。
+        moviepilot_user_id_for_oauth: 进行OAuth认证的MoviePilot用户ID。
+        """
+        headers = kwargs.pop('headers', {}) # 获取传入的headers，如果没有则为空字典
+        headers.update({"User-Agent": self.UA}) # 确保UA存在
+
         if self._auth_method == 'token':
-            if not self._token: raise ValueError("Access Token认证方式未配置Token。")
+            if not self._token:
+                raise ValueError("Access Token认证方式未配置Token。")
             headers["Authorization"] = f"Bearer {self._token}"
         elif self._auth_method == 'oauth':
-            if not moviepilot_user_id_for_oauth: raise ValueError("OAuth认证方式需要提供MoviePilot用户ID。")
+            if not moviepilot_user_id_for_oauth:
+                raise ValueError("OAuth认证方式需要提供MoviePilot用户ID。")
             access_token = await self._get_valid_access_token(moviepilot_user_id_for_oauth)
-            if not access_token: raise ValueError(f"MoviePilot用户 {moviepilot_user_id_for_oauth} 未找到有效的Bangumi OAuth访问令牌。")
+            if not access_token:
+                raise ValueError(f"MoviePilot用户 {moviepilot_user_id_for_oauth} 未找到有效的Bangumi OAuth访问令牌。")
             headers["Authorization"] = f"Bearer {access_token}"
         else:
             raise ValueError(f"未知的认证方式: {self._auth_method}")
+        
+        # 确保content-type存在 (如果发送json数据)
         if 'json' in kwargs and 'content-type' not in headers:
             headers['content-type'] = 'application/json'
-        
+
+        # 使用插件的requests.Session实例
         loop = asyncio.get_event_loop()
-        # 确保 self._request 已经初始化
         if not self._request:
-            # 理论上 init_plugin 应该已经初始化了 self._request
-            # 但作为防御性编程，如果未初始化，则创建一个临时的
             logger.warning("self._request 未在 init_plugin 中初始化，将创建临时 Session。")
             temp_session = requests.Session()
             if settings.PROXY:
@@ -206,93 +258,135 @@ class BangumiSyncV2Test(_PluginBase):
             response = await loop.run_in_executor(None, lambda: temp_session.request(method, url, headers=headers, **kwargs))
         else:
             response = await loop.run_in_executor(None, lambda: self._request.request(method, url, headers=headers, **kwargs))
+        
         return response
 
     @eventmanager.register(EventType.WebhookMessage)
     async def hook(self, event: Event):
-        if not self._enable: return
-        moviepilot_user_id_for_sync = None
+        if not self._enable:
+            return
+
+        moviepilot_user_id_for_sync = None 
         if self._auth_method == 'token':
             if not self._token:
-                logger.warning(f"{self.plugin_name}: Token认证方式未配置Access Token。")
+                logger.warning(f"{self.plugin_name}: Token认证方式未配置Access Token，插件功能受限。")
                 return
         elif self._auth_method == 'oauth':
             if not self._oauth_info_store:
-                logger.warning(f"{self.plugin_name}: OAuth认证方式已选择，但无用户授权。")
+                logger.warning(f"{self.plugin_name}: OAuth认证方式已选择，但没有任何用户完成授权。")
                 return
+            
             moviepilot_user_id_for_sync = next(iter(self._oauth_info_store.keys()), None)
+            
             if not moviepilot_user_id_for_sync:
-                logger.warning(f"{self.plugin_name}: OAuth认证方式，但未找到存储的OAuth信息。")
+                logger.warning(f"{self.plugin_name}: OAuth认证方式已选择，但未找到存储的OAuth信息。请在插件设置中完成授权。")
                 return
+            
             access_token = await self._get_valid_access_token(moviepilot_user_id_for_sync)
             if not access_token:
-                 logger.warning(f"{self.plugin_name}: OAuth令牌无效或无法刷新。")
+                 logger.warning(f"{self.plugin_name}: OAuth认证令牌无效或无法刷新。请在插件设置中重新授权。")
                  return
         else:
-            logger.error(f"未知的认证方式: {self._auth_method}"); return
+            logger.error(f"未知的认证方式: {self._auth_method}")
+            return
 
         try:
+            logger.debug(f"收到webhook事件: {event.event_data}")
             event_info: WebhookEventInfo = event.event_data
-            if not self._user or event_info.user_name not in self._user.split(','): return
+
+            if not self._user or event_info.user_name not in self._user.split(','):
+                return
+
             play_start = {"playback.start", "media.play", "PlaybackStart"}
-            if not (event_info.event in play_start or (event_info.percentage and event_info.percentage > 90)): return
-            if not BangumiSyncV2Test.is_anime(event_info): return
+            if not (event_info.event in play_start or (event_info.percentage and event_info.percentage > 90)):
+                return
+
+            if not BangumiSyncV2Test.is_anime(event_info):
+                return
 
             if event_info.item_type in ["TV"]:
                 tmdb_id = event_info.tmdb_id
-                match = re.match(r"^(.+?)\sS\d+E\d+\s.*", event_info.item_name)
+                logger.info(f"匹配播放事件 {event_info.item_name} tmdb id = {tmdb_id}...")
+                match = re.match(r"^(.+?)\sS\d+E\d+\s.*", event_info.item_name) 
                 title = match.group(1).strip() if match else event_info.item_name.split(' ')[0].strip()
+
                 season_id, episode_id = int(event_info.season_id), int(event_info.episode_id)
-                self._prefix = f"[{title} S{season_id:02d}E{episode_id:02d}]"
+                self._prefix = f"[{title} S{season_id:02d}E{episode_id:02d}]" 
+
                 unique_id = int(tmdb_id) if tmdb_id and tmdb_id.isdigit() else None
-                
+
                 subject_id, subject_name, original_episode_name = await self.get_subjectid_by_title(
                     title, season_id, episode_id, unique_id, moviepilot_user_id_for_sync
                 )
+
                 if subject_id is None:
                     logger.info(f"{self._prefix} 未能从Bangumi找到对应的条目ID。")
                     return
+
                 logger.info(f"{self._prefix} 匹配成功: 本地 '{title}' (原始单集名: {original_episode_name or 'N/A'}) => Bangumi '{subject_name}' (ID: {subject_id}, https://bgm.tv/subject/{subject_id})")
                 await self.sync_watching_status(subject_id, episode_id, original_episode_name, moviepilot_user_id_for_sync)
+
         except Exception as e:
-            logger.exception(f"同步在看状态失败: {e}")
+            logger.exception(f"同步在看状态失败: {e}") 
 
     @cached(TTLCache(maxsize=100, ttl=3600))
     async def get_subjectid_by_title(self, title: str, season: int, episode: int, unique_id: Optional[int], moviepilot_user_id_for_oauth: Optional[str]) -> Tuple[Optional[int], Optional[str], Optional[str]]:
         current_prefix = getattr(self, '_prefix', f"[{title} S{season:02d}E{episode:02d}]")
         logger.debug(f"{current_prefix} 尝试使用 bgm api 来获取 subject id...")
-        tmdb_data = await self.get_tmdb_id(title, moviepilot_user_id_for_oauth)
+        
+        tmdb_data = await self.get_tmdb_id(title, moviepilot_user_id_for_oauth) 
         tmdb_id, original_name, original_language = tmdb_data if tmdb_data else (None, None, None)
+        
         original_episode_name = None
-        post_json = {"keyword": title, "sort": "match", "filter": {"type": [2]}}
-        if tmdb_id and original_name and original_language:
-            airdate_info = await self.get_airdate_and_ep_name(tmdb_id, season, episode, unique_id if self._uniqueid_match else None, original_language, moviepilot_user_id_for_oauth)
+        post_json = {
+            "keyword": title,
+            "sort": "match",
+            "filter": {"type": [2]}, 
+        }
+
+        if tmdb_id is not None and original_name and original_language:
+            airdate_info = await self.get_airdate_and_ep_name(
+                tmdb_id, season, episode, unique_id if self._uniqueid_match else None, original_language, moviepilot_user_id_for_oauth 
+            )
             if airdate_info:
                 start_date, end_date, tmdb_original_episode_name = airdate_info
                 original_episode_name = tmdb_original_episode_name
                 if start_date and end_date:
-                    post_json = {"keyword": original_name, "sort": "match", "filter": {"type": [2], "air_date": [f">={start_date}", f"<={end_date}"]}}
-        url = "https://api.bgm.tv/v0/search/subjects"
+                    post_json = {
+                        "keyword": original_name,
+                        "sort": "match",
+                        "filter": {"type": [2], "air_date": [f">={start_date}", f"<={end_date}"]},
+                    }
+        
+        url = f"https://api.bgm.tv/v0/search/subjects"
         try:
             response = await self._bangumi_api_request('POST', url, moviepilot_user_id_for_oauth, json=post_json)
-            response.raise_for_status()
+            response.raise_for_status() 
             resp_json = response.json()
-        except Exception as e:
+        except (requests.exceptions.RequestException, ValueError, json.JSONDecodeError) as e:
             logger.error(f"{current_prefix} 请求或解析Bangumi搜索API失败: {e}")
             return None, None, None
+
         if not resp_json.get("data"):
             logger.warning(f"{current_prefix} 未找到 '{post_json['keyword']}' 的bgm条目")
             return None, None, None
-        data = resp_json["data"][0]
+        
+        data = resp_json.get("data")[0]
         year = data.get("date", "----")[:4]
         name_cn = data.get("name_cn") or data.get("name", "未知标题")
-        return data.get("id"), f"{name_cn} ({year})", original_episode_name
+        formatted_name = f"{name_cn} ({year})"
+        subject_id_val = data.get("id")
+
+        return subject_id_val, formatted_name, original_episode_name
+
 
     @cached(TTLCache(maxsize=100, ttl=3600))
-    async def get_tmdb_id(self, title: str, moviepilot_user_id_for_oauth: Optional[str]): # user_id is not used for TMDB
+    async def get_tmdb_id(self, title: str, moviepilot_user_id_for_oauth: Optional[str]): 
         current_prefix = getattr(self, '_prefix', f"[{title}]")
         logger.debug(f"{current_prefix} 尝试使用 tmdb api 来获取 subject id...")
-        if not self._tmdb_key: logger.warning(f"{current_prefix} TMDB API Key未配置。"); return None, None, None
+        if not self._tmdb_key: 
+            logger.warning(f"{current_prefix} TMDB API Key未配置。")
+            return None, None, None
         url = f"https://api.tmdb.org/3/search/tv?query={title}&api_key={self._tmdb_key}"
         try:
             loop = asyncio.get_event_loop()
@@ -306,20 +400,19 @@ class BangumiSyncV2Test(_PluginBase):
             logger.warning(f"{current_prefix} 未找到 '{title}' 的 tmdb 条目")
             return None, None, None
         for result in ret["results"]:
-            if 16 in result.get("genre_ids", []): # 16 is Animation genre ID
+            if 16 in result.get("genre_ids", []): 
                 return result.get("id"), result.get("original_name"), result.get("original_language")
         return None, None, None
 
     @cached(TTLCache(maxsize=100, ttl=3600))
     async def get_airdate_and_ep_name(self, tmdbid: int, season_id: int, episode: int, unique_id: Optional[int], original_language: str, moviepilot_user_id_for_oauth: Optional[str]):
         current_prefix = getattr(self, '_prefix', f"[TMDBID:{tmdbid} S{season_id:02d}E{episode:02d}]")
-        if not self._tmdb_key: logger.warning(f"{current_prefix} TMDB API Key未配置。"); return None, None, None
+        if not self._tmdb_key: 
+            logger.warning(f"{current_prefix} TMDB API Key未配置。")
+            return None, None, None
         logger.debug(f"{current_prefix} 尝试使用 tmdb api 来获取 airdate...")
         
         async def get_tv_season_detail_async(tmdbid_local: int, season_id_local: int) -> Optional[dict]:
-            # (此内部函数与之前版本类似，但使用异步HTTP请求)
-            # 为简洁起见，这里省略了其完整异步实现，假设它能正确工作
-            # 实际项目中，此处的 self._request.get 也需要替换为异步HTTP调用
             loop = asyncio.get_event_loop()
             
             url_season = f"https://api.tmdb.org/3/tv/{tmdbid_local}/season/{season_id_local}?language={original_language}&api_key={self._tmdb_key}"
@@ -349,7 +442,7 @@ class BangumiSyncV2Test(_PluginBase):
                         if resp_group_detail_json and resp_group_detail_json.get("groups"):
                             for group_item in resp_group_detail_json["groups"]:
                                 if group_item.get("name", "").startswith(f"Season {season_id_local}"):
-                                    return group_item # 返回的是 group 对象，可能包含 episodes
+                                    return group_item 
             except Exception as e_group:
                 logger.debug(f"{current_prefix} get_tv_season_detail (episode_groups) 失败: {e_group}")
             return None
@@ -360,7 +453,9 @@ class BangumiSyncV2Test(_PluginBase):
             return None, None, None
         
         episodes_list = resp_season_detail["episodes"]
-        if not episodes_list: logger.warning(f"{current_prefix} 该季度没有剧集信息"); return None, None, None
+        if not episodes_list: 
+            logger.warning(f"{current_prefix} 该季度没有剧集信息")
+            return None, None, None
 
         air_date_str = resp_season_detail.get("air_date")
         matched_ep_data = None
@@ -373,13 +468,20 @@ class BangumiSyncV2Test(_PluginBase):
             if current_ep_matched: matched_ep_data = ep_data; break
             if ep_data.get("episode_type") in ["finale", "mid_season"]: air_date_str = None
         
-        if not matched_ep_data: logger.warning(f"{current_prefix} 未找到匹配的TMDB剧集"); return None, None, None
+        if not matched_ep_data: 
+            logger.warning(f"{current_prefix} 未找到匹配的TMDB剧集")
+            return None, None, None
         if not air_date_str: air_date_str = matched_ep_data.get("air_date")
-        if not air_date_str: logger.warning(f"{current_prefix} 未找到匹配的TMDB剧集或播出日期"); return None, None, matched_ep_data.get("name")
+        if not air_date_str: 
+            logger.warning(f"{current_prefix} 未找到匹配的TMDB剧集或播出日期")
+            return None, None, matched_ep_data.get("name")
         
         original_episode_name = matched_ep_data.get("name")
-        try: air_date_obj = datetime.datetime.strptime(air_date_str, "%Y-%m-%d").date()
-        except ValueError: logger.warning(f"{current_prefix} TMDB提供的播出日期格式无效: {air_date_str}"); return None, None, original_episode_name
+        try: 
+            air_date_obj = datetime.datetime.strptime(air_date_str, "%Y-%m-%d").date()
+        except ValueError: 
+            logger.warning(f"{current_prefix} TMDB提供的播出日期格式无效: {air_date_str}")
+            return None, None, original_episode_name
         
         start_date = (air_date_obj - datetime.timedelta(days=15)).strftime("%Y-%m-%d")
         end_date = (air_date_obj + datetime.timedelta(days=15)).strftime("%Y-%m-%d")
@@ -395,35 +497,54 @@ class BangumiSyncV2Test(_PluginBase):
                     response = await self._bangumi_api_request('GET', BANGUMI_USER_INFO_URL, moviepilot_user_id_for_oauth)
                     response.raise_for_status()
                     self._bgm_uid = response.json().get("id")
-                    if not self._bgm_uid: logger.error(f"{current_prefix} 获取Bangumi UID失败。"); return
+                    if not self._bgm_uid: 
+                        logger.error(f"{current_prefix} 获取Bangumi UID失败。")
+                        return
                     logger.debug(f"{current_prefix} 获取到 bgm_uid {self._bgm_uid}")
-                except Exception as e: logger.error(f"{current_prefix} 请求或解析Bangumi /me API失败: {e}"); return
+                except Exception as e: 
+                    logger.error(f"{current_prefix} 请求或解析Bangumi /me API失败: {e}")
+                    return
             bgm_uid_to_pass = self._bgm_uid
         elif self._auth_method == 'oauth':
             oauth_info = self._get_oauth_info(moviepilot_user_id_for_oauth) if moviepilot_user_id_for_oauth else None
-            if not oauth_info or 'bangumi_user_id' not in oauth_info: # 使用存储的 bangumi_user_id
+            if not oauth_info or 'bangumi_user_id' not in oauth_info: 
                 logger.error(f"{current_prefix} OAuth模式下未找到Bangumi用户ID。")
                 return
             bgm_uid_to_pass = oauth_info['bangumi_user_id']
-        else: logger.error(f"{current_prefix} 未知认证方式。"); return
+        else: 
+            logger.error(f"{current_prefix} 未知认证方式。")
+            return
 
         await self.update_collection_status(subject_id, moviepilot_user_id_for_oauth, bgm_uid_to_pass)
         ep_info_list = await self.get_episodes_info(subject_id, moviepilot_user_id_for_oauth)
-        if not ep_info_list: logger.warning(f"{current_prefix} 未获取到剧集列表。"); return
+        if not ep_info_list: 
+            logger.warning(f"{current_prefix} 未获取到剧集列表。")
+            return
 
         found_episode_id = None
         matched_bangumi_ep_info = None
         if original_episode_name:
             for info_item in ep_info_list:
-                if info_item.get("name") == original_episode_name: found_episode_id = info_item.get("id"); matched_bangumi_ep_info = info_item; break
+                if info_item.get("name") == original_episode_name: 
+                    found_episode_id = info_item.get("id")
+                    matched_bangumi_ep_info = info_item
+                    break
         if not found_episode_id:
             for info_item in ep_info_list:
-                if info_item.get("sort") == episode: found_episode_id = info_item.get("id"); matched_bangumi_ep_info = info_item; break
+                if info_item.get("sort") == episode: 
+                    found_episode_id = info_item.get("id")
+                    matched_bangumi_ep_info = info_item
+                    break
         if not found_episode_id:
             for info_item in ep_info_list:
-                if info_item.get("ep") == episode: found_episode_id = info_item.get("id"); matched_bangumi_ep_info = info_item; break
+                if info_item.get("ep") == episode: 
+                    found_episode_id = info_item.get("id")
+                    matched_bangumi_ep_info = info_item
+                    break
         
-        if not found_episode_id: logger.warning(f"{current_prefix} 未找到匹配的Bangumi剧集。"); return
+        if not found_episode_id: 
+            logger.warning(f"{current_prefix} 未找到匹配的Bangumi剧集。")
+            return
         
         await self.update_episode_status(found_episode_id, moviepilot_user_id_for_oauth)
         
@@ -433,21 +554,25 @@ class BangumiSyncV2Test(_PluginBase):
             if main_episodes and matched_bangumi_ep_info.get("id") == main_episodes[-1].get("id"):
                 last_episode_flag = True
         if last_episode_flag:
-            await self.update_collection_status(subject_id, moviepilot_user_id_for_oauth, bgm_uid_to_pass, 2) # 2: 看过
+            await self.update_collection_status(subject_id, moviepilot_user_id_for_oauth, bgm_uid_to_pass, 2) 
 
     @cached(TTLCache(maxsize=100, ttl=3600))
     async def update_collection_status(self, subject_id: int, moviepilot_user_id_for_oauth: Optional[str], bgm_uid_for_get: Optional[int], new_type: int = 3):
         current_prefix = getattr(self, '_prefix', f"[BGM Subject:{subject_id}]")
         type_dict = {0:"未收藏", 1:"想看", 2:"看过", 3:"在看", 4:"搁置", 5:"抛弃"}
         old_type = 0
-        if bgm_uid_for_get: # 仅当有bgm_uid时才尝试获取当前状态
+        if bgm_uid_for_get: 
             collection_url = f"https://api.bgm.tv/v0/users/{bgm_uid_for_get}/collections/{subject_id}"
             try:
                 response_get = await self._bangumi_api_request('GET', collection_url, moviepilot_user_id_for_oauth)
-                if response_get.status_code == 200: old_type = response_get.json().get("type", 0)
-                elif response_get.status_code == 404: logger.debug(f"{current_prefix} 条目 {subject_id} 尚未收藏。")
-                else: logger.warning(f"{current_prefix} 获取当前收藏状态失败 (code: {response_get.status_code})。")
-            except Exception as e: logger.warning(f"{current_prefix} 请求当前收藏状态失败: {e}。")
+                if response_get.status_code == 200: 
+                    old_type = response_get.json().get("type", 0)
+                elif response_get.status_code == 404: 
+                    logger.debug(f"{current_prefix} 条目 {subject_id} 尚未收藏。")
+                else: 
+                    logger.warning(f"{current_prefix} 获取当前收藏状态失败 (code: {response_get.status_code})。")
+            except Exception as e: 
+                logger.warning(f"{current_prefix} 请求当前收藏状态失败: {e}。")
 
         if (old_type == 2 and new_type == 3) or old_type == new_type:
             logger.info(f"{current_prefix} 合集状态 {type_dict.get(old_type, old_type)} => {type_dict.get(new_type, new_type)}，无需更新。")
@@ -457,7 +582,7 @@ class BangumiSyncV2Test(_PluginBase):
         post_data = {"type": new_type, "comment": "", "private": False}
         try:
             response_post = await self._bangumi_api_request('POST', update_url, moviepilot_user_id_for_oauth, json=post_data)
-            if response_post.status_code in [201, 202, 204]: # 201 Created, 202 Accepted, 204 No Content
+            if response_post.status_code in [201, 202, 204]: 
                 logger.info(f"{current_prefix} 合集状态 {type_dict.get(old_type,old_type)} => {type_dict.get(new_type,new_type)}，更新成功。")
             else:
                 logger.warning(f"{current_prefix} 合集状态更新失败 (code: {response_post.status_code}): {response_post.text}")
@@ -488,11 +613,11 @@ class BangumiSyncV2Test(_PluginBase):
             if response_get.status_code == 200 and response_get.json().get("type") == 2:
                 logger.info(f"{current_prefix} 单集已经标记为看过。")
                 return
-            elif response_get.status_code not in [200, 404]: # 404表示未标记，是正常情况
+            elif response_get.status_code not in [200, 404]: 
                 logger.warning(f"{current_prefix} 获取单集信息失败 (code: {response_get.status_code})。")
-                # 不直接返回，尝试更新
+                
 
-            response_put = await self._bangumi_api_request('PUT', url, moviepilot_user_id_for_oauth, json={"type": 2}) # 2: 看过
+            response_put = await self._bangumi_api_request('PUT', url, moviepilot_user_id_for_oauth, json={"type": 2}) 
             if response_put.status_code == 204:
                 logger.info(f"{current_prefix} 单集标记为看过成功。")
             else:
@@ -514,10 +639,10 @@ class BangumiSyncV2Test(_PluginBase):
         return False
 
     @staticmethod
-    def format_title(title: str, season: int): # 未使用
+    def format_title(title: str, season: int): 
         if season < 2: return title
         season_zh_map = {0:"零",1:"一",2:"二",3:"三",4:"四",5:"五",6:"六",7:"七",8:"八",9:"九"}
-        season_zh = season_zh_map.get(season % 10 if season < 10 else season) # 简单处理
+        season_zh = season_zh_map.get(season % 10 if season < 10 else season) 
         return f"{title} 第{season_zh}季" if season_zh else f"{title} S{season}"
 
     @staticmethod
@@ -539,12 +664,11 @@ class BangumiSyncV2Test(_PluginBase):
         callback_path = f"/api/v1/plugins/{self.plugin_config_prefix.strip('_')}/oauth/callback"
         redirect_uri = f"{moviepilot_base_url}{callback_path}"
         state_data = {"mp_user_id": moviepilot_user_id, "csrf_token": str(uuid.uuid4())}
-        # CSRF token 应该在某处存储 (例如 session) 并在回调时验证
-        # request.session['oauth_csrf_token'] = state_data['csrf_token'] # 假设 MoviePilot 有 session
+        
         state_param = quote_plus(json.dumps(state_data))
         auth_url = f"{BANGUMI_AUTHORIZE_URL}?client_id={self._oauth_app_id}&redirect_uri={quote_plus(redirect_uri)}&response_type=code&state={state_param}"
         logger.info(f"MoviePilot用户 {moviepilot_user_id}: 开始Bangumi OAuth授权，重定向到: {auth_url}")
-        return {"status": "success", "auth_url": auth_url} # 前端负责重定向
+        return {"status": "success", "auth_url": auth_url} 
 
     async def _handle_oauth_callback(self, request: Request, user: Optional[User] = None):
         code = request.query_params.get('code')
@@ -568,10 +692,8 @@ class BangumiSyncV2Test(_PluginBase):
         try:
             state_data = json.loads(quote_plus(state_param, inverse=True))
             moviepilot_user_id = state_data.get('mp_user_id')
-            # received_csrf = state_data.get('csrf_token')
-            # expected_csrf = request.session.pop('oauth_csrf_token', None) # 假设有 session
-            # if not moviepilot_user_id or received_csrf != expected_csrf:
-            if not moviepilot_user_id: # 简化CSRF
+            
+            if not moviepilot_user_id: 
                 await send_html("State参数无效或安全校验失败。", True); return
         except Exception as e: await send_html(f"解析回调参数时发生错误: {e}", True); return
         
@@ -622,7 +744,7 @@ class BangumiSyncV2Test(_PluginBase):
              self._delete_oauth_info(moviepilot_user_id)
              return {"authorized": False, "nickname": None, "avatar": None, "message": "令牌已失效或无法刷新，请重新授权。"}
         
-        refreshed_oauth_info = self._get_oauth_info(moviepilot_user_id) # 获取最新的信息
+        refreshed_oauth_info = self._get_oauth_info(moviepilot_user_id) 
         return {"authorized": True, 
                 "nickname": refreshed_oauth_info.get('nickname'), 
                 "avatar": refreshed_oauth_info.get('avatar'),
@@ -653,111 +775,307 @@ class BangumiSyncV2Test(_PluginBase):
              return None, f"获取用户信息时发生未知错误: {e}"
 
     def get_form(self) -> Tuple[List[dict], Dict[str, Any]]:
-        # get_form 保持原样，只负责配置输入
         form_structure = [
-            {
-                "component": "VCard", "props": {"variant": "outlined", "class": "mb-3"},
+            {  # VCard for 基础设置 (保留V2Test的VCard结构)
+                "component": "VCard",
+                "props": {"variant": "outlined", "class": "mb-3"},
                 "content": [
-                    {"component": "VCardTitle", "props": {"class": "d-flex align-center"}, "content": [{"component": "VIcon", "props": {"icon": "mdi-cog", "color": "primary", "class": "mr-2"}}, {"component": "span", "text": "基础设置"}]},
+                    {
+                        "component": "VCardTitle",
+                        "props": {"class": "d-flex align-center"},
+                        "content": [
+                            {
+                                "component": "VIcon",
+                                "props": {"icon": "mdi-cog", "color": "primary", "class": "mr-2"},
+                            },
+                            {"component": "span", "text": "基础设置"},
+                        ],
+                    },
                     {"component": "VDivider"},
-                    {"component": "VCardText", "content": [{"component": "VForm", "content": [
-                        {"component": "VRow", "content": [
-                            {"component": "VCol", "props": {"cols": 12,"md": 4}, "content": [{"component": "VSwitch","props": {"model": "enable","label": "启用插件"}}]},
-                            {"component": "VCol", "props": {"cols": 12,"md": 4}, "content": [{"component": "VSwitch","props": {"model": "uniqueid_match","label": "集唯一ID匹配"}}]},
-                        ]},
-                        {"component": "VRow", "content": [
-                            {"component": "VCol", "props": {"cols": 12,"md": 6}, "content": [{"component": "VTextField","props": {"model": "user","label": "媒体服务器用户名","placeholder": "你的Emby/Plex用户名","hint": "多个用逗号隔开","persistentHint": True}}]}
-                        ]}
-                    ]}]}
+                    {
+                        "component": "VCardText",
+                        "content": [
+                            {
+                                "component": "VForm",
+                                "content": [
+                                    {
+                                        "component": "VRow",
+                                        "content": [
+                                            {
+                                                "component": "VCol",
+                                                "props": {
+                                                    "cols": 12,
+                                                    "md": 4
+                                                },
+                                                "content": [
+                                                    {
+                                                        "component": "VSwitch",
+                                                        "props": {
+                                                            "model": "enable",
+                                                            "label": "启用插件",
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "component": "VCol",
+                                                "props": {
+                                                    "cols": 12,
+                                                    "md": 4
+                                                },
+                                                "content": [
+                                                    {
+                                                        "component": "VSwitch",
+                                                        "props": {
+                                                            "model": "uniqueid_match",
+                                                            "label": "集唯一ID匹配",
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                        ]
+                                    },
+                                    {
+                                        "component": "VRow",
+                                        "content": [
+                                            {
+                                                "component": "VCol",
+                                                "props": {
+                                                    "cols": 12,
+                                                    "md": 6
+                                                },
+                                                "content": [
+                                                    {
+                                                        "component": "VTextField",
+                                                        "props": {
+                                                            "model": "user",
+                                                            "label": "媒体服务器用户名",
+                                                            "placeholder": "你的Emby/Plex用户名",
+                                                            "hint": "多个用逗号隔开",
+                                                            "persistentHint": True,
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
                 ]
             },
-            {
-                "component": "VCard", "props": {"variant": "outlined"},
+            {  # VCard for 认证方式和参数设置 (保留V2Test的Tabs结构)
+                "component": "VCard",
+                "props": {"variant": "outlined"},
                 "content": [
-                    {"component": "VTabs", "props": {"model": "tab", "grow": True, "color": "primary"}, "content": [
-                        {"component": "VTab", "props": {"value": "auth-method-tab"}, "content": [{"component": "VIcon", "props": {"icon": "mdi-shield-key", "start": True, "color": "#1976D2"}}, {"component": "span", "text": "认证方式"}]},
-                        {"component": "VTab", "props": {"value": "params-tab"}, "content": [{"component": "VIcon", "props": {"icon": "mdi-tune", "start": True, "color": "#8958f4"}}, {"component": "span", "text": "参数设置"}]}
-                    ]},
+                    {
+                        "component": "VTabs",
+                        "props": {"model": "tab", "grow": True, "color": "primary"},
+                        "content": [
+                            {
+                                "component": "VTab",
+                                "props": {"value": "auth-method-tab"},
+                                "content": [
+                                    {
+                                        "component": "VIcon",
+                                        "props": {"icon": "mdi-shield-key", "start": True, "color": "#1976D2"},
+                                    },
+                                    {"component": "span", "text": "认证方式"},
+                                ],
+                            },
+                            {
+                                "component": "VTab",
+                                "props": {"value": "params-tab"},
+                                "content": [
+                                    {
+                                        "component": "VIcon",
+                                        "props": {"icon": "mdi-tune", "start": True, "color": "#8958f4"},
+                                    },
+                                    {"component": "span", "text": "参数设置"},
+                                ],
+                            },
+                        ],
+                    },
                     {"component": "VDivider"},
-                    {"component": "VWindow", "props": {"model": "tab"}, "content": [
-                        {"component": "VWindowItem", "props": {"value": "auth-method-tab"}, "content": [
-                            {"component": "VCardText", "content": [
-                                {"component": "VRadioGroup", "props": {"model": "auth_method", "inline": False, "label": "选择Bangumi认证方式"}, "content": [
-                                    {"component": "VRadio", "props": {"label": "Access Token", "value": "token"}},
-                                    {"component": "VRadio", "props": {"label": "OAuth 2.0", "value": "oauth"}}
-                                ]}
-                                # OAuth 按钮将移至 get_page
-                            ]}
-                        ]},
-                        {"component": "VWindowItem", "props": {"value": "params-tab"}, "content": [
-                            {"component": "VCardText", "content": [
-                                {"component": "VRow", "props": {"v-if": "config.auth_method === 'token'"}, "content": [{"component": "VCol", "props": {"cols": 12}, "content": [
-                                    {"component": "VTextField", "props": {"model": "token", "label": "Bangumi Access Token", "placeholder": "填写得到的Access token", "type": "password", "hint": "用于Token认证方式。获取：https://next.bgm.tv/demo/access-token", "persistentHint": True}}
-                                ]}]},
-                                {"component": "VRow", "props": {"v-if": "config.auth_method === 'oauth'"}, "content": [
-                                    {"component": "VCol", "props": {"cols": 12, "md": 6}, "content": [
-                                        {"component": "VTextField", "props": {"model": "oauth_app_id", "label": "OAuth Application ID", "placeholder": "你的Bangumi App ID", "hint": "用于OAuth认证方式", "persistentHint": True}}
-                                    ]},
-                                    {"component": "VCol", "props": {"cols": 12, "md": 6}, "content": [
-                                        {"component": "VTextField", "props": {"model": "oauth_app_secret", "label": "OAuth Application Secret", "placeholder": "你的Bangumi App Secret", "type": "password", "hint": "用于OAuth认证方式", "persistentHint": True}}
-                                    ]}
-                                ]},
-                                {"component": "VDivider", "props": {"class": "my-4"}},
-                                {"component": "VAlert", "props": {"type": "info", "variant": "tonal", "text": (
-                                    "Token认证：请在上方填写 Access Token。\n"
-                                    "OAuth认证：请填写 Application ID 和 Secret，然后在插件详情页进行授权操作。\n"
-                                    "Webhook地址：http://[MoviePilot地址]:[端口]/api/v1/webhook?token=moviepilot"
-                                ), "style": "white-space: pre-line;"}}
-                            ]}
-                        ]}
-                    ]}
+                    {
+                        "component": "VWindow",
+                        "props": {"model": "tab"},
+                        "content": [
+                            {  # 认证方式 Tab
+                                "component": "VWindowItem",
+                                "props": {"value": "auth-method-tab"},
+                                "content": [
+                                    {
+                                        "component": "VCardText",
+                                        "content": [
+                                            {
+                                                "component": "VRadioGroup",
+                                                "props": {
+                                                    "model": "auth_method",
+                                                    "inline": False,
+                                                    "label": "选择Bangumi认证方式"
+                                                },
+                                                "content": [
+                                                    {
+                                                        "component": "VRadio",
+                                                        "props": {
+                                                            "label": "Access Token (推荐)",
+                                                            "value": "token"
+                                                        }
+                                                    },
+                                                    {
+                                                        "component": "VRadio",
+                                                        "props": {
+                                                            "label": "OAuth 2.0 (暂未完全支持)", # 保持禁用状态
+                                                            "value": "oauth",
+                                                            "disabled": True 
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {  # 参数设置 Tab
+                                "component": "VWindowItem",
+                                "props": {"value": "params-tab"},
+                                "content": [
+                                    {
+                                        "component": "VCardText",
+                                        "content": [
+                                            { # Token input
+                                                "component": "VRow",
+                                                # "props": {"v-if": "config.auth_method === 'token'"}, # 前端控制显示
+                                                "content": [
+                                                    {
+                                                        "component": "VCol",
+                                                        "props": {"cols": 12},
+                                                        "content": [
+                                                            {
+                                                                "component": "VTextField",
+                                                                "props": {
+                                                                    "model": "token",
+                                                                    "label": "Bangumi Access Token",
+                                                                    "placeholder": "填写得到的Access token",
+                                                                    "type": "password",
+                                                                    "hint": "用于Token认证方式。获取：https://next.bgm.tv/demo/access-token",
+                                                                    "persistentHint": True,
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            { # OAuth inputs
+                                                "component": "VRow",
+                                                # "props": {"v-if": "config.auth_method === 'oauth'"}, # 前端控制显示
+                                                "content": [
+                                                    {
+                                                        "component": "VCol",
+                                                        "props": {"cols": 12, "md": 6},
+                                                        "content": [
+                                                            {
+                                                                "component": "VTextField",
+                                                                "props": {
+                                                                    "model": "oauth_app_id",
+                                                                    "label": "OAuth Application ID",
+                                                                    "placeholder": "在此输入你的App ID",
+                                                                    "hint": "用于OAuth认证方式 (暂不可用)", # 保持提示
+                                                                    "persistentHint": True,
+                                                                    "disabled": True, # 保持禁用
+                                                                }
+                                                            }
+                                                        ]
+                                                    },
+                                                    { 
+                                                        "component": "VCol",
+                                                        "props": {"cols": 12, "md": 6},
+                                                        "content": [
+                                                            {
+                                                                "component": "VTextField",
+                                                                "props": {
+                                                                    "model": "oauth_app_secret",
+                                                                    "label": "OAuth Application Secret",
+                                                                    "placeholder": "在此输入你的App Secret",
+                                                                    "type": "password",
+                                                                    "hint": "用于OAuth认证方式 (暂不可用)", # 保持提示
+                                                                    "persistentHint": True,
+                                                                    "disabled": True, # 保持禁用
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "component": "VAlert",
+                                                "props": {
+                                                    "type": "info",
+                                                    "variant": "tonal",
+                                                    "text": (
+                                                        "access-token获取：https://next.bgm.tv/demo/access-token\n"
+                                                        "emby添加你mp的webhook（event要包括播放）： http://[MoviePilot地址]:[端口]/api/v1/webhook?token=moviepilot\n"
+                                                        "感谢@HankunYu的想法"
+                                                    ),
+                                                    "style": "white-space: pre-line;"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
                 ]
             }
         ]
+
         default_values = {
-            "enable": False, "uniqueid_match": False, "user": "",
-            "auth_method": "token", "token": "",
-            "oauth_app_id": "", "oauth_app_secret": "",
-            "tab": "auth-method-tab", "oauth_store": {}
+            "enable": False,
+            "uniqueid_match": False,
+            "user": "",
+            "auth_method": "token", # 默认认证方式
+            "token": "",
+            "oauth_app_id": "",     # OAuth App ID
+            "oauth_app_secret": "", # OAuth App Secret
+            "tab": "auth-method-tab",  # 默认显示的标签页
+            "oauth_store": {} # 确保默认配置中有这个键
         }
+
         return form_structure, default_values
 
     def get_page(self) -> List[dict]:
         """
         拼装插件详情页面，显示 OAuth 授权状态和操作按钮。
         """
-        # 注意：get_page 是同步方法，但我们需要获取异步的 OAuth 状态。
-        # MoviePilot 插件框架可能不支持在 get_page 中直接 await。
-        # 一种常见的处理方式是：
-        # 1. get_page 返回一个静态的页面结构，包含用于显示状态的占位符和按钮。
-        # 2. 前端 JavaScript 在页面加载后，通过调用插件的 /oauth/status API (异步) 来获取实际状态，并更新页面。
-        #
-        # 这里，我将尝试构建一个“看起来”是动态的结构，但实际的动态更新依赖前端。
-        # 我们可以在这里准备一些基础信息，但真正的实时状态需要前端API调用。
-
-        # 获取当前登录的 MoviePilot 用户（如果 MoviePilot 框架传递了 user 对象）
-        # 这是一个假设，MoviePilot 的 get_page 可能没有直接的 user 上下文。
-        # 如果没有，前端在调用 /oauth/status 时会传递用户信息。
-        # 我们这里只能基于已存储的 _oauth_info_store 来判断（可能不准确，因为不知道当前是哪个MP用户在看页面）
-        #
-        # 简化：假设页面总是为第一个已授权用户显示状态，或者显示一个通用提示。
-        # 更理想的是，前端在加载此页面时，会带上当前MP用户的标识，然后调用API获取该用户的状态。
-
         # 检查是否已配置 OAuth App ID 和 Secret，这是进行 OAuth 的前提
-        if self._auth_method != 'oauth' or not self._oauth_app_id or not self._oauth_app_secret:
+        # 并且认证方式必须是 oauth
+        if self._auth_method != 'oauth':
+            return [
+                {
+                    'component': 'VAlert',
+                    'props': {
+                        'type': 'info',
+                        'variant': 'tonal',
+                        'text': '当前认证方式不是 OAuth。如需使用 OAuth 授权，请先在插件配置的“认证方式”标签页中选择 OAuth。'
+                    }
+                }
+            ]
+        
+        if not self._oauth_app_id or not self._oauth_app_secret:
             return [
                 {
                     'component': 'VAlert',
                     'props': {
                         'type': 'warning',
                         'variant': 'tonal',
-                        'text': '请先在插件配置的“参数设置”中选择 OAuth 认证方式并填写 Application ID 和 Secret。'
+                        'text': '请先在插件配置的“参数设置”中填写 OAuth Application ID 和 Secret。'
                     }
                 }
             ]
 
-        # 构造 OAuth 操作卡片
-        # 真实状态需要前端通过 /api/v1/plugins/bangumisyncv2test_/oauth/status 获取
         oauth_card_content = [
             {
                 'component': 'VCardTitle',
@@ -766,46 +1084,39 @@ class BangumiSyncV2Test(_PluginBase):
             {
                 'component': 'VCardText',
                 'content': [
-                    { # 用于显示授权状态的占位符，由前端JS更新
+                    { 
                         'component': 'div',
                         'props': {'id': 'bangumi-oauth-status-container', 'class': 'mb-4'},
                         'content': [
                             {
                                 'component': 'VChip',
                                 'props': {
-                                    'id': 'oauth-status-chip-page', # 与 get_form 中的 ID 不同
+                                    'id': 'oauth-status-chip-page', 
                                     'color': 'grey',
                                     'text-color': 'white',
                                     'prepend-icon': 'mdi-account-circle-outline'
                                 },
-                                'text': '正在获取授权状态...' # 初始文本
+                                'text': '正在获取授权状态...' 
                             }
                         ]
                     },
-                    { # 授权按钮
+                    { 
                         'component': 'VBtn',
                         'props': {
                             'id': 'oauth-authorize-btn-page',
                             'color': 'primary',
                             'class': 'mr-2',
                             'prepend-icon': 'mdi-link-variant',
-                            # 前端点击事件：
-                            # 1. 调用 /api/v1/plugins/bangumisyncv2test_/oauth/authorize (GET)
-                            # 2. 获取 auth_url
-                            # 3. window.open(auth_url, '_blank', 'width=800,height=600');
                             'comment': '点击发起Bangumi OAuth授权流程'
                         },
                         'text': 'Bangumi 授权'
                     },
-                    { # 解除授权按钮
+                    { 
                         'component': 'VBtn',
                         'props': {
                             'id': 'oauth-deauthorize-btn-page',
                             'color': 'error',
                             'prepend-icon': 'mdi-link-variant-off',
-                            # 前端点击事件：
-                            # 1. 调用 /api/v1/plugins/bangumisyncv2test_/oauth/deauthorize (POST)
-                            # 2. 成功后刷新状态 (重新调用 /oauth/status)
                             'comment': '点击解除当前用户的Bangumi OAuth授权'
                         },
                         'text': '解除授权'
@@ -825,7 +1136,7 @@ class BangumiSyncV2Test(_PluginBase):
                 'content': [
                     {
                         'component': 'VCol',
-                        'props': {'cols': 12, 'md': 8, 'offset-md': 2}, # 居中显示
+                        'props': {'cols': 12, 'md': 8, 'offset-md': 2}, 
                         'content': [
                             {
                                 'component': 'VCard',
@@ -836,7 +1147,6 @@ class BangumiSyncV2Test(_PluginBase):
                     }
                 ]
             }
-            # 如果您还想在此页面显示其他动态数据（如同步历史、错误日志等），可以在这里继续添加
         ]
 
 
@@ -849,7 +1159,7 @@ class BangumiSyncV2Test(_PluginBase):
             "auth_method": self._auth_method,
             "oauth_app_id": self._oauth_app_id,
             "oauth_app_secret": self._oauth_app_secret,
-            "tab": self._tab, # 保存tab状态
+            "tab": self._tab, 
             "oauth_store": self._oauth_info_store
         })
 
@@ -859,7 +1169,9 @@ class BangumiSyncV2Test(_PluginBase):
     def stop_service(self):
         pass
 
-import asyncio # 确保导入
+import asyncio 
 
-# if __name__ == "__main__":
-    # pass
+if __name__ == "__main__":
+    subject_id = BangumiSyncV2Test.get_subjectid_by_title("葬送的芙莉莲", 1)
+    bangumi = BangumiSyncV2Test()
+    bangumi.sync_watching_status(subject_id, 1)
