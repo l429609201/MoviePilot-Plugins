@@ -48,7 +48,7 @@ class EpisodeGroupMetaTest(_PluginBase):
     # 插件版本
     plugin_version = "1.0.8"
     # 插件作者
-    plugin_author = "叮叮当,AAA"
+    plugin_author = "AAA"
     # 作者主页
     author_url = "https://github.com/l429609201"
     # 插件配置项ID前缀
