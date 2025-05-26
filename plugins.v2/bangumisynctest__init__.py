@@ -25,21 +25,21 @@ from cachetools import cached, TTLCache
 import requests
 # from app.helper.mediaserver import MediaServerHelper # 用于获取媒体服务器列表，如果需要动态加载
 
-class BangumiSyncDebug(_PluginBase):
+class BangumiSyncV2Test(_PluginBase):
     # 插件名称
-    plugin_name = "Bangumi打格子-debug"
+    plugin_name = "bgm-V2-测试"
     # 插件描述
     plugin_desc = "将在看记录同步到bangumi"
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "2.0.2" # 版本更新
+    plugin_version = "1.0.0" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai"
     # 作者主页
     author_url = "https://github.com/happyTonakai"
     # 插件配置项ID前缀
-    plugin_config_prefix = "bangumisyncdebug_"
+    plugin_config_prefix = "bangumisyncv2test_"
     # 加载顺序
     plugin_order = 20
     # 可使用的用户级别
@@ -79,7 +79,7 @@ class BangumiSyncDebug(_PluginBase):
             self._tmdb_key = settings.TMDB_API_KEY
             
             # 根据认证方式准备请求头
-            headers = {"User-Agent": BangumiSyncDebug.UA, "content-type": "application/json"}
+            headers = {"User-Agent": BangumiSyncV2Test.UA, "content-type": "application/json"}
             if self._auth_method == 'token' and self._token:
                 headers["Authorization"] = f"Bearer {self._token}"
             # elif self._auth_method == 'oauth':
@@ -92,7 +92,7 @@ class BangumiSyncDebug(_PluginBase):
                 self._request.proxies.update(settings.PROXY)
             
             self.__update_config() # 保存一次配置，确保新增字段也被保存
-            logger.info(f"Bangumi在看同步插件 v{BangumiSyncDebug.plugin_version} 初始化成功")
+            logger.info(f"Bangumi在看同步插件 v{BangumiSyncV2Test。plugin_version} 初始化成功")
         else:
             # 首次加载或无配置时，确保默认值被应用和保存
             self.__update_config()
@@ -150,7 +150,7 @@ class BangumiSyncDebug(_PluginBase):
                 return
 
             # 根据路径判断是不是番剧
-            if not BangumiSyncDebug.is_anime(event_info):
+            if not BangumiSyncV2Test。is_anime(event_info):
                 return
 
             if event_info.item_type in ["TV", "Episode"]: # 增加了 Episode 类型
@@ -1028,49 +1028,4 @@ if __name__ == "__main__":
         "tab": "auth-method-tab"
     }
     
-    # 模拟 settings (如果插件内部直接依赖了 settings 的某些特定值)
-    # class MockSettings:
-    #     TMDB_API_KEY = "YOUR_TMDB_API_KEY" # 替换为你的TMDB Key
-    #     PROXY = None # or {"http": "http://proxy...", "https": "http://proxy..."}
-    # settings = MockSettings() # 覆盖全局的 settings，仅用于测试
-
-    # print("--- 初始化插件 ---")
-    # plugin_instance = BangumiSyncDebug()
-    # plugin_instance.init_plugin(config=mock_config)
-    
-    # print("\n--- 测试获取Subject ID ---")
-    # # 注意：get_subjectid_by_title 现在是实例方法，且依赖 _prefix, _request, _tmdb_key
-    # # _prefix 通常在 hook 方法中设置，这里需要手动设置或修改方法以接受它作为参数
-    # plugin_instance._prefix = "[测试 葬送的芙莉莲 S01E01]"
-    # subject_id, subject_name, orig_ep_name = plugin_instance.get_subjectid_by_title(
-    #     title="葬送のフリーレン", # 使用日文原名或准确的中文名
-    #     season=1,
-    #     episode=1,
-    #     unique_id=None # 如果不使用 unique_id 匹配
-    # )
-    # if subject_id:
-    #     print(f"找到 Subject ID: {subject_id}, 名称: {subject_name}, 原始单集名: {orig_ep_name}")
-    #     print(f"链接: https://bgm.tv/subject/{subject_id}")
-        
-    #     print("\n--- 测试同步观看状态 ---")
-    #     # sync_watching_status 同样是实例方法
-    #     plugin_instance.sync_watching_status(subject_id, 1, orig_ep_name)
-    # else:
-    #     print("未能获取Subject ID，无法继续测试同步。")
-
-    # print("\n--- 测试 is_anime ---")
-    # class MockWebhookEventInfo:
-    #     def __init__(self, channel, item_path=None, library_name=None, json_object=None):
-    #         self.channel = channel
-    #         self.item_path = item_path
-    #         self.library_name = library_name
-    #         self.json_object = json_object
-
-    # event_anime = MockWebhookEventInfo(channel="emby", item_path="/media/anime/Some Show/S01E01.mkv")
-    # event_movie = MockWebhookEventInfo(channel="plex", library_name="Movies")
-    # event_anime_lib = MockWebhookEventInfo(channel="jellyfin", library_name="日番")
-
-    # print(f"'{event_anime.item_path}' is anime: {BangumiSyncDebug.is_anime(event_anime)}")
-    # print(f"'{event_movie.library_name}' is anime: {BangumiSyncDebug.is_anime(event_movie)}")
-    # print(f"'{event_anime_lib.library_name}' is anime: {BangumiSyncDebug.is_anime(event_anime_lib)}")
     pass
