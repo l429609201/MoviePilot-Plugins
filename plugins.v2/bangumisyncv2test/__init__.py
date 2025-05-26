@@ -39,7 +39,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.2" # 版本更新
+    plugin_version = "1.0.3" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -649,10 +649,10 @@ class BangumiSyncV2Test(_PluginBase):
 
     def get_api(self) -> List[Dict[str, Any]]:
         return [
-            {"path": "oauth/authorize", "method": "GET", "function": self._handle_oauth_authorize, "auth": True},
-            {"path": "oauth/callback", "method": "GET", "function": self._handle_oauth_callback, "auth": False},
-            {"path": "oauth/status", "method": "GET", "function": self._handle_oauth_status, "auth": True},
-            {"path": "oauth/deauthorize", "method": "POST", "function": self._handle_oauth_deauthorize, "auth": True},
+            {"path": "/oauth/authorize", "method": "GET", "function": self._handle_oauth_authorize, "auth": True},
+            {"path": "/oauth/callback", "method": "GET", "function": self._handle_oauth_callback, "auth": False},
+            {"path": "/oauth/status", "method": "GET", "function": self._handle_oauth_status, "auth": True},
+            {"path": "/oauth/deauthorize", "method": "POST", "function": self._handle_oauth_deauthorize, "auth": True},
         ]
 
     async def _handle_oauth_authorize(self, request: Any, user: Any):
