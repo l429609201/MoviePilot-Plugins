@@ -33,7 +33,7 @@ class BangumiSyncDebug(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "2.1.0" # 版本更新
+    plugin_version = "2.0.2" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai"
     # 作者主页
@@ -688,7 +688,13 @@ class BangumiSyncDebug(_PluginBase):
         # else:
         #     media_servers_list = [{"title": "未配置媒体服务器", "value": ""}]
         # 由于 MediaServerHelper 未在此插件中初始化，我们先用一个静态的提示
-        media_servers_list = [{"title": "请在MoviePilot主设置中配置媒体服务器", "value": ""}]
+        mediaserver_configs = getattr(settings, 'MEDIASERVER_CONFIG', None)
+
+        
+        if not media_servers_list:
+            # 如果没有获取到服务器列表，提供一个提示
+            media_servers_list = [{"title": "未找到或未配置媒体服务器", "value": "", "disabled": True}]
+
         if settings.MEDIASERVER: # 如果MoviePilot有全局的媒体服务器配置
             media_servers_list = [{"title": name, "value": name} for name in settings.MEDIASERVER.keys()]
 
