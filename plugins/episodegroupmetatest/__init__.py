@@ -40,7 +40,7 @@ class EpisodeGroupMetaTest(_PluginBase):
     # 插件名称
     plugin_name = "TMDB剧集组刮削Test"
     # 插件描述
-    plugin_desc = "fork叮叮当大佬的的插件，添加tmdbed参数，联动神医插件"
+    plugin_desc = "从TMDB剧集组刮削季集的实际顺序。"
     # 插件图标
     plugin_icon = "Element_A.png"
     # 主题色
@@ -52,7 +52,7 @@ class EpisodeGroupMetaTest(_PluginBase):
     # 作者主页
     author_url = "https://github.com/l429609201"
     # 插件配置项ID前缀
-    plugin_config_prefix = "episodegroupmetatest_"
+    plugin_config_prefix = "EpisodeGroupMetaTest_"
     # 加载顺序
     plugin_order = 29
     # 可使用的用户级别
@@ -700,7 +700,7 @@ class EpisodeGroupMetaTest(_PluginBase):
                 _bool = self.__start_rt_mediaserver(mediainfo=mediainfo, existsinfo=existsinfo, episode_groups=episode_groups, group_id=group_id, mediaserver_instance=info.instance)
                 relust_bool = relust_bool or _bool
         return relust_bool
-
+   
     def update_provider_ids_with_tmdbeg(self, server_type: str, itemid: str, tmdbeg_id: str, mediaserver_instance: Any = None):
        """
        更新媒体项的 ProviderIds 字段，添加 TmdbEg=id 的信息。
@@ -735,6 +735,7 @@ class EpisodeGroupMetaTest(_PluginBase):
        else:
           self.log_error(f"{server_type} 媒体项 {itemid} 更新失败")
        return result
+
     def __start_rt_mediaserver(self,
                                mediainfo: schemas.MediaInfo,
                                existsinfo: ExistMediaInfo,
@@ -795,7 +796,7 @@ class EpisodeGroupMetaTest(_PluginBase):
                     if existsinfo.groupid.get(order) is None:
                         self.log_info(f"媒体库中不存在: {mediainfo.title_year}, 第 {order} 季")
                         continue
-
+                    
                     # 👇 插入新功能：使用emby官方API，修改tvshow.nfo添加 TmdbEg 到 ProviderIds  联动emby神医助手
                     if not tmdbeg_updated:
                          # 判断当前媒体服务器是否为 Emby
@@ -810,7 +811,7 @@ class EpisodeGroupMetaTest(_PluginBase):
                         else:
                             self.log_info(f"你使用的的媒体服务器为: {existsinfo.server} ,非emby,不进行TmdbEg更新")
                         tmdbeg_updated = True
-                    
+
                     for _index, _ids in enumerate(existsinfo.groupid.get(order)):
                         # 提取出媒体库中集id对应的集数index
                         ep_num = ep[_index]
@@ -1186,7 +1187,7 @@ class EpisodeGroupMetaTest(_PluginBase):
             return __get_jellyfin_iteminfo()
         else:
             return __get_plex_iteminfo()
-    
+
     def set_iteminfo(self, server_type: str, itemid: str, iteminfo: dict, mediaserver_instance: Any = None):
         """
         更新媒体项详情
