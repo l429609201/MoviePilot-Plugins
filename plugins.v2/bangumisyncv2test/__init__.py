@@ -47,7 +47,7 @@ class BangumiSyncV2Test(_PluginBase):
 
     UA = "honue/MoviePilot-Plugins (https://github.com/honue/MoviePilot-Plugins)"
 
-    _enable = True
+    _enable = False
     _user = None
     _bgm_uid = None
     _token = None
@@ -66,7 +66,7 @@ class BangumiSyncV2Test(_PluginBase):
     def init_plugin(self, config: dict = None):
         # self.mediaserver_helper = MediaServerHelper() # 如果需要动态获取服务器
         if config:
-            self._enable = config.get('enable', True)
+            self._enable = config.get('enable', False)
             self._uniqueid_match = config.get('uniqueid_match', False)
             self._user = config.get('user')
             self._token = config.get('token')
@@ -688,17 +688,16 @@ class BangumiSyncV2Test(_PluginBase):
         # else:
         #     media_servers_list = [{"title": "未配置媒体服务器", "value": ""}]
         # 由于 MediaServerHelper 未在此插件中初始化，我们先用一个静态的提示
-        mediaserver_configs = getattr(settings, 'MEDIASERVER_CONFIG', None)
+        # mediaserver_configs = getattr(settings, 'MEDIASERVER_CONFIG', None) # 此行当前未用于列表填充
 
+        media_servers_list = []
+        if settings.MEDIASERVER: # 如果MoviePilot有全局的媒体服务器配置
+            media_servers_list = [{"title": name, "value": name} for name in settings.MEDIASERVER.keys()]
         
         if not media_servers_list:
             # 如果没有获取到服务器列表，提供一个提示
             media_servers_list = [{"title": "未找到或未配置媒体服务器", "value": "", "disabled": True}]
-
-        if settings.MEDIASERVER: # 如果MoviePilot有全局的媒体服务器配置
-            media_servers_list = [{"title": name, "value": name} for name in settings.MEDIASERVER.keys()]
-
-
+            
         return [
             {
                 "component": "VCard",
