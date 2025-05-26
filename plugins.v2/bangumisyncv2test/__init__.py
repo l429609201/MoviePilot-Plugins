@@ -150,7 +150,7 @@ class BangumiSyncV2Test(_PluginBase):
                 return
 
             # 根据路径判断是不是番剧
-            if not BangumiSyncV2Test。is_anime(event_info):
+            if not BangumiSyncV2Test.is_anime(event_info):
                 return
 
             if event_info.item_type in ["TV", "Episode"]: # 增加了 Episode 类型
