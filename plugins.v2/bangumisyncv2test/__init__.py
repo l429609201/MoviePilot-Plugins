@@ -40,7 +40,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.15" # 版本更新
+    plugin_version = "1.0.16" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -96,7 +96,11 @@ class BangumiSyncV2Test(_PluginBase):
                 self._auth_method = "token" # 如果无效，则重置为明确的默认值 'token'，而不是 None
 
             self._oauth_app_secret = config.get('oauth_app_secret') if config.get('oauth_app_secret') else None
-            self._tab = config.get('tab', 'auth-method-tab') # 加载tab状态
+            
+            # 根据加载的 auth_method 决定初始 tab
+            default_tab_for_method = 'params-tab' if self._auth_method in ['token', 'oauth'] else 'auth-method-tab'
+            self._tab = config.get('tab', default_tab_for_method) # 加载tab状态，如果未配置，则根据 auth_method 决定
+
             # self._moviepilot_public_url = config.get('moviepilot_public_url') # 移除加载
 
             # 加载全局OAuth信息
@@ -134,6 +138,7 @@ class BangumiSyncV2Test(_PluginBase):
             # self._enable 已经默认为 True
             # 首次加载时，auth_method 也应该有一个明确的默认值
             self._auth_method = "token" # 与 get_form 中的 default_values 保持一致
+            self._tab = 'auth-method-tab' # 首次加载，默认显示认证方式选择
             logger.info(f"插件 {self.plugin_name} 首次加载或无配置，使用默认设置。启用状态: {self._enable}")
             self._global_oauth_info = None # 确保默认是None
             self.__update_config()
@@ -1340,6 +1345,12 @@ class BangumiSyncV2Test(_PluginBase):
 
     def __update_config(self):
         logger.debug(f"准备执行 __update_config。当前的 self._auth_method 是: '{self._auth_method}', 启用状态: {self._enable}")
+        # 根据当前的认证方式，决定默认打开哪个标签页
+        # 如果用户选择了具体的认证方式，并且希望直接看到参数，可以考虑将 tab 切换到 'params-tab'
+        # 但通常情况下，用户可能还是希望先看到认证方式的选择。
+        # 如果你希望在选择了 token 或 oauth 后，下次打开直接显示参数页，可以取消下面的注释：
+        # if self._auth_method in ['token', 'oauth']:
+        #     self._tab = 'params-tab'
         self.update_config({
             "enable": self._enable,
             "uniqueid_match": self._uniqueid_match,
