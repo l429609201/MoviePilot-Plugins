@@ -39,7 +39,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.6" # 版本更新
+    plugin_version = "1.0.5" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA,Gemini" # 添加 Gemini
     # 作者主页
@@ -1191,36 +1191,171 @@ class BangumiSyncV2Test(_PluginBase):
         ]
 
         frontend_script = f"""
-// 在 bangumiSyncV2Test_handleOAuthAuthorize 函数内部
-async function bangumiSyncV2Test_handleOAuthAuthorize() {
-    console.log('BangumiSyncV2Test: handleOAuthAuthorize called');
-    const authWindow = window.open('', '_blank', 'width=600,height=700,noopener,noreferrer'); // 先打开窗口
-    if (!authWindow) {
-        bangumiSyncV2Test_showToast('授权窗口可能已被浏览器拦截，请检查浏览器设置。', 'warning');
-        return;
-    }
-    authWindow.document.write('<p>正在跳转到 Bangumi 授权页面，请稍候...</p>'); // 给用户一个提示
+<script>
+if (typeof window.bangumiSyncV2Test_functions_defined === 'undefined') {{
+    window.bangumiSyncV2Test_functions_defined = true;
 
-    try {
-        const response = await fetch('/api/v1/{api_base_path}/oauth_authorize');
-        const data = await response.json();
-        if (data.status === 'success' && data.auth_url) {
-            authWindow.location.href = data.auth_url; // 再设置 URL
+    function bangumiSyncV2Test_showToast(message, type = 'info') {{
+        if (window.MP && window.MP.toast) {{
+            window.MP.toast(message, {{ type: type, timeout: 3000 }});
+        }} else {{
+            alert(`Toast (${{type}}): ${{message}}`); 
+            console.log(`Toast (${{type}}): ${{message}}`);
+        }}
+    }}
 
-            const checkInterval = setInterval(() => {
-                // ... (监听关闭的逻辑不变) ...
-            }, 500);
-        } else {
-            authWindow.close(); // 如果获取 URL 失败，关闭空窗口
-            bangumiSyncV2Test_showToast(data.message || '获取授权链接失败', 'error');
-        }
-    } catch (error) {
-        authWindow.close(); // 出错也关闭空窗口
-        console.error('BangumiSyncV2Test: 发起授权失败:', error);
-        bangumiSyncV2Test_showToast('发起授权请求失败', 'error');
-    }
-}
+    async function bangumiSyncV2Test_fetchOAuthStatus() {{
+        console.log('BangumiSyncV2Test: Fetching OAuth status...');
+        const authorizeBtn = document.getElementById('oauth-authorize-btn-page');
+        const deauthorizeBtn = document.getElementById('oauth-deauthorize-btn-page');
+        
+        const statusChip = document.getElementById('oauth-status-chip-page');
+        const statusIcon = document.getElementById('oauth-status-icon-page');
+        const statusText = document.getElementById('oauth-status-text-page');
+        
+        const userAvatarElement = document.getElementById('oauth-user-avatar-page');
+        const userDetailsDiv = document.getElementById('oauth-user-details-page');
+        const uidText = document.getElementById('oauth-uid-text-page');
+        const expireText = document.getElementById('oauth-expire-text-page');
 
+        if (!statusChip || !statusIcon || !statusText || !authorizeBtn || !deauthorizeBtn || !userAvatarElement || !userDetailsDiv || !uidText || !expireText) {{
+            console.warn('BangumiSyncV2Test: OAuth status UI elements not all found. Status update might be incomplete.');
+            // 不直接返回，尝试更新能找到的元素
+        }}
+
+        if (statusIcon) statusIcon.className = 'v-icon notranslate mdi mdi-loading theme--light';
+        if (statusText) statusText.textContent = '正在获取授权状态...';
+        if (statusChip) {{ statusChip.setAttribute('color', 'grey'); statusChip.classList.remove('success', 'warning', 'error'); statusChip.classList.add('grey'); }}
+        if (userAvatarElement) userAvatarElement.style.display = 'none';
+        if (userDetailsDiv) userDetailsDiv.style.display = 'none';
+
+        try {{
+            const response = await fetch('/api/v1/{api_base_path}/oauth_status');
+            const data = await response.json();
+            console.log('BangumiSyncV2Test: OAuth status response:', data);
+
+            if (data.authorized) {{
+                if (statusText) statusText.textContent = `已授权: ${{data.nickname || '未知用户'}}`;
+                if (statusIcon) statusIcon.className = 'v-icon notranslate mdi mdi-check-circle theme--light';
+                if (statusChip) {{ statusChip.setAttribute('color', 'success'); statusChip.classList.remove('grey', 'warning'); }}
+                if (authorizeBtn) authorizeBtn.disabled = true;
+                if (deauthorizeBtn) deauthorizeBtn.disabled = false;
+                
+                if (userAvatarElement && data.avatar) {{
+                    // Vuetify VAvatar 通常通过 :src 绑定，直接设置 src 可能不触发更新，或需要特定方式
+                    // 尝试直接设置 img 元素的 src (如果 VAvatar 内部是 img)
+                    const imgElement = userAvatarElement.querySelector('img') || userAvatarElement; // 尝试找到内部img
+                    if(imgElement) imgElement.setAttribute('src', data.avatar);
+                    userAvatarElement.style.display = 'block';
+                }}
+                if (uidText) uidText.textContent = `Bangumi UID: ${{data.bangumi_user_id || ''}}`;
+                if (expireText) expireText.textContent = `令牌有效期至: ${{data.expire_time_readable || 'N/A'}}`;
+                if (userDetailsDiv && data.bangumi_user_id) userDetailsDiv.style.display = 'block';
+
+                // 更新昵称链接
+                if (statusText && data.url) {{ // statusText 是 <a> 或 <span>
+                    if (statusText.tagName === 'A') {{
+                        statusText.href = data.url;
+                        statusText.target = '_blank';
+                        statusText.style.color = 'inherit';
+                        statusText.style.textDecoration = 'none';
+                    }}
+                }}
+
+            }} else {{
+                if (statusText) statusText.textContent = data.message || '未授权或状态未知';
+                if (statusIcon) statusIcon.className = 'v-icon notranslate mdi mdi-information theme--light';
+                if (statusChip) {{ statusChip.setAttribute('color', 'warning'); statusChip.classList.remove('grey', 'success'); }}
+                if (authorizeBtn) authorizeBtn.disabled = false;
+                if (deauthorizeBtn) deauthorizeBtn.disabled = true;
+                if (statusText && statusText.tagName === 'A') {{ // 如果之前是链接，恢复成普通文本
+                    statusText.removeAttribute('href');
+                    statusText.removeAttribute('target');
+                }}
+            }}
+        }} catch (error) {{
+            console.error('BangumiSyncV2Test: 获取OAuth状态失败:', error);
+            if (statusText) statusText.textContent = '获取状态失败';
+            if (statusIcon) statusIcon.className = 'v-icon notranslate mdi mdi-alert-circle theme--light';
+            if (statusChip) {{ statusChip.setAttribute('color', 'error'); statusChip.classList.remove('grey', 'success', 'warning'); }}
+            if (authorizeBtn) authorizeBtn.disabled = false; 
+            if (deauthorizeBtn) deauthorizeBtn.disabled = true;
+        }}
+    }}
+
+    async function bangumiSyncV2Test_handleOAuthAuthorize() {{
+        console.log('BangumiSyncV2Test: handleOAuthAuthorize called');
+        try {{
+            const response = await fetch('/api/v1/{api_base_path}/oauth_authorize');
+            const data = await response.json();
+            if (data.status === 'success' && data.auth_url) {{
+                const authWindow = window.open(data.auth_url, '_blank', 'width=600,height=700,noopener,noreferrer');
+                if (!authWindow) {{
+                     bangumiSyncV2Test_showToast('授权窗口可能已被浏览器拦截，请检查浏览器设置。', 'warning');
+                     return;
+                }}
+                const checkInterval = setInterval(() => {{
+                    try {{ // 增加 try-catch 防止因窗口权限问题导致JS错误
+                        if (authWindow && authWindow.closed) {{
+                            clearInterval(checkInterval);
+                            console.log('BangumiSyncV2Test: Auth window closed, refreshing status.');
+                            bangumiSyncV2Test_fetchOAuthStatus();
+                        }}
+                    }} catch (e) {{ // 跨域安全策略可能导致访问 closed 属性报错
+                        clearInterval(checkInterval); // 无法检测，停止轮询
+                        console.warn('BangumiSyncV2Test: Cannot access authWindow.closed, stopping poll. Please refresh manually if needed.');
+                        // 可以提示用户手动刷新
+                        // bangumiSyncV2Test_showToast('授权完成后请手动刷新状态。', 'info');
+                    }}
+                }}, 500);
+            }} else {{
+                bangumiSyncV2Test_showToast(data.message || '获取授权链接失败', 'error');
+            }}
+        }} catch (error) {{
+            console.error('BangumiSyncV2Test: 发起授权失败:', error);
+            bangumiSyncV2Test_showToast('发起授权请求失败', 'error');
+        }}
+    }}
+
+    async function bangumiSyncV2Test_handleOAuthDeauthorize() {{
+        console.log('BangumiSyncV2Test: handleOAuthDeauthorize called');
+        if (!confirm('确定要解除 Bangumi OAuth 授权吗？')) {{
+            return;
+        }}
+        try {{
+            const response = await fetch('/api/v1/{api_base_path}/oauth_deauthorize', {{ method: 'POST' }});
+            const data = await response.json();
+            bangumiSyncV2Test_showToast(data.message || (data.status === 'success' ? '已成功解除授权' : '解除授权失败'), data.status === 'success' ? 'success' : 'error');
+            bangumiSyncV2Test_fetchOAuthStatus();
+        }} catch (error) {{
+            console.error('BangumiSyncV2Test: 解除授权失败:', error);
+            bangumiSyncV2Test_showToast('解除授权请求失败', 'error');
+        }}
+    }}
+
+    window.addEventListener('message', (event) => {{
+        if (event.origin === window.location.origin && event.data === 'BANGUMI-OAUTH-COMPLETE') {{
+            console.log('BangumiSyncV2Test: 收到 OAuth 完成消息，刷新状态...');
+            bangumiSyncV2Test_fetchOAuthStatus();
+        }}
+    }}, false);
+
+    // 确保DOM加载完成后执行
+    function bangumiSyncV2Test_initPage() {{
+        if (document.getElementById('bangumi-oauth-status-container')) {{
+            bangumiSyncV2Test_fetchOAuthStatus();
+        }} else {{
+            // 如果元素还不存在，稍后重试，或者依赖 MoviePilot 的页面加载钩子
+            setTimeout(bangumiSyncV2Test_initPage, 100);
+        }}
+    }}
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {{
+        bangumiSyncV2Test_initPage();
+    }} else {{
+        document.addEventListener('DOMContentLoaded', bangumiSyncV2Test_initPage);
+    }}
+}}
+</script>
         """
         script_container = {'component': 'div', 'props': {'innerHTML': frontend_script, 'style': 'display:none;'}}
         return [{'component': 'VRow', 'content': [{'component': 'VCol', 'props': {'cols': 12, 'md': 8, 'offset-md': 2}, 'content': [{'component': 'VCard', 'props': {'variant': 'outlined'}, 'content': oauth_card_content + [script_container]}]}]}]
