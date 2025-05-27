@@ -40,7 +40,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.19" # 版本更新
+    plugin_version = "1.0.20" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -82,7 +82,7 @@ class BangumiSyncV2Test(_PluginBase):
             self._uniqueid_match = config.get('uniqueid_match', False)
             self._user = config.get('user') if config.get('user') else None
 
-            self._oauth_app_id = config.get('auth_method') if config.get('auth_method') else None
+            self._auth_method = config.get('auth_method') if config.get('auth_method') else None
 
             # 从配置加载 auth_method，如果不存在或为空字符串，则视为 None
             # loaded_auth_method = config.get('auth_method') 
