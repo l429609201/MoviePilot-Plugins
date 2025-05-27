@@ -40,7 +40,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.7" # 版本更新
+    plugin_version = "1.0.8" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -54,7 +54,7 @@ class BangumiSyncV2Test(_PluginBase):
 
     UA = "l429609201/MoviePilot-Plugins (https://github.com/l429609201)"
 
-    _enable = False
+    _enable = True # 修改点1：将默认启用状态改为 True，与 Debug 版本一致
     _user = None
     _bgm_uid = None # Token模式下的Bangumi UID
     _token = None # Token模式下的Access Token
@@ -74,7 +74,11 @@ class BangumiSyncV2Test(_PluginBase):
 
     def init_plugin(self, config: dict = None):
         if config:
-            self._enable = config.get('enable', False)
+            # 修改点2：加载 enable 配置的逻辑，如果配置中不存在，则保持类定义的默认值 True
+            # Debug 版本是 self._enable = config.get('enable')，这可能导致 _enable 为 None
+            # 这里我们采用更明确的方式：如果 'enable' 在 config 中，则使用它的值，否则使用当前的 self._enable (即类默认值 True)
+            if 'enable' in config:
+                self._enable = config.get('enable')
             self._uniqueid_match = config.get('uniqueid_match', False)
             self._user = config.get('user') if config.get('user') else None
             self._token = config.get('token') if config.get('token') else None
@@ -122,6 +126,8 @@ class BangumiSyncV2Test(_PluginBase):
             logger.info(f"Bangumi在看同步插件 v{BangumiSyncV2Test.plugin_version} 初始化成功")
         else:
             # 首次加载或无配置时，确保默认值被应用和保存
+            # self._enable 已经默认为 True
+            logger.info(f"插件 {self.plugin_name} 首次加载或无配置，使用默认设置。启用状态: {self._enable}")
             self._global_oauth_info = None # 确保默认是None
             self.__update_config()
 
@@ -290,8 +296,10 @@ class BangumiSyncV2Test(_PluginBase):
         return response
 
     @eventmanager.register(EventType.WebhookMessage)
+    # 注意：BangumiSyncDebug 版本此处为同步方法 def hook(...)
+    # 如果要完全对齐以排查问题，这里也应改为同步，并处理内部的 await 调用。
+    # 为了保持当前代码结构，暂时保留 async，但这是与 Debug 版本的一个重要区别。
     async def hook(self, event: Event):
-
         logger.warning(f"{self.plugin_name}: 开始处理webhook事件。")
 
         if not self._enable:
@@ -1298,7 +1306,7 @@ class BangumiSyncV2Test(_PluginBase):
 
 
     def __update_config(self):
-        logger.info(f"准备执行 __update_config。当前的 self._auth_method 是: '{self._auth_method}'")
+        logger.debug(f"准备执行 __update_config。当前的 self._auth_method 是: '{self._auth_method}', 启用状态: {self._enable}")
         self.update_config({
             "enable": self._enable,
             "uniqueid_match": self._uniqueid_match,
@@ -1311,7 +1319,7 @@ class BangumiSyncV2Test(_PluginBase):
             # "moviepilot_public_url": self._moviepilot_public_url, # 移除保存
             "global_oauth_info": self._global_oauth_info
         })
-        logger.info(f"__update_config 执行完毕。保存到配置的 auth_method 是: '{self._auth_method}'")
+        logger.debug(f"__update_config 执行完毕。保存到配置的 auth_method 是: '{self._auth_method}', 启用状态: {self._enable}")
 
     def get_state(self) -> bool:
         return self._enable
