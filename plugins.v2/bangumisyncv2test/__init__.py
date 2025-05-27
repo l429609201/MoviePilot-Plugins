@@ -40,7 +40,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.13" # 版本更新
+    plugin_version = "1.0.14" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -54,7 +54,7 @@ class BangumiSyncV2Test(_PluginBase):
 
     UA = "l429609201/MoviePilot-Plugins (https://github.com/l429609201)"
 
-    _enable = True # 修改点1：将默认启用状态改为 True，与 Debug 版本一致
+    _enable = False # 修改点1：将默认启用状态改为 True，与 Debug 版本一致
     _user = None
     _bgm_uid = None # Token模式下的Bangumi UID
     _token = None # Token模式下的Access Token
@@ -62,7 +62,7 @@ class BangumiSyncV2Test(_PluginBase):
     _request: Optional[requests.Session] = None # requests.Session实例
     _uniqueid_match = False
 
-    _auth_method = "token" # 'token' or 'oauth'
+    _auth_method = None # 'token' or 'oauth'
     _oauth_app_id: Optional[str] = None
     _oauth_app_secret: Optional[str] = None
     
@@ -83,12 +83,12 @@ class BangumiSyncV2Test(_PluginBase):
             self._user = config.get('user') if config.get('user') else None
             self._token = config.get('token') if config.get('token') else None
 
-            self._auth_method = config.get('auth_method', 'token') # 直接从 'auth_method' 加载，默认为 'token'
+            self._auth_method = config.get('auth_method') if config.get('auth_method') else None
             self._oauth_app_id = config.get('oauth_app_id') if config.get('oauth_app_id') else None
             # 增加对 _auth_method 的校验和修正 (取消注释并使用)
             if self._auth_method not in ['token', 'oauth']:
                 logger.warning(f"检测到无效的 auth_method 配置值: '{self._auth_method}'。将重置为默认值 'token'。")
-                self._auth_method = 'token'
+                self._auth_method = None
 
             self._oauth_app_secret = config.get('oauth_app_secret') if config.get('oauth_app_secret') else None
             self._tab = config.get('tab', 'auth-method-tab') # 加载tab状态
