@@ -1428,7 +1428,4 @@ import asyncio
 # 导入 BangumiOAuthInfo 类，以便在 __main__ 中使用
 from __main__ import BangumiOAuthInfo # 或者根据实际文件结构导入
 
-# if __name__ == "__main__":
-#     subject_id, _, _ = asyncio.run(BangumiSyncV2Test().get_subjectid_by_title("葬送的芙莉莲", 1, 1, None))
-#     if subject_id:
-#        asyncio.run(BangumiSyncV2Test().sync_watching_status(subject_id, 1, None))
+
