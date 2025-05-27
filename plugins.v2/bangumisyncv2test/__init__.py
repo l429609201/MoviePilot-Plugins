@@ -40,7 +40,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.20" # 版本更新
+    plugin_version = "1.0.21" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -1352,7 +1352,7 @@ class BangumiSyncV2Test(_PluginBase):
         # 但通常情况下，用户可能还是希望先看到认证方式的选择。
         # 如果你希望在选择了 token 或 oauth 后，下次打开直接显示参数页，可以取消下面的注释：
         # if self._auth_method in ['token', 'oauth']:
-        #     self._tab = 'params-tab'
+        # self._tab = 'params-tab'
         self.update_config({
             "enable": self._enable,
             "uniqueid_match": self._uniqueid_match,
@@ -1365,7 +1365,19 @@ class BangumiSyncV2Test(_PluginBase):
             # "moviepilot_public_url": self._moviepilot_public_url, # 移除保存
             "global_oauth_info": self._global_oauth_info
         })
-        logger.debug(f"__update_config 执行完毕。保存到配置的 auth_method 是: '{self._auth_method}', 启用状态: {self._enable}")
+        # 增加打印所有将要保存的参数
+        config_to_be_saved = {
+            "enable": self._enable,
+            "uniqueid_match": self._uniqueid_match,
+            "user": self._user,
+            "token": self._token,
+            "auth_method": self._auth_method,
+            "oauth_app_id": self._oauth_app_id,
+            "oauth_app_secret": self._oauth_app_secret,
+            "tab": self._tab,
+            "global_oauth_info": "******" if self._global_oauth_info else None # OAuth信息可能较长或敏感，选择性打印
+        }
+        logger.info(f"__update_config: 插件配置已更新并保存，保存的完整参数如下: {config_to_be_saved}")
 
     def get_state(self) -> bool:
         return self._enable
