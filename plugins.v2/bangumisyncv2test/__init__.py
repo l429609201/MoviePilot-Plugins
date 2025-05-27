@@ -40,7 +40,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.11" # 版本更新
+    plugin_version = "1.0.12" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -329,23 +329,34 @@ class BangumiSyncV2Test(_PluginBase):
                 return
 
             play_start = {"playback.start", "media.play", "PlaybackStart"}
-            if not (event_info.event in play_start or (event_info.percentage and event_info.percentage > 90)):
+            # 不是播放停止事件, 或观看进度不足90% 不处理
+            if not (event_info.event in play_start or event_info.percentage and event_info.percentage > 90):
                 return
-
+            # 根据路径判断是不是番剧
             if not BangumiSyncV2Test.is_anime(event_info):
                 return
 
             if event_info.item_type in ["TV"]:
+                """
+                    event='playback.pause' channel='emby' item_type='TV' item_name='咒术回战 S1E47 关门' item_id='22646' item_path='/media/cartoon/动漫/咒术回战 (2020)/Season 1/咒术回战 - S01E47 - 第 47 集.mkv' season_id=1 episode_id=47 tmdb_id=None overview='渋谷事変の最終局面に呪術師が集うなかで、脹相は夏油の亡骸に寄生する“黒幕”の正体に気付く。そして、絶体絶命の危機に現れた特級術師・九十九由基。九十九と“黒幕”がそれぞれ語る人類の未来（ネクストステージ...' percentage=2.5705228512861966 ip='127.0.0.1' device_name='Chrome Windows' client='Emby Web' user_name='honue' image_url=None item_favorite=None save_reason=None item_isvirtual=None media_type='Episode'
+                """
+                # 标题，mp 的 tmdb 搜索 api 有点问题，带空格的搜不出来，直接使用 emby 事件的标题
                 tmdb_id = event_info.tmdb_id
                 logger.info(f"匹配播放事件 {event_info.item_name} tmdb id = {tmdb_id}...")
-                match = re.match(r"^(.+?)\sS\d+E\d+\s.*", event_info.item_name) 
-                title = match.group(1).strip() if match else event_info.item_name.split(' ')[0].strip()
+                match = re.match(r"^(.+)\sS\d+E\d+\s.+", event_info.item_name)
+                if match:
+                    title = match.group(1)
+                else:
+                    title = event_info.item_name.split(' ')[0]
 
-                season_id, episode_id = int(event_info.season_id), int(event_info.episode_id)
-                self._prefix = f"[{title} S{season_id:02d}E{episode_id:02d}]" 
-
-                unique_id = int(tmdb_id) if tmdb_id and tmdb_id.isdigit() else None
-                
+                # 季 集
+                season_id, episode_id = map(int, [event_info.season_id, event_info.episode_id])
+                self._prefix = f"{title} 第{season_id}季 第{episode_id}集"
+                try:
+                    unique_id = int(tmdb_id)
+                except Exception:
+                    unique_id = None
+                    
                 # 使用 tmdb airdate 来定位季，提高准确率
                 subject_id, subject_name, original_episode_name = self.get_subjectid_by_title(
                     title, season_id, episode_id, unique_id
