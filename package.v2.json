@@ -38,12 +38,12 @@
         "name": "bgm-V2-测试",
         "description": "将你在媒体库上的番剧观看，同步到Bangumi在看状态",
         "labels": "bgm",
-        "version": "1.0.0",
+        "version": "1.0.4",
         "icon": "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg",
         "author": "honue,happyTonakai,AAA",
         "level": 1,
         "history": {
-          "v1.0.0": "测试"
+          "v1.0.4": "测试+4"
         }
     }
 }
