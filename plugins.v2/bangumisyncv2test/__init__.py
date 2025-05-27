@@ -40,7 +40,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.9" # 版本更新
+    plugin_version = "1.0.10" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -347,20 +347,22 @@ class BangumiSyncV2Test(_PluginBase):
                 self._prefix = f"[{title} S{season_id:02d}E{episode_id:02d}]" 
 
                 unique_id = int(tmdb_id) if tmdb_id and tmdb_id.isdigit() else None
-
-                subject_id, subject_name, original_episode_name = await self.get_subjectid_by_title(
+                
+                # 使用 tmdb airdate 来定位季，提高准确率
+                subject_id, subject_name, original_episode_name = self.get_subjectid_by_title(
                     title, season_id, episode_id, unique_id
                 )
-
+                logger.debug(f"subject_id: {subject_id}")
+                logger.debug(f"subject_name: {subject_name}")
+                logger.debug(f"original_episode_name: {original_episode_name}")
                 if subject_id is None:
-                    logger.info(f"{self._prefix} 未能从Bangumi找到对应的条目ID。")
                     return
+                logger.info(f"{self._prefix}: {title} {original_episode_name} => {subject_name} https://bgm.tv/subject/{subject_id}")
 
-                logger.info(f"{self._prefix} 匹配成功: 本地 '{title}' (原始单集名: {original_episode_name or 'N/A'}) => Bangumi '{subject_name}' (ID: {subject_id}, https://bgm.tv/subject/{subject_id})")
-                await self.sync_watching_status(subject_id, episode_id, original_episode_name)
+                self.sync_watching_status(subject_id, episode_id, original_episode_name)
 
         except Exception as e:
-            logger.exception(f"同步在看状态失败: {e}") 
+            logger.warning(f"同步在看状态失败: {e}")
 
     @cached(TTLCache(maxsize=100, ttl=3600))
     async def get_subjectid_by_title(self, title: str, season: int, episode: int, unique_id: Optional[int]) -> Tuple[Optional[int], Optional[str], Optional[str]]:
