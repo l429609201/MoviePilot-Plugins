@@ -40,7 +40,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.12" # 版本更新
+    plugin_version = "1.0.13" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -312,8 +312,15 @@ class BangumiSyncV2Test(_PluginBase):
             if not self._global_oauth_info:
                 logger.warning(f"{self.plugin_name}: OAuth认证方式已选择，但尚未完成授权。")
                 return
-            
-            access_token =  self._get_valid_access_token()
+
+            # 获取事件循环以同步运行异步方法
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError: # 当前线程中没有事件循环
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            access_token =  loop.run_until_complete(self._get_valid_access_token())
             if not access_token:
                  logger.warning(f"{self.plugin_name}: OAuth认证令牌无效或无法刷新。请在插件设置中重新授权。")
                  return
@@ -357,9 +364,18 @@ class BangumiSyncV2Test(_PluginBase):
                 except Exception:
                     unique_id = None
                     
+                # 获取事件循环以同步运行异步方法
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError: # 当前线程中没有事件循环
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
                 # 使用 tmdb airdate 来定位季，提高准确率
-                subject_id, subject_name, original_episode_name = self.get_subjectid_by_title(
+                subject_id, subject_name, original_episode_name = loop.run_until_complete(
+                    self.get_subjectid_by_title(
                     title, season_id, episode_id, unique_id
+                    )
                 )
                 logger.debug(f"subject_id: {subject_id}")
                 logger.debug(f"subject_name: {subject_name}")
@@ -367,8 +383,7 @@ class BangumiSyncV2Test(_PluginBase):
                 if subject_id is None:
                     return
                 logger.info(f"{self._prefix}: {title} {original_episode_name} => {subject_name} https://bgm.tv/subject/{subject_id}")
-
-                self.sync_watching_status(subject_id, episode_id, original_episode_name)
+                loop.run_until_complete(self.sync_watching_status(subject_id, episode_id, original_episode_name))
 
         except Exception as e:
             logger.warning(f"同步在看状态失败: {e}")
