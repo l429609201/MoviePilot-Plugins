@@ -79,12 +79,12 @@ class BangumiSyncV2Test(_PluginBase):
             self._user = config.get('user') if config.get('user') else None
             self._token = config.get('token') if config.get('token') else None
 
-            self._auth_method = config.get('auth_method') if config.get('token') else None
+            self._auth_method = config.get('auth_method', 'token') # 直接从 'auth_method' 加载，默认为 'token'
             self._oauth_app_id = config.get('oauth_app_id') if config.get('oauth_app_id') else None
-            # # 增加对 _auth_method 的校验和修正
-            # if self._auth_method not in ['token', 'oauth']:
-            #     logger.warning(f"检测到无效的 auth_method 配置值: '{self._auth_method}'。将重置为默认值 'token'。")
-            #     self._auth_method = 'token' # 或者您希望的其他默认值
+            # 增加对 _auth_method 的校验和修正 (取消注释并使用)
+            if self._auth_method not in ['token', 'oauth']:
+                logger.warning(f"检测到无效的 auth_method 配置值: '{self._auth_method}'。将重置为默认值 'token'。")
+                self._auth_method = 'token'
 
             self._oauth_app_secret = config.get('oauth_app_secret') if config.get('oauth_app_secret') else None
             self._tab = config.get('tab', 'auth-method-tab') # 加载tab状态
@@ -1227,9 +1227,10 @@ class BangumiSyncV2Test(_PluginBase):
                                     # 前端框架需要处理这个API调用的响应，特别是包含 auth_url 的情况
                                     'action': 'open_auth_window_and_refresh_on_close', # 假设的自定义action
                                     'params': {
-                                        'apikey': settings.API_TOKEN,
-                                        'tmdb_id': tmdb_id,
-                                        'group_id': group.get('id')
+                                        'apikey': settings.API_TOKEN
+                                        # ,
+                                        # 'tmdb_id': tmdb_id,
+                                        # 'group_id': group.get('id')
                                     }
                                 }
                             }
