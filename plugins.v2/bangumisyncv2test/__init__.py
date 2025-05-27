@@ -40,7 +40,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.10" # 版本更新
+    plugin_version = "1.0.11" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -296,32 +296,30 @@ class BangumiSyncV2Test(_PluginBase):
         return response
 
     @eventmanager.register(EventType.WebhookMessage)
-    # 注意：BangumiSyncDebug 版本此处为同步方法 def hook(...)
-    # 如果要完全对齐以排查问题，这里也应改为同步，并处理内部的 await 调用。
-    # 为了保持当前代码结构，暂时保留 async，但这是与 Debug 版本的一个重要区别。
+    # 必须使用同步的方法，异步的方法接收不到webhook事件
     def hook(self, event: Event):
         logger.warning(f"{self.plugin_name}: 开始处理webhook事件。")
 
-        # if not self._enable:
-        #     logger.warning(f"{self.plugin_name}: 未开启插件，请到设置界面点击启用插件。")
-        #     return
+        if not self._enable:
+            logger.warning(f"{self.plugin_name}: 未开启插件，请到设置界面点击启用插件。")
+            return
 
-        # if self._auth_method == 'token':
-        #     if not self._token:
-        #         logger.warning(f"{self.plugin_name}: Token认证方式未配置Access Token，插件功能受限。")
-        #         return
-        # elif self._auth_method == 'oauth':
-        #     if not self._global_oauth_info:
-        #         logger.warning(f"{self.plugin_name}: OAuth认证方式已选择，但尚未完成授权。")
-        #         return
+        if self._auth_method == 'token':
+            if not self._token:
+                logger.warning(f"{self.plugin_name}: Token认证方式未配置Access Token，插件功能受限。")
+                return
+        elif self._auth_method == 'oauth':
+            if not self._global_oauth_info:
+                logger.warning(f"{self.plugin_name}: OAuth认证方式已选择，但尚未完成授权。")
+                return
             
-        #     access_token = await self._get_valid_access_token()
-        #     if not access_token:
-        #          logger.warning(f"{self.plugin_name}: OAuth认证令牌无效或无法刷新。请在插件设置中重新授权。")
-        #          return
-        # else:
-        #     logger.error(f"未知的认证方式: {self._auth_method}")
-        #     return
+            access_token =  self._get_valid_access_token()
+            if not access_token:
+                 logger.warning(f"{self.plugin_name}: OAuth认证令牌无效或无法刷新。请在插件设置中重新授权。")
+                 return
+        else:
+            logger.error(f"未知的认证方式: {self._auth_method}")
+            return
 
         try:
             logger.debug(f"收到webhook事件: {event.event_data}")
