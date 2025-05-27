@@ -40,7 +40,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.16" # 版本更新
+    plugin_version = "1.0.17" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -81,19 +81,14 @@ class BangumiSyncV2Test(_PluginBase):
                 self._enable = config.get('enable')
             self._uniqueid_match = config.get('uniqueid_match', False)
             self._user = config.get('user') if config.get('user') else None
-            self._token = config.get('token') if config.get('token') else None
-
-            # 从配置加载 auth_method，如果不存在或为空字符串，则视为 None
-            loaded_auth_method = config.get('auth_method')
-            if not loaded_auth_method: # 处理 None 或空字符串的情况
-                self._auth_method = None
-            else:
-                self._auth_method = loaded_auth_method
+            self._token = config.get('token') if config.get('token') else None  
+            self._token = config.get('auth_methodn') if config.get('auth_method') else None
+            
 
             self._oauth_app_id = config.get('oauth_app_id') if config.get('oauth_app_id') else None
-            if self._auth_method not in ['token', 'oauth']:
-                logger.warning(f"检测到无效的 auth_method 配置值: '{self._auth_method}'。将重置为默认值 'token'。")
-                self._auth_method = "token" # 如果无效，则重置为明确的默认值 'token'，而不是 None
+            # if self._auth_method not in ['token', 'oauth']:
+            #     logger.warning(f"检测到无效的 auth_method 配置值: '{self._auth_method}'。将重置为默认值 'token'。")
+            #     self._auth_method = "token" # 如果无效，则重置为明确的默认值 'token'，而不是 None
 
             self._oauth_app_secret = config.get('oauth_app_secret') if config.get('oauth_app_secret') else None
             
@@ -137,7 +132,7 @@ class BangumiSyncV2Test(_PluginBase):
             # 首次加载或无配置时，确保默认值被应用和保存
             # self._enable 已经默认为 True
             # 首次加载时，auth_method 也应该有一个明确的默认值
-            self._auth_method = "token" # 与 get_form 中的 default_values 保持一致
+            #self._auth_method = "token" # 与 get_form 中的 default_values 保持一致
             self._tab = 'auth-method-tab' # 首次加载，默认显示认证方式选择
             logger.info(f"插件 {self.plugin_name} 首次加载或无配置，使用默认设置。启用状态: {self._enable}")
             self._global_oauth_info = None # 确保默认是None
@@ -1150,7 +1145,7 @@ class BangumiSyncV2Test(_PluginBase):
             "enable": False,
             "uniqueid_match": False,
             "user": "",
-            "auth_method": "token", # 默认认证方式
+            "auth_method": "", 
             "token": "",
             "oauth_app_id": "",     # OAuth App ID
             "oauth_app_secret": "", # OAuth App Secret
