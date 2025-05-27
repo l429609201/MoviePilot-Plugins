@@ -40,7 +40,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.21" # 版本更新
+    plugin_version = "1.0.22" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -62,7 +62,7 @@ class BangumiSyncV2Test(_PluginBase):
     _request: Optional[requests.Session] = None # requests.Session实例
     _uniqueid_match = False
 
-    _auth_method = None # 'token' or 'oauth'
+    _auth_method = None # 'access-token' or 'oauth'
     _oauth_app_id: Optional[str] = None
     _oauth_app_secret: Optional[str] = None
     
@@ -100,7 +100,7 @@ class BangumiSyncV2Test(_PluginBase):
             self._oauth_app_secret = config.get('oauth_app_secret') if config.get('oauth_app_secret') else None
             
             # 根据加载的 auth_method 决定初始 tab
-            default_tab_for_method = 'params-tab' if self._auth_method in ['token', 'oauth'] else 'auth-method-tab'
+            default_tab_for_method = 'params-tab' if self._auth_method in ['access-token', 'oauth'] else 'auth-method-tab'
             self._tab = config.get('tab', default_tab_for_method) # 加载tab状态，如果未配置，则根据 auth_method 决定
 
             # self._moviepilot_public_url = config.get('moviepilot_public_url') # 移除加载
@@ -318,7 +318,7 @@ class BangumiSyncV2Test(_PluginBase):
             logger.warning(f"{self.plugin_name}: 未开启插件，请到设置界面点击启用插件。")
             return
 
-        if self._auth_method == 'token':
+        if self._auth_method == 'access-token':
             if not self._token:
                 logger.warning(f"{self.plugin_name}: Token认证方式未配置Access Token，插件功能受限。")
                 return
@@ -564,7 +564,7 @@ class BangumiSyncV2Test(_PluginBase):
     async def sync_watching_status(self, subject_id: int, episode: int, original_episode_name: Optional[str]):
         current_prefix = getattr(self, '_prefix', f"[BGM Subject:{subject_id} E{episode:02d}]")
         bgm_uid_to_pass = None
-        if self._auth_method == 'token':
+        if self._auth_method == 'access-token':
             if not self._bgm_uid:
                 try:
                     response = await self._bangumi_api_request('GET', BANGUMI_USER_INFO_URL)
@@ -1038,7 +1038,7 @@ class BangumiSyncV2Test(_PluginBase):
                                                         "component": "VRadio",
                                                         "props": {
                                                             "label": "Access Token (推荐)",
-                                                            "value": "token"
+                                                            "value": "access-token"
                                                         }
                                                     },
                                                     {
