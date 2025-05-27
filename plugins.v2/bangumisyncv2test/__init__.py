@@ -40,7 +40,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.8" # 版本更新
+    plugin_version = "1.0.9" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -299,12 +299,12 @@ class BangumiSyncV2Test(_PluginBase):
     # 注意：BangumiSyncDebug 版本此处为同步方法 def hook(...)
     # 如果要完全对齐以排查问题，这里也应改为同步，并处理内部的 await 调用。
     # 为了保持当前代码结构，暂时保留 async，但这是与 Debug 版本的一个重要区别。
-    async def hook(self, event: Event):
+    def hook(self, event: Event):
         logger.warning(f"{self.plugin_name}: 开始处理webhook事件。")
 
-        if not self._enable:
-            logger.warning(f"{self.plugin_name}: 未开启插件，请到设置界面点击启用插件。")
-            return
+        # if not self._enable:
+        #     logger.warning(f"{self.plugin_name}: 未开启插件，请到设置界面点击启用插件。")
+        #     return
 
         # if self._auth_method == 'token':
         #     if not self._token:
