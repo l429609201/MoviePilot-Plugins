@@ -40,7 +40,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.23" # 版本更新
+    plugin_version = "1.0.24" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -317,7 +317,7 @@ class BangumiSyncV2Test(_PluginBase):
         if not self._enable:
             logger.warning(f"{self.plugin_name}: 未开启插件，请到设置界面点击启用插件。")
             return
-
+        logger.warning(f"{self.plugin_name}:打印self._auth_methodf"{self._auth_method}。")
         if self._auth_method == 'access-token':
             if not self._token:
                 logger.warning(f"{self.plugin_name}: Token认证方式未配置Access Token，插件功能受限。")
