@@ -19,6 +19,14 @@ from app.utils.http import RequestUtils # RequestUtils 未在原版 BangumiSyncD
 from cachetools import cached, TTLCache
 import requests # 注意：在async函数中应使用异步HTTP库如httpx
 from urllib.parse import urlencode, quote_plus # 用于构建URL参数
+# 导入 MoviePilot 底层 Web 框架提供的重定向响应类
+# 你需要根据 MoviePilot 的文档找到正确的导入路径
+try:
+    from starlette.responses import RedirectResponse as MoviePilotRedirectResponse
+except ImportError:
+    logger.error("无法导入 MoviePilot 的重定向响应类。后端重定向可能不受支持。")
+    MoviePilotRedirectResponse = None # 设置为 None 以便后续检查
+import asyncio # 导入 asyncio
 #from app.core.user import User # 导入User模型以获取用户ID
 #from app.core.request import Request # 导入Request模型以处理API请求和响应
 # User 和 Request 类型将使用 Any 代替，因为它们在目标环境中不存在
@@ -32,6 +40,75 @@ BANGUMI_AUTHORIZE_URL = "https://bgm.tv/oauth/authorize" # 授权页面 URL
 BANGUMI_TOKEN_URL = "https://bgm.tv/oauth/access_token" # 令牌交换接口 URL
 BANGUMI_USER_INFO_URL = "https://api.bgm.tv/v0/me" # 获取用户信息的接口示例
 
+# --- 新增：Bangumi OAuth 信息数据模型 ---
+class BangumiOAuthInfo:
+    """存储Bangumi OAuth令牌和用户信息"""
+    def __init__(self, access_token: str, refresh_token: str, expire_time: float, 
+                 bangumi_user_id: Optional[int] = None, nickname: Optional[str] = None, 
+                 avatar: Optional[str] = None, url: Optional[str] = None):
+        self.access_token = access_token
+        self.refresh_token = refresh_token
+        self.expire_time = expire_time # Unix时间戳
+        self.bangumi_user_id = bangumi_user_id
+        self.nickname = nickname
+        self.avatar = avatar
+        self.url = url
+        self.effective_time = datetime.datetime.now().timestamp() # 记录获取或刷新时间
+
+    def is_expired(self) -> bool:
+        """检查令牌是否已过期 (增加缓冲期)"""
+        # 增加一个5分钟的缓冲期，避免在临界点刷新失败
+        return time.time() >= (self.expire_time - 300)
+
+    async def refresh_token_async(self, client: requests.Session, app_id: str, app_secret: str, ua: str) -> Tuple[bool, Optional[str]]:
+        """
+        异步刷新令牌。
+        返回 (是否成功, 错误信息)
+        """
+        if not self.refresh_token:
+            return False, "Refresh Token不存在。"
+        if not app_id or not app_secret:
+            return False, "插件未配置Bangumi OAuth Application ID或Secret。"
+
+        payload = {
+            "grant_type": "refresh_token",
+            "client_id": app_id,
+            "client_secret": app_secret,
+            "refresh_token": self.refresh_token,
+        }
+        headers = {"Content-Type": "application/x-www-form-urlencoded", "User-Agent": ua}
+
+        try:
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(None, lambda: client.post(BANGUMI_TOKEN_URL, data=payload, headers=headers))
+            response.raise_for_status()
+            token_data = response.json()
+
+            self.access_token = token_data['access_token']
+            self.expire_time = time.time() + token_data.get('expires_in', 0)
+            if 'refresh_token' in token_data: # Bangumi有时会返回新的refresh_token
+                self.refresh_token = token_data['refresh_token']
+            self.effective_time = datetime.datetime.now().timestamp()
+            logger.info(f"Bangumi令牌刷新成功。")
+            return True, None
+
+        except requests.exceptions.HTTPError as http_err:
+            error_message = f"刷新令牌HTTP错误: {http_err}"
+            try: error_message += f". 响应: {http_err.response.json()}"
+            except ValueError: error_message += f". 响应文本: {http_err.response.text}"
+            logger.error(f"刷新Bangumi令牌失败: {error_message}")
+            if http_err.response.status_code == 400 and "invalid_grant" in http_err.response.text:
+                 return False, "Refresh Token已失效，请重新授权。"
+            return False, error_message
+        except Exception as e:
+            logger.error(f"刷新Bangumi令牌时发生未知错误: {e}")
+            return False, f"刷新令牌时发生未知错误: {e}"
+
+    # 可以添加一个 async def get_profile_async 方法，但为了简化，先保留在 _handle_oauth_callback 中获取资料
+    # async def get_profile_async(self, client: requests.Session, ua: str):
+    #     # ... 调用 BANGUMI_USER_INFO_URL ...
+    #     pass
+
 class BangumiSyncV2Test(_PluginBase):
     # 插件名称
     plugin_name = "bgm-V2-测试"
@@ -40,7 +117,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.25" # 版本更新
+    plugin_version = "1.0.26" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -82,20 +159,16 @@ class BangumiSyncV2Test(_PluginBase):
             self._uniqueid_match = config.get('uniqueid_match', False)
             self._user = config.get('user') if config.get('user') else None
 
-            self._auth_method = config.get('auth_method') if config.get('auth_method') else None
-
             # 从配置加载 auth_method，如果不存在或为空字符串，则视为 None
-            # loaded_auth_method = config.get('auth_method') 
-            # if not loaded_auth_method: # 处理 None 或空字符串的情况
-            #     self._auth_method = None
-            # else:
-            #     self._auth_method = loaded_auth_method
+            loaded_auth_method = config.get('auth_method')
+            if loaded_auth_method == "access-token" or loaded_auth_method == "oauth":
+                self._auth_method = loaded_auth_method
+            else: # 处理 None, 空字符串或无效值的情况
+                logger.warning(f"配置中的 auth_method 无效或不存在 ('{loaded_auth_method}')，将默认为 'access-token'。")
+                self._auth_method = "access-token"
 
-            self._token = config.get('token') if config.get('token') else None
-            self._oauth_app_id = config.get('oauth_app_id') if config.get('oauth_app_id') else None
-            # if self._auth_method not in ['token', 'oauth']:
-            #     logger.warning(f"检测到无效的 auth_method 配置值: '{self._auth_method}'。将重置为默认值 'token'。")
-            #     self._auth_method = "token" # 如果无效，则重置为明确的默认值 'token'，而不是 None
+            self._token = config.get('token') if config.get('token') else None # Token 模式的 token
+            self._oauth_app_id = config.get('oauth_app_id') if config.get('oauth_app_id') else None # OAuth 模式的 App ID
 
             self._oauth_app_secret = config.get('oauth_app_secret') if config.get('oauth_app_secret') else None
             
@@ -107,10 +180,12 @@ class BangumiSyncV2Test(_PluginBase):
 
             # 加载全局OAuth信息
             self._global_oauth_info = config.get('global_oauth_info')
-            if not isinstance(self._global_oauth_info, dict) and self._global_oauth_info is not None: # 兼容旧的空字典或错误类型
+            # 尝试将加载的字典转换为 BangumiOAuthInfo 对象
+            if isinstance(self._global_oauth_info, dict):
+                try: self._global_oauth_info = BangumiOAuthInfo(**self._global_oauth_info)
+                except Exception as e: logger.error(f"加载全局OAuth信息失败: {e}"); self._global_oauth_info = None
+            else: # 如果不是字典或为 None
                 self._global_oauth_info = None
-
-            self._tmdb_key = settings.TMDB_API_KEY
             headers = {"User-Agent": BangumiSyncV2Test.UA, "content-type": "application/json"}
             self._request = requests.Session()
             self._request.headers.update(headers)
@@ -139,7 +214,7 @@ class BangumiSyncV2Test(_PluginBase):
             # 首次加载或无配置时，确保默认值被应用和保存
             # self._enable 已经默认为 True
             # 首次加载时，auth_method 也应该有一个明确的默认值
-            #self._auth_method = "token" # 与 get_form 中的 default_values 保持一致
+            self._auth_method = "access-token" # 与 get_form 中的 default_values 保持一致
             self._tab = 'auth-method-tab' # 首次加载，默认显示认证方式选择
             logger.info(f"插件 {self.plugin_name} 首次加载或无配置，使用默认设置。启用状态: {self._enable}")
             self._global_oauth_info = None # 确保默认是None
@@ -172,6 +247,10 @@ class BangumiSyncV2Test(_PluginBase):
             return None
 
     def _get_global_oauth_info(self) -> Optional[Dict[str, Any]]:
+        """获取全局OAuth信息 (返回字典以便于保存)"""
+        return self._global_oauth_info.__dict__ if self._global_oauth_info else None
+
+    def _get_global_oauth_info_obj(self) -> Optional[BangumiOAuthInfo]:
         """获取全局OAuth信息"""
         return self._global_oauth_info
 
@@ -185,76 +264,25 @@ class BangumiSyncV2Test(_PluginBase):
         if self._global_oauth_info is not None:
             self._global_oauth_info = None
             self.__update_config()
+    # --- 新增：用于存储和验证 State 参数的属性 ---
+    # 注意：这是一个简化的实现，只存储最近一次的 state。
+    # 在多用户或高并发环境下，需要更健壮的机制来关联 state 和用户/会话。
+    _pending_oauth_state: Optional[str] = None 
 
-    def _is_token_expired(self, oauth_info: Dict[str, Any]) -> bool:
-        """检查存储的OAuth令牌是否已过期"""
-        expire_time = oauth_info.get('expire_time') # 存储的是Unix时间戳
-        if expire_time is None:
-            return True # 没有过期时间，视为已过期
-        # 增加一个5分钟的缓冲期，避免在临界点刷新失败
-        return time.time() >= (expire_time - 300)
+    def _store_pending_oauth_state(self, state: str):
+        """存储待验证的 state 参数"""
+        self._pending_oauth_state = state
+        # TODO: 在更健壮的实现中，这里应该将 state 与用户 ID 或会话关联，并设置过期时间
 
-    async def _refresh_access_token(self) -> Tuple[Optional[str], Optional[str]]:
-        """
-        刷新全局Bangumi OAuth访问令牌。
-        返回 (新的access_token, 错误信息)
-        """
-        oauth_info = self._get_global_oauth_info()
-        if not oauth_info or not oauth_info.get('refresh_token'):
-            return None, "未找到有效的刷新令牌 (Refresh Token)。"
+    def _get_pending_oauth_state(self) -> Optional[str]:
+        """获取待验证的 state 参数"""
+        # TODO: 在更健壮的实现中，这里应该根据用户 ID 或会话获取 state，并检查是否过期
+        return self._pending_oauth_state
 
-        if not self._oauth_app_id or not self._oauth_app_secret:
-             return None, "插件未配置Bangumi OAuth Application ID或Secret。"
-
-        payload = {
-            "grant_type": "refresh_token",
-            "client_id": self._oauth_app_id,
-            "client_secret": self._oauth_app_secret,
-            "refresh_token": oauth_info['refresh_token'],
-        }
-        headers = {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": self.UA
-        }
-
-        try:
-            # 注意：在async函数中，requests是同步的，会阻塞。应使用httpx。
-            # 为了演示，暂时保留requests，但实际项目中需要替换。
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(None, lambda: requests.post(BANGUMI_TOKEN_URL, data=payload, headers=headers, proxies=self._request.proxies if self._request else None))
-            response.raise_for_status()
-            token_data = response.json()
-
-            expires_in = token_data.get('expires_in', 0)
-            new_expire_time = time.time() + expires_in
-            
-            # 更新存储的令牌信息
-            oauth_info['access_token'] = token_data['access_token']
-            oauth_info['expire_time'] = new_expire_time
-            if 'refresh_token' in token_data: # Bangumi有时会返回新的refresh_token
-                oauth_info['refresh_token'] = token_data['refresh_token']
-            
-            self._store_global_oauth_info(oauth_info)
-            logger.info(f"全局Bangumi令牌刷新成功。")
-            return token_data['access_token'], None
-
-        except requests.exceptions.HTTPError as http_err:
-            error_message = f"刷新令牌HTTP错误: {http_err}"
-            try:
-                error_json = http_err.response.json()
-                error_message += f". 响应: {error_json}"
-            except ValueError:
-                error_message += f". 响应文本: {http_err.response.text}"
-            logger.error(f"刷新全局Bangumi令牌失败: {error_message}")
-            if http_err.response.status_code == 400 and "invalid_grant" in http_err.response.text:
-                 # refresh_token可能已失效，需要用户重新授权
-                 self._delete_global_oauth_info()
-                 logger.warning(f"全局Refresh Token已失效，已清除授权信息，请重新授权。")
-                 return None, "Refresh Token已失效，请重新授权。"
-            return None, error_message
-        except Exception as e:
-            logger.error(f"刷新全局Bangumi令牌时发生未知错误: {e}")
-            return None, f"刷新令牌时发生未知错误: {e}"
+    def _clear_pending_oauth_state(self):
+        """清除待验证的 state 参数"""
+        self._pending_oauth_state = None
+        # TODO: 在更健壮的实现中，这里应该清除特定用户/会话的 state
 
     async def _get_valid_access_token(self) -> Optional[str]:
         """获取有效的访问令牌，如果过期则尝试刷新"""
@@ -265,7 +293,10 @@ class BangumiSyncV2Test(_PluginBase):
 
         if self._is_token_expired(oauth_info):
             logger.info(f"全局: Bangumi访问令牌已过期，尝试刷新...")
-            access_token, error = await self._refresh_access_token()
+            # 调用 BangumiOAuthInfo 实例的刷新方法
+            success, error = await oauth_info.refresh_token_async(
+                self._request, self._oauth_app_id, self._oauth_app_secret, self.UA
+            )
             if error:
                 logger.warning(f"全局: 令牌刷新失败: {error}")
                 return None
@@ -280,7 +311,7 @@ class BangumiSyncV2Test(_PluginBase):
         headers = kwargs.pop('headers', {}) # 获取传入的headers，如果没有则为空字典
         headers.update({"User-Agent": self.UA}) # 确保UA存在
 
-        if self._auth_method == 'access-token':
+        if self._auth_method == 'access-token': # 认证方式判断
             if not self._token:
                 raise ValueError("Access Token认证方式未配置Token。")
             headers["Authorization"] = f"Bearer {self._token}"
@@ -313,7 +344,6 @@ class BangumiSyncV2Test(_PluginBase):
     # 必须使用同步的方法，异步的方法接收不到webhook事件
     def hook(self, event: Event):
         logger.warning(f"{self.plugin_name}: 开始处理webhook事件。")
-
         if not self._enable:
             logger.warning(f"{self.plugin_name}: 未开启插件，请到设置界面点击启用插件。")
             return
@@ -407,7 +437,7 @@ class BangumiSyncV2Test(_PluginBase):
         logger.debug(f"{current_prefix} 尝试使用 bgm api 来获取 subject id...")
         
         tmdb_data = await self.get_tmdb_id(title) 
-        tmdb_id, original_name, original_language = tmdb_data if tmdb_data else (None, None, None)
+        tmdb_id, original_name, original_language = tmdb_data if tmdb_data else (None, None, None) # 确保解包安全
         
         original_episode_name = None
         post_json = {
@@ -463,7 +493,7 @@ class BangumiSyncV2Test(_PluginBase):
         try:
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(None, lambda: self._request.get(url) if self._request else requests.get(url))
-            response.raise_for_status()
+            response.raise_for_status() # 检查HTTP状态码
             ret = response.json()
         except Exception as e:
             logger.error(f"{current_prefix} 请求或解析TMDB ID失败 for '{title}': {e}")
@@ -472,7 +502,7 @@ class BangumiSyncV2Test(_PluginBase):
             logger.warning(f"{current_prefix} 未找到 '{title}' 的 tmdb 条目")
             return None, None, None
         for result in ret["results"]:
-            if 16 in result.get("genre_ids", []): 
+            if 16 in result.get("genre_ids", []): # 检查是否为动画类型
                 return result.get("id"), result.get("original_name"), result.get("original_language")
         return None, None, None
 
@@ -489,7 +519,7 @@ class BangumiSyncV2Test(_PluginBase):
             
             url_season = f"https://api.tmdb.org/3/tv/{tmdbid_local}/season/{season_id_local}?language={original_language}&api_key={self._tmdb_key}"
             try:
-                response_season = await loop.run_in_executor(None, lambda: self._request.get(url_season) if self._request else requests.get(url_season))
+                response_season = await loop.run_in_executor(None, lambda: self._request.get(url_season)) # 使用实例的session
                 response_season.raise_for_status()
                 resp_json = response_season.json()
                 if resp_json and resp_json.get("episodes"):
@@ -500,7 +530,7 @@ class BangumiSyncV2Test(_PluginBase):
             logger.debug(f"{current_prefix} 无法通过季号获取TMDB季度信息，尝试通过episode group获取")
             url_groups = f"https://api.tmdb.org/3/tv/{tmdbid_local}/episode_groups?api_key={self._tmdb_key}"
             try:
-                response_groups = await loop.run_in_executor(None, lambda: self._request.get(url_groups) if self._request else requests.get(url_groups))
+                response_groups = await loop.run_in_executor(None, lambda: self._request.get(url_groups)) # 使用实例的session
                 response_groups.raise_for_status()
                 resp_groups_json = response_groups.json()
                 if resp_groups_json and resp_groups_json.get("results"):
@@ -508,7 +538,7 @@ class BangumiSyncV2Test(_PluginBase):
                     if seasons_groups:
                         season_group_data = min(seasons_groups, key=lambda x: x.get("episode_count", float('inf')))
                         url_group_detail = f"https://api.tmdb.org/3/tv/episode_group/{season_group_data.get('id')}?language={original_language}&api_key={self._tmdb_key}"
-                        response_group_detail = await loop.run_in_executor(None, lambda: self._request.get(url_group_detail) if self._request else requests.get(url_group_detail))
+                        response_group_detail = await loop.run_in_executor(None, lambda: self._request.get(url_group_detail)) # 使用实例的session
                         response_group_detail.raise_for_status()
                         resp_group_detail_json = response_group_detail.json()
                         if resp_group_detail_json and resp_group_detail_json.get("groups"):
@@ -561,7 +591,7 @@ class BangumiSyncV2Test(_PluginBase):
 
     @cached(TTLCache(maxsize=10, ttl=600))
     async def sync_watching_status(self, subject_id: int, episode: int, original_episode_name: Optional[str]):
-        current_prefix = getattr(self, '_prefix', f"[BGM Subject:{subject_id} E{episode:02d}]")
+        current_prefix = getattr(self, '_prefix', f"[BGM Subject:{subject_id} E{episode:02d}]") # 确保有前缀
         bgm_uid_to_pass = None
         if self._auth_method == 'access-token':
             if not self._bgm_uid:
@@ -577,10 +607,10 @@ class BangumiSyncV2Test(_PluginBase):
                     logger.error(f"{current_prefix} 请求或解析Bangumi /me API失败: {e}")
                     return
             bgm_uid_to_pass = self._bgm_uid
-        elif self._auth_method == 'oauth':
-            oauth_info = self._get_global_oauth_info()
+        elif self._auth_method == 'oauth': # OAuth 模式下从存储的对象获取 UID
+            oauth_info = self._get_global_oauth_info_obj()
             if not oauth_info or 'bangumi_user_id' not in oauth_info: 
-                logger.error(f"{current_prefix} 全局OAuth模式下未找到Bangumi用户ID。")
+                logger.error(f"{current_prefix} 全局OAuth模式下未找到Bangumi用户ID或OAuth信息无效。")
                 return
             bgm_uid_to_pass = oauth_info['bangumi_user_id']
         else: 
@@ -613,7 +643,7 @@ class BangumiSyncV2Test(_PluginBase):
                     found_episode_id = info_item.get("id")
                     matched_bangumi_ep_info = info_item
                     break
-        
+
         if not found_episode_id: 
             logger.warning(f"{current_prefix} 未找到匹配的Bangumi剧集。")
             return
@@ -630,7 +660,7 @@ class BangumiSyncV2Test(_PluginBase):
 
     @cached(TTLCache(maxsize=100, ttl=3600))
     async def update_collection_status(self, subject_id: int, bgm_uid_for_get: Optional[int], new_type: int = 3):
-        current_prefix = getattr(self, '_prefix', f"[BGM Subject:{subject_id}]")
+        current_prefix = getattr(self, '_prefix', f"[BGM Subject:{subject_id}]") # 确保有前缀
         type_dict = {0:"未收藏", 1:"想看", 2:"看过", 3:"在看", 4:"搁置", 5:"抛弃"}
         old_type = 0
         if bgm_uid_for_get: 
@@ -663,7 +693,7 @@ class BangumiSyncV2Test(_PluginBase):
 
     @cached(TTLCache(maxsize=100, ttl=3600))
     async def get_episodes_info(self, subject_id: int) -> Optional[List[Dict[str, Any]]]:
-        current_prefix = getattr(self, '_prefix', f"[BGM Subject:{subject_id}]")
+        current_prefix = getattr(self, '_prefix', f"[BGM Subject:{subject_id}]") # 确保有前缀
         url = "https://api.bgm.tv/v0/episodes"
         params = {"subject_id": subject_id}
         try:
@@ -678,7 +708,7 @@ class BangumiSyncV2Test(_PluginBase):
 
     @cached(TTLCache(maxsize=100, ttl=3600))
     async def update_episode_status(self, episode_id: int):
-        current_prefix = getattr(self, '_prefix', f"[BGM Episode:{episode_id}]")
+        current_prefix = getattr(self, '_prefix', f"[BGM Episode:{episode_id}]") # 确保有前缀
         url = f"https://api.bgm.tv/v0/users/-/collections/-/episodes/{episode_id}"
         try:
             response_get = await self._bangumi_api_request('GET', url)
@@ -769,8 +799,13 @@ class BangumiSyncV2Test(_PluginBase):
         
         state_param = quote_plus(json.dumps(state_data))
         auth_url = f"{BANGUMI_AUTHORIZE_URL}?client_id={self._oauth_app_id}&redirect_uri={quote_plus(redirect_uri)}&response_type=code&state={state_param}"
-        logger.info(f"开始全局Bangumi OAuth授权 (操作用户: {getattr(user, 'id', 'Unknown')})，回调至: {redirect_uri}，授权URL: {auth_url}")
-        return {"status": "success", "auth_url": auth_url} 
+        logger.info(f"开始Bangumi OAuth授权 (操作用户: {getattr(user, 'id', 'Unknown')})，回调至: {redirect_uri}，授权URL: {auth_url}")
+        
+        # --- 修改点：返回后端重定向响应 ---
+        if MoviePilotRedirectResponse:
+            return MoviePilotRedirectResponse(url=auth_url, status_code=302) # 返回 302 重定向响应
+        else:
+            return {"status": "error", "message": "MoviePilot 框架不支持后端重定向，请检查配置或联系开发者。"} # 如果不支持，返回错误信息
 
     async def _handle_oauth_callback(self, request: Any, apikey: str, user: Optional[Any] = None) -> schemas.Response:            #处理回调
         
@@ -796,10 +831,13 @@ class BangumiSyncV2Test(_PluginBase):
         if not code or not state_param: await send_html("回调参数不完整。", True); return
 
         try:
-            state_data = json.loads(quote_plus(state_param, inverse=True))
-            # moviepilot_user_id = state_data.get('mp_user_id') # 不再从state中获取mp_user_id
-            
-            if not state_data.get('csrf_token'): # 仅校验CSRF token
+            # --- 改进：验证 State 参数 ---
+            # 注意：这里只检查了 state 是否存在且包含 csrf_token。
+            # 完整的验证需要与 _handle_oauth_authorize 中存储的 state 进行比较。
+            # 由于简化的 state 存储只存了最近一次，这里无法进行严格的用户关联验证。
+            # 这是一个待改进的安全点。
+            received_state_data = json.loads(quote_plus(state_param, inverse=True))
+            if not received_state_data.get('csrf_token'): 
                 await send_html("State参数无效或CSRF校验失败。", True); return
         except Exception as e: await send_html(f"解析回调参数时发生错误: {e}", True); return
         
@@ -822,15 +860,18 @@ class BangumiSyncV2Test(_PluginBase):
             response_token.raise_for_status()
             token_data = response_token.json()
             token_data['expire_time'] = time.time() + token_data.get('expires_in', 0)
-            
+
+            # 获取用户资料
             profile_data, profile_error = await self._get_user_profile(token_data.get('access_token'))
             if profile_error: logger.warning(f"全局OAuth: 获取Bangumi用户信息失败: {profile_error}。")
             
-            token_data['bangumi_user_id'] = profile_data.get('id') if profile_data else token_data.get('user_id')
-            token_data['nickname'] = profile_data.get('nickname') if profile_data else f"BGM User {token_data.get('user_id')}"
-            token_data['avatar'] = profile_data.get('avatar', {}).get('large') if profile_data and profile_data.get('avatar') else None
-            token_data['url'] = profile_data.get('url') if profile_data else None
-            
+            # 创建 BangumiOAuthInfo 对象并存储
+            oauth_info_obj = BangumiOAuthInfo(
+                access_token=token_data['access_token'], refresh_token=token_data.get('refresh_token', ''),
+                expire_time=token_data['expire_time'], bangumi_user_id=profile_data.get('id') if profile_data else None,
+                nickname=profile_data.get('nickname') if profile_data else f"BGM User {profile_data.get('id') or 'N/A'}",
+                avatar=profile_data.get('avatar', {}).get('large') if profile_data and profile_data.get('avatar') else None,
+                url=profile_data.get('url') if profile_data else None)
             self._store_global_oauth_info(token_data)
             logger.info(f"全局成功通过Bangumi OAuth授权，Bangumi用户: {token_data.get('nickname')}")
             await send_html(f"成功授权Bangumi账户：{token_data.get('nickname')}")
@@ -849,20 +890,19 @@ class BangumiSyncV2Test(_PluginBase):
         if apikey != settings.API_TOKEN:
             return schemas.Response(success=False, message="API密钥错误")
                 
-        oauth_info = self._get_global_oauth_info()
+        oauth_info = self._get_global_oauth_info_obj() # 获取对象
         if not oauth_info: return {"authorized": False, "nickname": None, "avatar": None}
         
         access_token = await self._get_valid_access_token()
         if not access_token:
              self._delete_global_oauth_info()
              return {"authorized": False, "nickname": None, "avatar": None, "message": "令牌已失效或无法刷新，请重新授权。"}
-        
-        refreshed_oauth_info = self._get_global_oauth_info() # 获取最新的（可能已刷新）
+
         return {"authorized": True, 
-                "nickname": refreshed_oauth_info.get('nickname'), 
-                "avatar": refreshed_oauth_info.get('avatar'),
-                "bangumi_user_id": refreshed_oauth_info.get('bangumi_user_id'),
-                "expire_time_readable": datetime.datetime.fromtimestamp(refreshed_oauth_info.get('expire_time', 0)).strftime('%Y-%m-%d %H:%M:%S') if refreshed_oauth_info.get('expire_time') else "N/A"}
+                "nickname": oauth_info.nickname, 
+                "avatar": oauth_info.avatar,
+                "bangumi_user_id": oauth_info.bangumi_user_id,
+                "expire_time_readable": datetime.datetime.fromtimestamp(oauth_info.get('expire_time', 0)).strftime('%Y-%m-%d %H:%M:%S') if oauth_info.get('expire_time') else "N/A"}
 
     async def _handle_oauth_deauthorize(self, request: Any, user: Any, apikey: str) -> schemas.Response:                               #解除授权
         
@@ -878,7 +918,7 @@ class BangumiSyncV2Test(_PluginBase):
         headers = {"Authorization": f"Bearer {access_token}", "User-Agent": self.UA}
         try:
             loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(None, lambda: requests.get(BANGUMI_USER_INFO_URL, headers=headers, proxies=self._request.proxies if self._request else None))
+            response = await loop.run_in_executor(None, lambda: self._request.get(BANGUMI_USER_INFO_URL, headers=headers)) # 使用实例的session
             response.raise_for_status()
             return response.json(), None
         except requests.exceptions.RequestException as e:
@@ -1352,7 +1392,7 @@ class BangumiSyncV2Test(_PluginBase):
         # 如果你希望在选择了 token 或 oauth 后，下次打开直接显示参数页，可以取消下面的注释：
         # if self._auth_method in ['token', 'oauth']:
         # self._tab = 'params-tab'
-        self.update_config({
+        config_to_save = { # 构建要保存的字典
             "enable": self._enable,
             "uniqueid_match": self._uniqueid_match,
             "user": self._user,
@@ -1362,21 +1402,21 @@ class BangumiSyncV2Test(_PluginBase):
             "oauth_app_secret": self._oauth_app_secret,
             "tab": self._tab, 
             # "moviepilot_public_url": self._moviepilot_public_url, # 移除保存
-            "global_oauth_info": self._global_oauth_info
-        })
-        # 增加打印所有将要保存的参数
-        config_to_be_saved = {
-            "enable": self._enable,
-            "uniqueid_match": self._uniqueid_match,
-            "user": self._user,
-            "token": self._token,
-            "auth_method": self._auth_method,
-            "oauth_app_id": self._oauth_app_id,
-            "oauth_app_secret": self._oauth_app_secret,
-            "tab": self._tab,
-            "global_oauth_info": "******" if self._global_oauth_info else None # OAuth信息可能较长或敏感，选择性打印
+            "global_oauth_info": self._global_oauth_info.__dict__ if self._global_oauth_info else None # 将对象转为字典保存
         }
-        logger.info(f"__update_config: 插件配置已更新并保存，保存的完整参数如下: {config_to_be_saved}")
+        # self.update_config(config_to_save) # 调用父类方法保存
+        # # 增加打印所有将要保存的参数
+        #     "enable": self._enable,
+        #     "uniqueid_match": self._uniqueid_match,
+        #     "user": self._user,
+        #     "token": self._token,
+        #     "auth_method": self._auth_method,
+        #     "oauth_app_id": self._oauth_app_id,
+        #     "oauth_app_secret": self._oauth_app_secret,
+        #     "tab": self._tab,
+        #     "global_oauth_info": "******" if self._global_oauth_info else None # OAuth信息可能较长或敏感，选择性打印
+        # } # 这个字典用于打印，不是实际保存的
+        # logger.info(f"__update_config: 插件配置已更新并保存，保存的完整参数如下: {config_to_be_saved}")
 
     def get_state(self) -> bool:
         return self._enable
@@ -1385,10 +1425,11 @@ class BangumiSyncV2Test(_PluginBase):
         pass
 
 import asyncio 
-
+# 导入 BangumiOAuthInfo 类，以便在 __main__ 中使用
+from __main__ import BangumiOAuthInfo # 或者根据实际文件结构导入
 if __name__ == "__main__":
     # 测试代码需要适应全局模式，并且在MoviePilot环境外运行可能受限
-     subject_id, _, _ = asyncio.run(BangumiSyncV2Test().get_subjectid_by_title("葬送的芙莉莲", 1, 1, None))
-     if subject_id:
-        asyncio.run(BangumiSyncV2Test().sync_watching_status(subject_id, 1, None))
+    # subject_id, _, _ = asyncio.run(BangumiSyncV2Test().get_subjectid_by_title("葬送的芙莉莲", 1, 1, None))
+    # if subject_id:
+    #    asyncio.run(BangumiSyncV2Test().sync_watching_status(subject_id, 1, None))
     #print("请在MoviePilot插件环境中运行和测试。")
