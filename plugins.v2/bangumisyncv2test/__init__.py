@@ -7,6 +7,7 @@ import uuid # 用于生成state参数
 from typing import Any, Dict, List, Optional, Tuple
 
 # BangumiSyncDebug 插件原有的 imports
+from app import schemas
 from app.core.event import eventmanager, Event
 from app.core.config import settings
 from app.core.metainfo import MetaInfo # MetaInfo 未在原版 BangumiSyncDebug 中使用
@@ -39,7 +40,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.0.7" # 版本更新
+    plugin_version = "1.0.4" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -290,26 +291,29 @@ class BangumiSyncV2Test(_PluginBase):
 
     @eventmanager.register(EventType.WebhookMessage)
     async def hook(self, event: Event):
+
+        logger.warning(f"{self.plugin_name}: 开始处理webhook事件。")
+
         if not self._enable:
             logger.warning(f"{self.plugin_name}: 未开启插件，请到设置界面点击启用插件。")
             return
 
-        if self._auth_method == 'token':
-            if not self._token:
-                logger.warning(f"{self.plugin_name}: Token认证方式未配置Access Token，插件功能受限。")
-                return
-        elif self._auth_method == 'oauth':
-            if not self._global_oauth_info:
-                logger.warning(f"{self.plugin_name}: OAuth认证方式已选择，但尚未完成授权。")
-                return
+        # if self._auth_method == 'token':
+        #     if not self._token:
+        #         logger.warning(f"{self.plugin_name}: Token认证方式未配置Access Token，插件功能受限。")
+        #         return
+        # elif self._auth_method == 'oauth':
+        #     if not self._global_oauth_info:
+        #         logger.warning(f"{self.plugin_name}: OAuth认证方式已选择，但尚未完成授权。")
+        #         return
             
-            access_token = await self._get_valid_access_token()
-            if not access_token:
-                 logger.warning(f"{self.plugin_name}: OAuth认证令牌无效或无法刷新。请在插件设置中重新授权。")
-                 return
-        else:
-            logger.error(f"未知的认证方式: {self._auth_method}")
-            return
+        #     access_token = await self._get_valid_access_token()
+        #     if not access_token:
+        #          logger.warning(f"{self.plugin_name}: OAuth认证令牌无效或无法刷新。请在插件设置中重新授权。")
+        #          return
+        # else:
+        #     logger.error(f"未知的认证方式: {self._auth_method}")
+        #     return
 
         try:
             logger.debug(f"收到webhook事件: {event.event_data}")
@@ -701,7 +705,10 @@ class BangumiSyncV2Test(_PluginBase):
              },
         ]
 
-    async def _handle_oauth_authorize(self, request: Any, user: Any):        #开始授权函数
+    async def _handle_oauth_authorize(self, request: Any, user: Any, apikey: str) -> schemas.Response:       #开始授权函数
+
+        if apikey != settings.API_TOKEN:
+            return schemas.Response(success=False, message="API密钥错误")
         if not self._oauth_app_id:
             return {"status": "error", "message": "插件未配置Bangumi OAuth Application ID。"}
         
@@ -718,7 +725,11 @@ class BangumiSyncV2Test(_PluginBase):
         logger.info(f"开始全局Bangumi OAuth授权 (操作用户: {getattr(user, 'id', 'Unknown')})，回调至: {redirect_uri}，授权URL: {auth_url}")
         return {"status": "success", "auth_url": auth_url} 
 
-    async def _handle_oauth_callback(self, request: Any, user: Optional[Any] = None):            #处理回调
+    async def _handle_oauth_callback(self, request: Any, apikey: str, user: Optional[Any] = None) -> schemas.Response:            #处理回调
+        
+        if apikey != settings.API_TOKEN:
+            return schemas.Response(success=False, message="API密钥错误")
+        
         code = request.query_params.get('code')
         state_param = request.query_params.get('state')
         error_from_bgm = request.query_params.get('error')
@@ -786,7 +797,11 @@ class BangumiSyncV2Test(_PluginBase):
             logger.exception(f"全局OAuth回调处理中发生未知错误: {e}")
             await send_html(f"处理回调时发生内部错误: {e}", True)
 
-    async def _handle_oauth_status(self, request: Any, user: Any):                             #获取当前OAuth状态
+    async def _handle_oauth_status(self, request: Any, user: Any , apikey: str) -> schemas.Response:                             #获取当前OAuth状态
+        
+        if apikey != settings.API_TOKEN:
+            return schemas.Response(success=False, message="API密钥错误")
+                
         oauth_info = self._get_global_oauth_info()
         if not oauth_info: return {"authorized": False, "nickname": None, "avatar": None}
         
@@ -802,7 +817,11 @@ class BangumiSyncV2Test(_PluginBase):
                 "bangumi_user_id": refreshed_oauth_info.get('bangumi_user_id'),
                 "expire_time_readable": datetime.datetime.fromtimestamp(refreshed_oauth_info.get('expire_time', 0)).strftime('%Y-%m-%d %H:%M:%S') if refreshed_oauth_info.get('expire_time') else "N/A"}
 
-    async def _handle_oauth_deauthorize(self, request: Any, user: Any):                               #解除授权
+    async def _handle_oauth_deauthorize(self, request: Any, user: Any, apikey: str) -> schemas.Response:                               #解除授权
+        
+        if apikey != settings.API_TOKEN:
+            return schemas.Response(success=False, message="API密钥错误")            
+        
         self._delete_global_oauth_info()
         logger.info(f"全局Bangumi OAuth授权已解除 (操作用户: {getattr(user, 'id', 'Unknown')})。")
         return {"status": "success", "message": "已成功解除授权。"}
@@ -1125,6 +1144,26 @@ class BangumiSyncV2Test(_PluginBase):
                     }
                 }
             ]
+        
+        # --- 在后端获取初始 OAuth 状态 ---
+        # 注意：get_page 是同步方法，而 _handle_oauth_status 是异步的。
+        # MoviePilot 的插件 get_page 通常是同步的。
+        # 如果需要在这里调用异步方法，需要 MoviePilot 框架支持或者采用同步方式获取。
+        # 假设我们有一个同步的内部方法来获取状态，或者 _handle_oauth_status 可以被同步调用（不推荐）。
+        # 为了演示，我们先假设可以获取到状态。在实际应用中，这可能需要调整。
+        
+        # 模拟获取状态 (实际应调用类似 self._handle_oauth_status 的逻辑)
+        # oauth_status_data = self._get_current_oauth_status_sync() # 假设有这样一个同步方法
+        # 简化处理：直接使用存储的 _global_oauth_info 判断，但不实时刷新token
+        current_oauth_info = self._get_global_oauth_info()
+        is_authorized = False
+        nickname = "未授权"
+        avatar_url = None
+        if current_oauth_info and current_oauth_info.get('access_token'): # 简单判断
+            # 在实际应用中，这里应该检查token是否过期，并尝试刷新（如果get_page允许异步或有同步机制）
+            is_authorized = True # 简化：只要有token就认为可能已授权，具体状态由 _handle_oauth_status 接口确认
+            nickname = current_oauth_info.get('nickname', '已授权，信息待刷新')
+            avatar_url = current_oauth_info.get('avatar')
 
         oauth_card_content = [
             {
@@ -1139,14 +1178,37 @@ class BangumiSyncV2Test(_PluginBase):
                         'props': {'id': 'bangumi-oauth-status-container', 'class': 'mb-4'},
                         'content': [
                             {
+                                'component': 'VAvatar', 
+                                'props': {
+                                        'image': avatar_url, 
+                                        'size': '64', 
+                                        'class': 'mb-2 mx-auto', # 居中显示
+                                        'v-if': is_authorized and avatar_url # 仅当授权且有头像时显示
+                                }
+                            },
+                            {
                                 'component': 'VChip',
                                 'props': {
-                                    'id': 'oauth-status-chip-page', 
-                                    'color': 'grey',
-                                    'text-color': 'white',
-                                    'prepend-icon': 'mdi-account-circle-outline'
+                                    'color': 'success' if is_authorized else 'warning', 
+                                    'label': True, 
+                                    'class': 'mb-2'
                                 },
-                                'text': '正在获取授权状态...' 
+                                'content': [
+                                    {'component': 'VIcon', 'props': {'start': True, 'icon': 'mdi-check-circle' if is_authorized else 'mdi-alert-circle'}},
+                                    {'component': 'span', 'text': nickname }
+                                ]
+                            },
+                            { # 如果已授权，显示更详细的用户信息
+                                'component': 'div',
+                                'props': {
+                                    'v-if': is_authorized and current_oauth_info and current_oauth_info.get('bangumi_user_id'),
+                                    'class': 'text-caption grey--text'
+                                },
+                                'content': [
+                                    {'component': 'span', 'text': f"Bangumi UID: {current_oauth_info.get('bangumi_user_id') if current_oauth_info else ''}"},
+                                    {'component': 'br' },
+                                    {'component': 'span', 'text': f"令牌有效期至: {datetime.datetime.fromtimestamp(current_oauth_info.get('expire_time', 0)).strftime('%Y-%m-%d %H:%M:%S') if current_oauth_info and current_oauth_info.get('expire_time') else 'N/A'}"}
+                                ]
                             }
                         ]
                     },
@@ -1157,7 +1219,20 @@ class BangumiSyncV2Test(_PluginBase):
                             'color': 'primary',
                             'class': 'mr-2',
                             'prepend-icon': 'mdi-link-variant',
-                            'comment': '点击发起Bangumi OAuth授权流程'
+                            'disabled': is_authorized, # 如果已授权，则禁用此按钮
+                            'events': {
+                                'click': {
+                                    'api': 'plugin/BangumiSyncV2Test/oauth_authorize',
+                                    'method': 'get',
+                                    # 前端框架需要处理这个API调用的响应，特别是包含 auth_url 的情况
+                                    'action': 'open_auth_window_and_refresh_on_close', # 假设的自定义action
+                                    'params': {
+                                        'apikey': settings.API_TOKEN,
+                                        'tmdb_id': tmdb_id,
+                                        'group_id': group.get('id')
+                                    }
+                                }
+                            }
                         },
                         'text': 'Bangumi 授权'
                     },
@@ -1167,8 +1242,28 @@ class BangumiSyncV2Test(_PluginBase):
                             'id': 'oauth-deauthorize-btn-page',
                             'color': 'error',
                             'prepend-icon': 'mdi-link-variant-off',
-                            'comment': '点击解除当前用户的Bangumi OAuth授权'
+                            'comment': '点击解除当前用户的Bangumi OAuth授权',
+                            'disabled': not is_authorized, # 如果未授权，则禁用此按钮
+                            'events': {
+                                'click': {
+                                    'api': 'plugin/BangumiSyncV2Tes/oauth_deauthorize',
+                                    'method': 'get', 
+                                    'confirm': '确定要解除 Bangumi OAuth 授权吗？',
+                                    'success_message': '解除授权成功！页面将刷新。',
+                                    'error_message': '解除授权失败，请检查日志。',
+                                    'refresh_on_success': True 
+                                }
+                            }
                         },
+                        # {
+                        #     'component': 'VBtn', # 添加一个手动刷新按钮
+                        #     'props': {
+                        #         'color': 'info',
+                        #         'class': 'ml-2',
+                        #         'icon': 'mdi-refresh',
+                        #         'events': {'click': {'action': 'refresh_page'}} # 假设的action
+                        #         }
+                        # },
                         'text': '解除授权'
                     },
                     {
@@ -1176,6 +1271,7 @@ class BangumiSyncV2Test(_PluginBase):
                         'props': {'type':'info', 'variant':'tonal', 'density':'compact', 'class':'mt-4', 
                                   'text':'点击“Bangumi 授权”按钮后，会在新窗口中打开Bangumi的授权页面。请按照提示操作。授权成功或失败，该窗口会自动关闭，此页面状态会刷新。'}
                     }
+                    
                 ]
             }
         ]
