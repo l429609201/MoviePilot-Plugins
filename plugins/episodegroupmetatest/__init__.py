@@ -1,1208 +1,343 @@
-import datetime
-import re
-import time # 用于处理令牌过期时间戳
-import json # 用于解析和存储OAuth信息
-import uuid # 用于生成state参数
-
-from typing import Any, Dict, List, Optional, Tuple
-
-# BangumiSyncDebug 插件原有的 imports
+import base64
+import json
+import threading
+import time
+import importlib.util
+import sys
+from pathlib import Path
+from typing import Any, List, Dict, Tuple, Optional, Union
+from pydantic import BaseModel
+from requests import RequestException
 from app import schemas
-from app.core.event import eventmanager, Event
 from app.core.config import settings
-from app.core.metainfo import MetaInfo
+from app.core.event import eventmanager, Event
+from app.core.meta import MetaBase
 from app.log import logger
+from app.modules.emby import Emby
+from app.modules.jellyfin import Jellyfin
+from app.modules.plex import Plex
+from app.modules.themoviedb.tmdbv3api import TV
 from app.plugins import _PluginBase
-from app.schemas import WebhookEventInfo # MediaInfo 未在原版 BangumiSyncDebug 中使用
-from app.schemas.types import EventType # MediaType 未在原版 BangumiSyncDebug 中使用
-from app.utils.http import RequestUtils # RequestUtils 未在原版 BangumiSyncDebug 中直接使用，而是通过 requests.Session
-from cachetools import cached, TTLCache
-import requests # 注意：在async函数中应使用异步HTTP库如httpx
-from urllib.parse import urlencode, quote_plus, unquote_plus # 用于构建URL参数和解码
-#from app.core.user import User # 导入User模型以获取用户ID
-#from app.core.request import Request # 导入Request模型以处理API请求和响应
-# User 和 Request 类型将使用 Any 代替，因为它们在目标环境中不存在
+from app.schemas.types import EventType
+from app.utils.common import retry
+from app.utils.http import RequestUtils
+from app.db.models import PluginData
+
+class ExistMediaInfo(BaseModel):
+    # 季, 集
+    groupep: Optional[Dict[int, list]] = {}
+    # 集在媒体服务器的ID
+    groupid: Optional[Dict[int, List[list]]] = {}
+    # 媒体服务器类型
+    server_type: Optional[str] = None
+    # 媒体服务器名字
+    server: Optional[str] = None
+    # 媒体ID
+    itemid: Optional[Union[str, int]] = None
 
 
-
-# Bangumi OAuth 相关的 URL
-BANGUMI_AUTHORIZE_URL = "https://bgm.tv/oauth/authorize" # 授权页面 URL
-BANGUMI_TOKEN_URL = "https://bgm.tv/oauth/access_token" # 令牌交换接口 URL
-BANGUMI_USER_INFO_URL = "https://api.bgm.tv/v0/me" # 获取用户信息的接口示例
-from fastapi.responses import HTMLResponse, RedirectResponse
-
-class BangumiSyncV2Test(_PluginBase):
+class EpisodeGroupMetaTest(_PluginBase):
     # 插件名称
-    plugin_name = "bgm-V2-测试"
+    plugin_name = "TMDB剧集组刮削Test"
     # 插件描述
-    plugin_desc = "将在看记录同步到bangumi"
+    plugin_desc = "从TMDB剧集组刮削季集的实际顺序。"
     # 插件图标
-    plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
+    plugin_icon = "Element_A.png"
+    # 主题色
+    plugin_color = "#098663"
     # 插件版本
-    plugin_version = "1.1.5" # 版本更新
+    plugin_version = "1.0.8"
     # 插件作者
-    plugin_author = "honue,happyTonakai,AAA"
+    plugin_author = "AAA"
     # 作者主页
     author_url = "https://github.com/l429609201"
     # 插件配置项ID前缀
-    plugin_config_prefix = "bangumisyncv2test_"
+    plugin_config_prefix = "EpisodeGroupMetaTest_"
     # 加载顺序
-    plugin_order = 20
+    plugin_order = 29
     # 可使用的用户级别
     auth_level = 1
 
-    UA = "l429609201/MoviePilot-Plugins (https://github.com/l429609201)"
+    # 退出事件
+    _event = threading.Event()
 
-    _enable = False # 修改点1：将默认启用状态改为 True，与 Debug 版本一致
-    _user = None
-    _bgm_uid = None # Token模式下的Bangumi UID
-    _token = None # Token模式下的Access Token
-    _tmdb_key = None
-    _request: Optional[requests.Session] = None # requests.Session实例
-    _uniqueid_match = False
+    # 私有属性
+    tv = None
+    emby = None
+    plex = None
+    jellyfin = None
+    mediaserver_helper = None
 
-    _auth_method = None # 'access-token' or 'oauth'
-    _oauth_app_id: Optional[str] = None
-    _oauth_app_secret: Optional[str] = None
-    
-    # _moviepilot_public_url: Optional[str] = None # 移除：不再需要手动配置公开 URL
-    # 存储全局OAuth信息，值为包含token, refresh_token, expire_time, Bangumi用户信息等的字典
-    _global_oauth_info: Optional[Dict[str, Any]] = None
-
-    _tab = 'auth-method-tab' # 用于get_form中的标签页
+    _enabled = False
+    _notify = True
+    _autorun = True
+    _ignorelock = False
+    _delay = 0
+    _allowlist = []
 
     def init_plugin(self, config: dict = None):
+        self.tv = TV()
         if config:
-            # 修改点2：加载 enable 配置的逻辑，如果配置中不存在，则保持类定义的默认值 True
-            # Debug 版本是 self._enable = config.get('enable')，这可能导致 _enable 为 None
-            # 这里我们采用更明确的方式：如果 'enable' 在 config 中，则使用它的值，否则使用当前的 self._enable (即类默认值 True)
-            if 'enable' in config:
-                self._enable = config.get('enable')
-            self._uniqueid_match = config.get('uniqueid_match', False)
-            self._user = config.get('user') if config.get('user') else None
+            self._enabled = config.get("enabled")
+            self._notify = config.get("notify")
+            self._autorun = config.get("autorun")
+            self._ignorelock = config.get("ignorelock")
+            self._delay = config.get("delay") or 120
+            self._allowlist = []
+            for s in str(config.get("allowlist", "")).split(","):
+                s = s.strip()
+                if s and s not in self._allowlist:
+                    self._allowlist.append(s)
+            self.log_info(f"白名单数量: {len(self._allowlist)} > {self._allowlist}")
+            if not ("notify" in config):
+                # 新版本v2.0更新插件配置默认配置
+                self._notify = True
+                self._autorun = True
+                config["notify"] = True
+                config["autorun"] = True
+                self.update_config(config)
+                self.log_warn(f"新版本v{self.plugin_version} 配置修正 ...")
 
-            self._auth_method = config.get('auth_method') if config.get('auth_method') else None
-
-            # 从配置加载 auth_method，如果不存在或为空字符串，则视为 None
-            # loaded_auth_method = config.get('auth_method') 
-            # if not loaded_auth_method: # 处理 None 或空字符串的情况
-            #     self._auth_method = None
-            # else:
-            #     self._auth_method = loaded_auth_method
-
-            self._token = config.get('token') if config.get('token') else None
-            self._oauth_app_id = config.get('oauth_app_id') if config.get('oauth_app_id') else None
-            # if self._auth_method not in ['token', 'oauth']:
-            #     logger.warning(f"检测到无效的 auth_method 配置值: '{self._auth_method}'。将重置为默认值 'token'。")
-            #     self._auth_method = "token" # 如果无效，则重置为明确的默认值 'token'，而不是 None
-
-            self._oauth_app_secret = config.get('oauth_app_secret') if config.get('oauth_app_secret') else None
-            
-            # 根据加载的 auth_method 决定初始 tab
-            default_tab_for_method = 'params-tab' if self._auth_method in ['access-token', 'oauth'] else 'auth-method-tab'
-            self._tab = config.get('tab', default_tab_for_method) # 加载tab状态，如果未配置，则根据 auth_method 决定
-
-            # self._moviepilot_public_url = config.get('moviepilot_public_url') # 移除加载
-
-            # 加载全局OAuth信息
-            self._global_oauth_info = config.get('global_oauth_info')
-            if not isinstance(self._global_oauth_info, dict) and self._global_oauth_info is not None: # 兼容旧的空字典或错误类型
-                self._global_oauth_info = None
-
-            self._tmdb_key = settings.TMDB_API_KEY
-            headers = {"User-Agent": BangumiSyncV2Test.UA, "content-type": "application/json"}
-            self._request = requests.Session()
-            self._request.headers.update(headers)
-            if settings.PROXY:
-                self._request.proxies.update(settings.PROXY)
-
-            # --- 在此处打印加载的配置参数 ---
-            logger.info(f"插件 {self.plugin_name} 初始化配置如下:")
-            logger.info(f"  启用状态 (_enable): {self._enable}")
-            logger.info(f"  唯一ID匹配 (_uniqueid_match): {self._uniqueid_match}")
-            logger.info(f"  媒体服务器用户 (_user): {self._user}")
-            logger.info(f"  认证方式 (_auth_method): {self._auth_method}")
-            # 出于安全考虑，Token 和 Secret 通常不建议直接打印到日志，
-            # 但如果确实需要调试，可以取消下面行的注释，并确保在生产环境中移除或使用更安全的方式。
-            # logger.info(f"  Bangumi Token (_token): {'******' if self._token else '未配置'}")
-            # logger.info(f"  OAuth App ID (_oauth_app_id): {self._oauth_app_id if self._oauth_app_id else '未配置'}")
-            # logger.info(f"  OAuth App Secret (_oauth_app_secret): {'******' if self._oauth_app_secret else '未配置'}")
-            logger.info(f"  TMDB API Key (_tmdb_key): {'已配置' if self._tmdb_key else '未配置'}")
-            logger.info(f"  上次选择的标签页 (_tab): {self._tab}")
-            logger.info(f"  全局OAuth信息 (_global_oauth_info): {'已存在' if self._global_oauth_info else '不存在或为空'}")
-            # --- 配置参数打印结束 ---
-
-            self.__update_config()
-            logger.info(f"Bangumi在看同步插件 v{BangumiSyncV2Test.plugin_version} 初始化成功")
-        else:
-            # 首次加载或无配置时，确保默认值被应用和保存
-            # self._enable 已经默认为 True
-            # 首次加载时，auth_method 也应该有一个明确的默认值
-            #self._auth_method = "token" # 与 get_form 中的 default_values 保持一致
-            self._tab = 'auth-method-tab' # 首次加载，默认显示认证方式选择
-            logger.info(f"插件 {self.plugin_name} 首次加载或无配置，使用默认设置。启用状态: {self._enable}")
-            self._global_oauth_info = None # 确保默认是None
-            self.__update_config()
-
-
-    def _get_moviepilot_base_url(self, request: Any) -> Optional[str]:
-        """
-        从传入的请求对象中获取MoviePilot的基础URL。
-        这依赖于 MoviePilot 框架传入的 request 对象结构。
-        """
-        if not request:
-            logger.error("无法获取 MoviePilot 基础 URL：request 对象为空。")
-            return None
-
-        try:
-            # 尝试从 request 对象中获取 scheme 和 host
-            # FastAPI 的 Request 对象通常有 request.url.scheme 和 request.url.netloc
-            # 如果 MoviePilot 传递的是其他结构的对象，这里的访问方式可能需要调整
-            scheme = getattr(request.url, 'scheme', None)
-            netloc = getattr(request.url, 'netloc', None)
-
-            if not scheme or not netloc:
-                logger.error(f"无法从 request 对象中解析 scheme 或 netloc。request.url 结构: {getattr(request, 'url', 'N/A')}")
-                return None
-
-            return f"{scheme}://{netloc}"
-        except AttributeError as e:
-            logger.error(f"解析 MoviePilot 基础 URL 时发生属性错误 (可能是 request 对象结构不符合预期): {e}")
-            return None
-
-    def _get_global_oauth_info(self) -> Optional[Dict[str, Any]]:
-        """获取全局OAuth信息"""
-        return self._global_oauth_info
-
-    def _store_global_oauth_info(self, oauth_data: Optional[Dict[str, Any]]):
-        """存储全局OAuth信息并更新配置"""
-        self._global_oauth_info = oauth_data
-        self.__update_config()
-
-    def _delete_global_oauth_info(self):
-        """删除全局OAuth信息并更新配置"""
-        if self._global_oauth_info is not None:
-            self._global_oauth_info = None
-            self.__update_config()
-
-    def _is_token_expired(self, oauth_info: Dict[str, Any]) -> bool:
-        """检查存储的OAuth令牌是否已过期"""
-        expire_time = oauth_info.get('expire_time') # 存储的是Unix时间戳
-        if expire_time is None:
-            return True # 没有过期时间，视为已过期
-        # 增加一个5分钟的缓冲期，避免在临界点刷新失败
-        return time.time() >= (expire_time - 300)
-
-    async def _refresh_access_token(self) -> Tuple[Optional[str], Optional[str]]:
-        """
-        刷新全局Bangumi OAuth访问令牌。
-        返回 (新的access_token, 错误信息)
-        """
-        oauth_info = self._get_global_oauth_info()
-        if not oauth_info or not oauth_info.get('refresh_token'):
-            return None, "未找到有效的刷新令牌 (Refresh Token)。"
-
-        if not self._oauth_app_id or not self._oauth_app_secret:
-             return None, "插件未配置Bangumi OAuth Application ID或Secret。"
-
-        payload = {
-            "grant_type": "refresh_token",
-            "client_id": self._oauth_app_id,
-            "client_secret": self._oauth_app_secret,
-            "refresh_token": oauth_info['refresh_token'],
-        }
-        headers = {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": self.UA
-        }
-
-        try:
-            # 注意：在async函数中，requests是同步的，会阻塞。应使用httpx。
-            # 为了演示，暂时保留requests，但实际项目中需要替换。
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(None, lambda: requests.post(BANGUMI_TOKEN_URL, data=payload, headers=headers, proxies=self._request.proxies if self._request else None))
-            response.raise_for_status()
-            token_data = response.json()
-
-            expires_in = token_data.get('expires_in', 0)
-            new_expire_time = time.time() + expires_in
-            
-            # 更新存储的令牌信息
-            oauth_info['access_token'] = token_data['access_token']
-            oauth_info['expire_time'] = new_expire_time
-            if 'refresh_token' in token_data: # Bangumi有时会返回新的refresh_token
-                oauth_info['refresh_token'] = token_data['refresh_token']
-            
-            self._store_global_oauth_info(oauth_info)
-            logger.info(f"全局Bangumi令牌刷新成功。")
-            return token_data['access_token'], None
-
-        except requests.exceptions.HTTPError as http_err:
-            error_message = f"刷新令牌HTTP错误: {http_err}"
-            try:
-                error_json = http_err.response.json()
-                error_message += f". 响应: {error_json}"
-            except ValueError:
-                error_message += f". 响应文本: {http_err.response.text}"
-            logger.error(f"刷新全局Bangumi令牌失败: {error_message}")
-            if http_err.response.status_code == 400 and "invalid_grant" in http_err.response.text:
-                 # refresh_token可能已失效，需要用户重新授权
-                 self._delete_global_oauth_info()
-                 logger.warning(f"全局Refresh Token已失效，已清除授权信息，请重新授权。")
-                 return None, "Refresh Token已失效，请重新授权。"
-            return None, error_message
-        except Exception as e:
-            logger.error(f"刷新全局Bangumi令牌时发生未知错误: {e}")
-            return None, f"刷新令牌时发生未知错误: {e}"
-
-    async def _get_valid_access_token(self) -> Optional[str]:
-        """获取有效的访问令牌，如果过期则尝试刷新"""
-        oauth_info = self._get_global_oauth_info()
-        if not oauth_info or not oauth_info.get('access_token'):
-            logger.debug(f"全局: 未找到OAuth信息或访问令牌。")
-            return None
-
-        if self._is_token_expired(oauth_info):
-            logger.info(f"全局: Bangumi访问令牌已过期，尝试刷新...")
-            access_token, error = await self._refresh_access_token()
-            if error:
-                logger.warning(f"全局: 令牌刷新失败: {error}")
-                return None
-            return access_token
-        
-        return oauth_info['access_token']
-
-    async def _bangumi_api_request(self, method: str, url: str, **kwargs) -> requests.Response:
-        """
-        统一的Bangumi API请求方法，处理认证。
-        """
-        headers = kwargs.pop('headers', {}) # 获取传入的headers，如果没有则为空字典
-        headers.update({"User-Agent": self.UA}) # 确保UA存在
-
-        if self._auth_method == 'access-token':
-            if not self._token:
-                raise ValueError("Access Token认证方式未配置Token。")
-            headers["Authorization"] = f"Bearer {self._token}"
-        elif self._auth_method == 'oauth':
-            access_token = await self._get_valid_access_token()
-            if not access_token:
-                raise ValueError(f"全局: 未找到有效的Bangumi OAuth访问令牌。")
-            headers["Authorization"] = f"Bearer {access_token}"
-        else:
-            raise ValueError(f"未知的认证方式: {self._auth_method}")
-        
-        # 确保content-type存在 (如果发送json数据)
-        if 'json' in kwargs and 'content-type' not in headers:
-            headers['content-type'] = 'application/json'
-
-        # 使用插件的requests.Session实例
-        loop = asyncio.get_event_loop()
-        if not self._request:
-            logger.warning("self._request 未在 init_plugin 中初始化，将创建临时 Session。")
-            temp_session = requests.Session()
-            if settings.PROXY:
-                temp_session.proxies.update(settings.PROXY)
-            response = await loop.run_in_executor(None, lambda: temp_session.request(method, url, headers=headers, **kwargs))
-        else:
-            response = await loop.run_in_executor(None, lambda: self._request.request(method, url, headers=headers, **kwargs))
-        
-        return response
-
-    @eventmanager.register(EventType.WebhookMessage)
-    # 必须使用同步的方法，异步的方法接收不到webhook事件
-    def hook(self, event: Event):
-        logger.warning(f"{self.plugin_name}: 开始处理webhook事件。")
-
-        if not self._enable:
-            logger.warning(f"{self.plugin_name}: 未开启插件，请到设置界面点击启用插件。")
-            return
-        if self._auth_method == 'access-token':
-            if not self._token:
-                logger.warning(f"{self.plugin_name}: Token认证方式未配置Access Token，插件功能受限。")
-                return
-        elif self._auth_method == 'oauth':
-            if not self._global_oauth_info:
-                logger.warning(f"{self.plugin_name}: OAuth认证方式已选择，但尚未完成授权。")
-                return
-
-            # 获取事件循环以同步运行异步方法
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError: # 当前线程中没有事件循环
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            access_token =  loop.run_until_complete(self._get_valid_access_token())
-            if not access_token:
-                 logger.warning(f"{self.plugin_name}: OAuth认证令牌无效或无法刷新。请在插件设置中重新授权。")
-                 return
-        else:
-            logger.error(f"未知的认证方式: {self._auth_method}")
-            return
-
-        try:
-            logger.debug(f"收到webhook事件: {event.event_data}")
-            event_info: WebhookEventInfo = event.event_data
-
-            if not self._user or event_info.user_name not in self._user.split(','):
-                return
-
-            play_start = {"playback.start", "media.play", "PlaybackStart"}
-            # 不是播放停止事件, 或观看进度不足90% 不处理
-            if not (event_info.event in play_start or event_info.percentage and event_info.percentage > 90):
-                return
-            # 根据路径判断是不是番剧
-            if not BangumiSyncV2Test.is_anime(event_info):
-                return
-
-            if event_info.item_type in ["TV"]:
-                """
-                    event='playback.pause' channel='emby' item_type='TV' item_name='咒术回战 S1E47 关门' item_id='22646' item_path='/media/cartoon/动漫/咒术回战 (2020)/Season 1/咒术回战 - S01E47 - 第 47 集.mkv' season_id=1 episode_id=47 tmdb_id=None overview='渋谷事変の最終局面に呪術師が集うなかで、脹相は夏油の亡骸に寄生する“黒幕”の正体に気付く。そして、絶体絶命の危機に現れた特級術師・九十九由基。九十九と“黒幕”がそれぞれ語る人類の未来（ネクストステージ...' percentage=2.5705228512861966 ip='127.0.0.1' device_name='Chrome Windows' client='Emby Web' user_name='honue' image_url=None item_favorite=None save_reason=None item_isvirtual=None media_type='Episode'
-                """
-                # 标题，mp 的 tmdb 搜索 api 有点问题，带空格的搜不出来，直接使用 emby 事件的标题
-                tmdb_id = event_info.tmdb_id
-                logger.info(f"匹配播放事件 {event_info.item_name} tmdb id = {tmdb_id}...")
-                match = re.match(r"^(.+)\sS\d+E\d+\s.+", event_info.item_name)
-                if match:
-                    title = match.group(1)
-                else:
-                    title = event_info.item_name.split(' ')[0]
-
-                # 季 集
-                season_id, episode_id = map(int, [event_info.season_id, event_info.episode_id])
-                self._prefix = f"{title} 第{season_id}季 第{episode_id}集"
-                try:
-                    unique_id = int(tmdb_id)
-                except Exception:
-                    unique_id = None
-                    
-                # 获取事件循环以同步运行异步方法
-                try:
-                    loop = asyncio.get_event_loop()
-                except RuntimeError: # 当前线程中没有事件循环
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-
-                # 使用 tmdb airdate 来定位季，提高准确率
-                subject_id, subject_name, original_episode_name = loop.run_until_complete(
-                    self.get_subjectid_by_title(
-                    title, season_id, episode_id, unique_id
-                    )
-                )
-                logger.debug(f"subject_id: {subject_id}")
-                logger.debug(f"subject_name: {subject_name}")
-                logger.debug(f"original_episode_name: {original_episode_name}")
-                if subject_id is None:
-                    return
-                logger.info(f"{self._prefix}: {title} {original_episode_name} => {subject_name} https://bgm.tv/subject/{subject_id}")
-                loop.run_until_complete(self.sync_watching_status(subject_id, episode_id, original_episode_name))
-
-        except Exception as e:
-            logger.warning(f"同步在看状态失败: {e}")
-
-    @cached(TTLCache(maxsize=100, ttl=3600))
-    async def get_subjectid_by_title(self, title: str, season: int, episode: int, unique_id: Optional[int]) -> Tuple[Optional[int], Optional[str], Optional[str]]:
-        current_prefix = getattr(self, '_prefix', f"[{title} S{season:02d}E{episode:02d}]")
-        logger.debug(f"{current_prefix} 尝试使用 bgm api 来获取 subject id...")
-        
-        tmdb_data = await self.get_tmdb_id(title) 
-        tmdb_id, original_name, original_language = tmdb_data if tmdb_data else (None, None, None)
-        
-        original_episode_name = None
-        post_json = {
-            "keyword": title,
-            "sort": "match",
-            "filter": {"type": [2]}, 
-        }
-
-        if tmdb_id is not None and original_name and original_language:
-            airdate_info = await self.get_airdate_and_ep_name(
-                tmdb_id, season, episode, unique_id if self._uniqueid_match else None, original_language
-            )
-            if airdate_info:
-                start_date, end_date, tmdb_original_episode_name = airdate_info
-                original_episode_name = tmdb_original_episode_name
-                if start_date and end_date:
-                    post_json = {
-                        "keyword": original_name,
-                        "sort": "match",
-                        "filter": {"type": [2], "air_date": [f">={start_date}", f"<={end_date}"]},
-                    }
-        
-        url = f"https://api.bgm.tv/v0/search/subjects"
-        try:
-            response = await self._bangumi_api_request('POST', url, json=post_json)
-            response.raise_for_status() 
-            resp_json = response.json()
-        except (requests.exceptions.RequestException, ValueError, json.JSONDecodeError) as e:
-            logger.error(f"{current_prefix} 请求或解析Bangumi搜索API失败: {e}")
-            return None, None, None
-
-        if not resp_json.get("data"):
-            logger.warning(f"{current_prefix} 未找到 '{post_json['keyword']}' 的bgm条目")
-            return None, None, None
-        
-        data = resp_json.get("data")[0]
-        year = data.get("date", "----")[:4]
-        name_cn = data.get("name_cn") or data.get("name", "未知标题")
-        formatted_name = f"{name_cn} ({year})"
-        subject_id_val = data.get("id")
-
-        return subject_id_val, formatted_name, original_episode_name
-
-
-    @cached(TTLCache(maxsize=100, ttl=3600))
-    async def get_tmdb_id(self, title: str): 
-        current_prefix = getattr(self, '_prefix', f"[{title}]")
-        logger.debug(f"{current_prefix} 尝试使用 tmdb api 来获取 subject id...")
-        if not self._tmdb_key: 
-            logger.warning(f"{current_prefix} TMDB API Key未配置。")
-            return None, None, None
-        url = f"https://api.tmdb.org/3/search/tv?query={title}&api_key={self._tmdb_key}"
-        try:
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(None, lambda: self._request.get(url) if self._request else requests.get(url))
-            response.raise_for_status()
-            ret = response.json()
-        except Exception as e:
-            logger.error(f"{current_prefix} 请求或解析TMDB ID失败 for '{title}': {e}")
-            return None, None, None
-        if not ret.get("total_results"):
-            logger.warning(f"{current_prefix} 未找到 '{title}' 的 tmdb 条目")
-            return None, None, None
-        for result in ret["results"]:
-            if 16 in result.get("genre_ids", []): 
-                return result.get("id"), result.get("original_name"), result.get("original_language")
-        return None, None, None
-
-    @cached(TTLCache(maxsize=100, ttl=3600))
-    async def get_airdate_and_ep_name(self, tmdbid: int, season_id: int, episode: int, unique_id: Optional[int], original_language: str):
-        current_prefix = getattr(self, '_prefix', f"[TMDBID:{tmdbid} S{season_id:02d}E{episode:02d}]")
-        if not self._tmdb_key: 
-            logger.warning(f"{current_prefix} TMDB API Key未配置。")
-            return None, None, None
-        logger.debug(f"{current_prefix} 尝试使用 tmdb api 来获取 airdate...")
-        
-        async def get_tv_season_detail_async(tmdbid_local: int, season_id_local: int) -> Optional[dict]:
-            loop = asyncio.get_event_loop()
-            
-            url_season = f"https://api.tmdb.org/3/tv/{tmdbid_local}/season/{season_id_local}?language={original_language}&api_key={self._tmdb_key}"
-            try:
-                response_season = await loop.run_in_executor(None, lambda: self._request.get(url_season) if self._request else requests.get(url_season))
-                response_season.raise_for_status()
-                resp_json = response_season.json()
-                if resp_json and resp_json.get("episodes"):
-                    return resp_json
-            except Exception as e_season:
-                logger.debug(f"{current_prefix} get_tv_season_detail (season {season_id_local}) 失败: {e_season}")
-
-            logger.debug(f"{current_prefix} 无法通过季号获取TMDB季度信息，尝试通过episode group获取")
-            url_groups = f"https://api.tmdb.org/3/tv/{tmdbid_local}/episode_groups?api_key={self._tmdb_key}"
-            try:
-                response_groups = await loop.run_in_executor(None, lambda: self._request.get(url_groups) if self._request else requests.get(url_groups))
-                response_groups.raise_for_status()
-                resp_groups_json = response_groups.json()
-                if resp_groups_json and resp_groups_json.get("results"):
-                    seasons_groups = [r for r in resp_groups_json["results"] if r.get("name") == "Seasons"]
-                    if seasons_groups:
-                        season_group_data = min(seasons_groups, key=lambda x: x.get("episode_count", float('inf')))
-                        url_group_detail = f"https://api.tmdb.org/3/tv/episode_group/{season_group_data.get('id')}?language={original_language}&api_key={self._tmdb_key}"
-                        response_group_detail = await loop.run_in_executor(None, lambda: self._request.get(url_group_detail) if self._request else requests.get(url_group_detail))
-                        response_group_detail.raise_for_status()
-                        resp_group_detail_json = response_group_detail.json()
-                        if resp_group_detail_json and resp_group_detail_json.get("groups"):
-                            for group_item in resp_group_detail_json["groups"]:
-                                if group_item.get("name", "").startswith(f"Season {season_id_local}"):
-                                    return group_item 
-            except Exception as e_group:
-                logger.debug(f"{current_prefix} get_tv_season_detail (episode_groups) 失败: {e_group}")
-            return None
-
-        resp_season_detail = await get_tv_season_detail_async(tmdbid, season_id)
-        if not resp_season_detail or "episodes" not in resp_season_detail:
-            logger.warning(f"{current_prefix} 无法获取TMDB季度信息")
-            return None, None, None
-        
-        episodes_list = resp_season_detail["episodes"]
-        if not episodes_list: 
-            logger.warning(f"{current_prefix} 该季度没有剧集信息")
-            return None, None, None
-
-        air_date_str = resp_season_detail.get("air_date")
-        matched_ep_data = None
-        for ep_data in episodes_list:
-            if air_date_str is None: air_date_str = ep_data.get("air_date")
-            current_ep_matched = False
-            if self._uniqueid_match and unique_id and ep_data.get("id") == unique_id: current_ep_matched = True
-            elif ep_data.get("order", -99) + 1 == episode: current_ep_matched = True
-            elif ep_data.get("episode_number") == episode: current_ep_matched = True
-            if current_ep_matched: matched_ep_data = ep_data; break
-            if ep_data.get("episode_type") in ["finale", "mid_season"]: air_date_str = None
-        
-        if not matched_ep_data: 
-            logger.warning(f"{current_prefix} 未找到匹配的TMDB剧集")
-            return None, None, None
-        if not air_date_str: air_date_str = matched_ep_data.get("air_date")
-        if not air_date_str: 
-            logger.warning(f"{current_prefix} 未找到匹配的TMDB剧集或播出日期")
-            return None, None, matched_ep_data.get("name")
-        
-        original_episode_name = matched_ep_data.get("name")
-        try: 
-            air_date_obj = datetime.datetime.strptime(air_date_str, "%Y-%m-%d").date()
-        except ValueError: 
-            logger.warning(f"{current_prefix} TMDB提供的播出日期格式无效: {air_date_str}")
-            return None, None, original_episode_name
-        
-        start_date = (air_date_obj - datetime.timedelta(days=15)).strftime("%Y-%m-%d")
-        end_date = (air_date_obj + datetime.timedelta(days=15)).strftime("%Y-%m-%d")
-        return start_date, end_date, original_episode_name
-
-    @cached(TTLCache(maxsize=10, ttl=600))
-    async def sync_watching_status(self, subject_id: int, episode: int, original_episode_name: Optional[str]):
-        current_prefix = getattr(self, '_prefix', f"[BGM Subject:{subject_id} E{episode:02d}]")
-        bgm_uid_to_pass = None
-        if self._auth_method == 'access-token':
-            if not self._bgm_uid:
-                try:
-                    response = await self._bangumi_api_request('GET', BANGUMI_USER_INFO_URL)
-                    response.raise_for_status()
-                    self._bgm_uid = response.json().get("id")
-                    if not self._bgm_uid: 
-                        logger.error(f"{current_prefix} 获取Bangumi UID失败。")
-                        return
-                    logger.debug(f"{current_prefix} 获取到 bgm_uid {self._bgm_uid}")
-                except Exception as e: 
-                    logger.error(f"{current_prefix} 请求或解析Bangumi /me API失败: {e}")
-                    return
-            bgm_uid_to_pass = self._bgm_uid
-        elif self._auth_method == 'oauth':
-            oauth_info = self._get_global_oauth_info()
-            if not oauth_info or 'bangumi_user_id' not in oauth_info: 
-                logger.error(f"{current_prefix} 全局OAuth模式下未找到Bangumi用户ID。")
-                return
-            bgm_uid_to_pass = oauth_info['bangumi_user_id']
-        else: 
-            logger.error(f"{current_prefix} 未知认证方式。")
-            return
-
-        await self.update_collection_status(subject_id, bgm_uid_to_pass)
-        ep_info_list = await self.get_episodes_info(subject_id)
-        if not ep_info_list: 
-            logger.warning(f"{current_prefix} 未获取到剧集列表。")
-            return
-
-        found_episode_id = None
-        matched_bangumi_ep_info = None
-        if original_episode_name:
-            for info_item in ep_info_list:
-                if info_item.get("name") == original_episode_name: 
-                    found_episode_id = info_item.get("id")
-                    matched_bangumi_ep_info = info_item
-                    break
-        if not found_episode_id:
-            for info_item in ep_info_list:
-                if info_item.get("sort") == episode: 
-                    found_episode_id = info_item.get("id")
-                    matched_bangumi_ep_info = info_item
-                    break
-        if not found_episode_id:
-            for info_item in ep_info_list:
-                if info_item.get("ep") == episode: 
-                    found_episode_id = info_item.get("id")
-                    matched_bangumi_ep_info = info_item
-                    break
-        
-        if not found_episode_id: 
-            logger.warning(f"{current_prefix} 未找到匹配的Bangumi剧集。")
-            return
-        
-        await self.update_episode_status(found_episode_id)
-        
-        last_episode_flag = False
-        if matched_bangumi_ep_info:
-            main_episodes = [ep for ep in ep_info_list if ep.get("type") == 0]
-            if main_episodes and matched_bangumi_ep_info.get("id") == main_episodes[-1].get("id"):
-                last_episode_flag = True
-        if last_episode_flag:
-            await self.update_collection_status(subject_id, bgm_uid_to_pass, 2) 
-
-    @cached(TTLCache(maxsize=100, ttl=3600))
-    async def update_collection_status(self, subject_id: int, bgm_uid_for_get: Optional[int], new_type: int = 3):
-        current_prefix = getattr(self, '_prefix', f"[BGM Subject:{subject_id}]")
-        type_dict = {0:"未收藏", 1:"想看", 2:"看过", 3:"在看", 4:"搁置", 5:"抛弃"}
-        old_type = 0
-        if bgm_uid_for_get: 
-            collection_url = f"https://api.bgm.tv/v0/users/{bgm_uid_for_get}/collections/{subject_id}"
-            try:
-                response_get = await self._bangumi_api_request('GET', collection_url)
-                if response_get.status_code == 200: 
-                    old_type = response_get.json().get("type", 0)
-                elif response_get.status_code == 404: 
-                    logger.debug(f"{current_prefix} 条目 {subject_id} 尚未收藏。")
-                else: 
-                    logger.warning(f"{current_prefix} 获取当前收藏状态失败 (code: {response_get.status_code})。")
-            except Exception as e: 
-                logger.warning(f"{current_prefix} 请求当前收藏状态失败: {e}。")
-
-        if (old_type == 2 and new_type == 3) or old_type == new_type:
-            logger.info(f"{current_prefix} 合集状态 {type_dict.get(old_type, old_type)} => {type_dict.get(new_type, new_type)}，无需更新。")
-            return
-        
-        update_url = f"https://api.bgm.tv/v0/users/-/collections/{subject_id}"
-        post_data = {"type": new_type, "comment": "", "private": False}
-        try:
-            response_post = await self._bangumi_api_request('POST', update_url, json=post_data)
-            if response_post.status_code in [201, 202, 204]: 
-                logger.info(f"{current_prefix} 合集状态 {type_dict.get(old_type,old_type)} => {type_dict.get(new_type,new_type)}，更新成功。")
-            else:
-                logger.warning(f"{current_prefix} 合集状态更新失败 (code: {response_post.status_code}): {response_post.text}")
-        except Exception as e:
-             logger.error(f"{current_prefix} 更新Bangumi合集状态失败: {e}")
-
-    @cached(TTLCache(maxsize=100, ttl=3600))
-    async def get_episodes_info(self, subject_id: int) -> Optional[List[Dict[str, Any]]]:
-        current_prefix = getattr(self, '_prefix', f"[BGM Subject:{subject_id}]")
-        url = "https://api.bgm.tv/v0/episodes"
-        params = {"subject_id": subject_id}
-        try:
-            response = await self._bangumi_api_request('GET', url, params=params)
-            response.raise_for_status()
-            ep_data = response.json().get("data")
-            logger.debug(f"{current_prefix} 获取 episode info 成功。")
-            return ep_data if isinstance(ep_data, list) else []
-        except Exception as e:
-            logger.error(f"{current_prefix} 请求或解析Bangumi剧集列表API失败: {e}")
-        return None
-
-    @cached(TTLCache(maxsize=100, ttl=3600))
-    async def update_episode_status(self, episode_id: int):
-        current_prefix = getattr(self, '_prefix', f"[BGM Episode:{episode_id}]")
-        url = f"https://api.bgm.tv/v0/users/-/collections/-/episodes/{episode_id}"
-        try:
-            response_get = await self._bangumi_api_request('GET', url)
-            if response_get.status_code == 200 and response_get.json().get("type") == 2:
-                logger.info(f"{current_prefix} 单集已经标记为看过。")
-                return
-            elif response_get.status_code not in [200, 404]: 
-                logger.warning(f"{current_prefix} 获取单集信息失败 (code: {response_get.status_code})。")
-                
-            # 标记为看过
-            response_put = await self._bangumi_api_request('PUT', url, json={"type": 2}) 
-            if response_put.status_code == 204:
-                logger.info(f"{current_prefix} 单集标记为看过成功。")
-            else:
-                logger.warning(f"{current_prefix} 单集标记为看过失败 (code: {response_put.status_code}): {response_put.text}")
-        except Exception as e:
-            logger.error(f"{current_prefix} 更新Bangumi单集 {episode_id} 观看状态失败: {e}")
+    def get_state(self) -> bool:
+        return self._enabled
 
     @staticmethod
-    def is_anime(event_info: WebhookEventInfo) -> bool:
-        path_keyword = "日番,cartoon,动漫,动画,ani,anime,新番,番剧,特摄,bangumi,ova,映画,国漫,日漫"
-        path_to_check = ""
-        if event_info.channel in ["emby", "jellyfin"]:
-            path_to_check = event_info.item_path or ""
-            if not path_to_check and event_info.library_name: path_to_check = event_info.library_name
-        elif event_info.channel == "plex":
-            path_to_check = event_info.json_object.get("Metadata", {}).get("librarySectionTitle", "") if event_info.json_object else ""
-        if any(keyword in path_to_check.lower() for keyword in path_keyword.split(',')): return True
-        logger.debug(f"{path_to_check} 不是动漫媒体库")
-        return False
-
-    @staticmethod
-    def format_title(title: str, season: int): 
-        if season < 2: return title
-        season_zh_map = {0:"零",1:"一",2:"二",3:"三",4:"四",5:"五",6:"六",7:"七",8:"八",9:"九"}
-        season_zh = season_zh_map.get(season % 10 if season < 10 else season) 
-        return f"{title} 第{season_zh}季" if season_zh else f"{title} S{season}"
-
-    @staticmethod
-    def get_command() -> List[Dict[str, Any]]: return []
+    def get_command() -> List[Dict[str, Any]]:
+        pass
 
     def get_api(self) -> List[Dict[str, Any]]:
+        # plugin/EpisodeGroupMeta/delete_media_database
+        # plugin/EpisodeGroupMeta/start_rt
+        self.log_warn("api已添加: /start_rt")
+        self.log_warn("api已添加: /delete_media_database")
         return [
             {
-                "path": "/oauth_authorize", 
-                "methods": ["GET"], 
-                "endpoint": self._handle_oauth_authorize,  
-                "summary": "开始Bangumi OAuth授权",
-                "description": "开始Bangumi OAuth授权"
+                "path": "/delete_media_database",
+                "endpoint": self.delete_media_database,
+                "methods": ["GET"],
+                "summary": "剧集组刮削",
+                "description": "移除待处理媒体信息",
             },
             {
-                "path": "/oauth_callback", 
-                "methods": ["GET"], 
-                "endpoint": self._handle_oauth_callback, 
-                "summary": "Bangumi OAuth回调处理",
-                "description": "Bangumi OAuth回调处理"
-            },
-            {
-                "path": "/oauth_status", 
-                "methods": ["GET"], 
-                "endpoint": self._handle_oauth_status, 
-                "summary": "获取Bangumi OAuth状态",
-                "description": "获取Bangumi OAuth授权状态"
-            },
-            {
-                "path": "/oauth_deauthorize", 
-                "methods": ["GET"], 
-                "endpoint": self._handle_oauth_deauthorize, 
-                "summary": "解除Bangumi OAuth授权",
-                "description": "解除Bangumi OAuth授权"
-             },
+                "path": "/start_rt",
+                "endpoint": self.go_start_rt,
+                "methods": ["GET"],
+                "summary": "剧集组刮削",
+                "description": "刮削指定剧集组",
+            }
         ]
 
-    async def _handle_oauth_authorize(self, request: Any, user: Any, apikey: str) -> Any: # 返回类型可能是 RedirectResponse 或 HTMLResponse
-
-        if apikey != settings.API_TOKEN:
-            error_html = self._build_oauth_callback_html("API密钥错误。", is_error=True)
-            return HTMLResponse(content=error_html, status_code=401)
-
-        if not self._oauth_app_id:
-            error_html = self._build_oauth_callback_html("插件未配置Bangumi OAuth Application ID。", is_error=True)
-            return HTMLResponse(content=error_html, status_code=400)
-        
-        moviepilot_base_url = self._get_moviepilot_base_url(request) # 传入 request 对象
-        if not moviepilot_base_url:
-            error_html = self._build_oauth_callback_html("MoviePilot 公开 URL 未配置或无效，无法构建回调地址。", is_error=True)
-            return HTMLResponse(content=error_html, status_code=500)
-
-        callback_path = f"/api/v1/plugins/{self.plugin_config_prefix.strip('_')}/oauth_callback" # 保持与 get_api 中的路径一致
-        redirect_uri = f"{moviepilot_base_url}{callback_path}"
-        state_data = {"csrf_token": str(uuid.uuid4())} # State中仅保留CSRF token
-        
-        state_param = quote_plus(json.dumps(state_data))
-        auth_url = f"{BANGUMI_AUTHORIZE_URL}?client_id={self._oauth_app_id}&redirect_uri={quote_plus(redirect_uri)}&response_type=code&state={state_param}"
-        
-        logger.info(f"开始全局Bangumi OAuth授权 (操作用户: {getattr(user, 'id', 'Unknown')})，回调至: {redirect_uri}，授权URL: {auth_url}")
-        # 直接重定向到 Bangumi 授权URL
-        return RedirectResponse(url=auth_url, status_code=302)
-
-    def _build_oauth_callback_html(self, message_content: str, is_error: bool = False, post_message_on_success: bool = False) -> str:
-        title = "Bangumi OAuth Error" if is_error else "Bangumi OAuth"
-        body_content = f"<h1>{title}</h1><p>{message_content}</p>"
-        script_content = ""
-        
-        if not is_error:
-            body_content += "<p>此窗口将自动关闭。</p>"
-            if post_message_on_success:
-                # 向父窗口发送消息并关闭当前窗口
-                # 注意: targetOrigin 设置为 '*' 是为了简单，生产环境应设为 MoviePilot 的实际源
-                script_content = f"""
-                <script>
-                    if (window.opener && !window.opener.closed) {{
-                        // 直接尝试重新加载父页面
-                        window.opener.location.reload();
-                    }}
-                    window.close();
-                </script>
-                """
-            else: # 如果不 postMessage，也尝试关闭
-                 script_content = "<script>window.close();</script>"
-        else:
-            body_content += "<p>请关闭此窗口并重试。</p>"
-
-        html_output = f"""
-        <!DOCTYPE html>
-        <html lang="zh-CN">
-        <head>
-            <meta charset="UTF--8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>{title}</title>
-            <style>
-                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif; margin: 20px; line-height: 1.6; color: #333; background-color: #f4f4f4; text-align: center; }}
-                .container {{ background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); display: inline-block; text-align: left; }}
-                h1 {{ color: #333; }}
-                p {{ color: #555; }}
-                .error h1 {{ color: #d9534f; }}
-                .error p {{ color: #d9534f; }}
-            </style>
-        </head>
-        <body class="{'error' if is_error else ''}">
-            <div class="container">
-                {body_content}
-            </div>
-            {script_content}
-        </body>
-        </html>
+    def delete_media_database(self, tmdb_id: str, apikey: str) -> schemas.Response:
         """
-        return html_output
-
-    async def _handle_oauth_callback(self, request: Any, apikey: str, user: Optional[Any] = None) -> HTMLResponse:
-        
-        if apikey != settings.API_TOKEN:
-            error_html = self._build_oauth_callback_html("API密钥错误", is_error=True)
-            return HTMLResponse(content=error_html, status_code=401)
-        
-        code = request.query_params.get('code')
-        state_param = request.query_params.get('state')
-        error_from_bgm = request.query_params.get('error')
-        
-        if error_from_bgm:
-            error_html = self._build_oauth_callback_html(f"Bangumi返回错误: {error_from_bgm}", is_error=True)
-            return HTMLResponse(content=error_html)
-        if not code or not state_param:
-            error_html = self._build_oauth_callback_html("回调参数不完整。", is_error=True)
-            return HTMLResponse(content=error_html)
-
-        try:
-            # state_param 从 query string 获取，FastAPI/Starlette 通常会自动URL解码一次。
-            # Bangumi 在构建 authorize URL 时，state 是 json.dumps 后 quote_plus 编码的。
-            # 所以这里需要 unquote_plus (如果 Bangumi 返回的是编码后的) 再 json.loads。
-            # 如果 state_param 已经是解码后的 JSON 字符串，则直接 json.loads(state_param)。
-            # 为保险起见，先尝试 unquote_plus。
-            try:
-                state_json_str = unquote_plus(state_param)
-            except TypeError: # 如果 state_param 不是字符串或字节串
-                state_json_str = state_param
-            state_data = json.loads(state_json_str)
-            if not state_data.get('csrf_token'):
-                error_html = self._build_oauth_callback_html("State参数无效或CSRF校验失败。", is_error=True)
-                return HTMLResponse(content=error_html)
-        except Exception as e:
-            logger.error(f"解析回调 state 参数 '{state_param}' (尝试解码后为 '{state_json_str if 'state_json_str' in locals() else 'N/A'}') 时出错: {e}")
-            error_html = self._build_oauth_callback_html(f"解析回调参数时发生错误: {e}", is_error=True)
-            return HTMLResponse(content=error_html)
-        
-        if not self._oauth_app_id or not self._oauth_app_secret:
-            error_html = self._build_oauth_callback_html("插件OAuth配置不完整。", is_error=True)
-            return HTMLResponse(content=error_html)
-
-        moviepilot_base_url = self._get_moviepilot_base_url(request) # 传入 request 对象
-        if not moviepilot_base_url:
-            logger.error("全局OAuth回调: MoviePilot 公开 URL 未配置或无效，无法构建令牌交换的回调地址。")
-            error_html = self._build_oauth_callback_html("插件内部错误：无法确定 MoviePilot 服务器地址。", is_error=True)
-            return HTMLResponse(content=error_html)
-
-        callback_path = f"/api/v1/plugins/{self.plugin_config_prefix.strip('_')}/oauth_callback" # 保持与 get_api 中的路径一致
-        redirect_uri_for_token = f"{moviepilot_base_url}{callback_path}"
-        payload = {"grant_type": "authorization_code", "client_id": self._oauth_app_id, 
-                   "client_secret": self._oauth_app_secret, "code": code, "redirect_uri": redirect_uri_for_token}
-        headers = {"Content-Type": "application/x-www-form-urlencoded", "User-Agent": self.UA}
-        try:
-            loop = asyncio.get_event_loop()
-            response_token = await loop.run_in_executor(None, lambda: requests.post(BANGUMI_TOKEN_URL, data=payload, headers=headers, proxies=self._request.proxies if self._request else None))
-            response_token.raise_for_status()
-            token_data = response_token.json()
-            token_data['expire_time'] = time.time() + token_data.get('expires_in', 0)
-            
-            profile_data, profile_error = await self._get_user_profile(token_data.get('access_token'))
-            if profile_error: logger.warning(f"全局OAuth: 获取Bangumi用户信息失败: {profile_error}。")
-            
-            token_data['bangumi_user_id'] = profile_data.get('id') if profile_data else token_data.get('user_id')
-            token_data['nickname'] = profile_data.get('nickname') if profile_data else f"BGM User {token_data.get('user_id')}"
-            token_data['avatar'] = profile_data.get('avatar', {}).get('large') if profile_data and profile_data.get('avatar') else None
-            token_data['url'] = profile_data.get('url') if profile_data else None
-            
-            self._store_global_oauth_info(token_data)
-            logger.info(f"全局成功通过Bangumi OAuth授权，Bangumi用户: {token_data.get('nickname')}")
-            success_html = self._build_oauth_callback_html(f"成功授权Bangumi账户：{token_data.get('nickname')}", post_message_on_success=True)
-            return HTMLResponse(content=success_html)
-        except requests.exceptions.HTTPError as http_err:
-            error_msg = f"交换令牌时HTTP错误: {http_err}"
-            try: error_msg += f". 响应: {http_err.response.json()}"
-            except ValueError: error_msg += f". 响应文本: {http_err.response.text}"
-            logger.error(f"全局OAuth回调: {error_msg}")
-            error_html = self._build_oauth_callback_html(error_msg, is_error=True)
-            return HTMLResponse(content=error_html)
-        except Exception as e:
-            logger.exception(f"全局OAuth回调处理中发生未知错误: {e}")
-            error_html = self._build_oauth_callback_html(f"处理回调时发生内部错误: {e}", is_error=True)
-            return HTMLResponse(content=error_html)
-
-    async def _handle_oauth_status(self, request: Any, user: Any , apikey: str) -> schemas.Response:
-        
+        删除待处理剧集组的媒体信息
+        """
         if apikey != settings.API_TOKEN:
             return schemas.Response(success=False, message="API密钥错误")
-                
-        oauth_info = self._get_global_oauth_info()
-        if not oauth_info: return {"authorized": False, "nickname": None, "avatar": None}
-        
-        access_token = await self._get_valid_access_token()
-        if not access_token:
-             self._delete_global_oauth_info()
-             return {"authorized": False, "nickname": None, "avatar": None, "message": "令牌已失效或无法刷新，请重新授权。"}
-        
-        refreshed_oauth_info = self._get_global_oauth_info() # 获取最新的（可能已刷新）
-        return {"authorized": True, 
-                "nickname": refreshed_oauth_info.get('nickname'), 
-                "avatar": refreshed_oauth_info.get('avatar'),
-                "bangumi_user_id": refreshed_oauth_info.get('bangumi_user_id'),
-                "expire_time_readable": datetime.datetime.fromtimestamp(refreshed_oauth_info.get('expire_time', 0)).strftime('%Y-%m-%d %H:%M:%S') if refreshed_oauth_info.get('expire_time') else "N/A"}
+        if not tmdb_id:
+            return schemas.Response(success=False, message="缺少重要参数")
+        self.del_data(tmdb_id)
+        return schemas.Response(success=True, message="删除成功")
 
-    async def _handle_oauth_deauthorize(self, request: Any, user: Any, apikey: str) -> schemas.Response:
-        
+    def go_start_rt(self, tmdb_id: str, group_id: str, apikey: str) -> schemas.Response:
         if apikey != settings.API_TOKEN:
-            return schemas.Response(success=False, message="API密钥错误")            
-        
-        self._delete_global_oauth_info()
-        logger.info(f"全局Bangumi OAuth授权已解除 (操作用户: {getattr(user, 'id', 'Unknown')})。")
-        return {"status": "success", "message": "已成功解除授权。"}
-
-    async def _get_user_profile(self, access_token: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
-        if not access_token: return None, "Access token is missing."
-        headers = {"Authorization": f"Bearer {access_token}", "User-Agent": self.UA}
+            return schemas.Response(success=False, message="API密钥错误")
+        if not tmdb_id or not group_id:
+            return schemas.Response(success=False, message="缺少重要参数")
+        # 解析待处理数据
         try:
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(None, lambda: requests.get(BANGUMI_USER_INFO_URL, headers=headers, proxies=self._request.proxies if self._request else None))
-            response.raise_for_status()
-            return response.json(), None
-        except requests.exceptions.RequestException as e:
-            error_msg = f"获取 Bangumi 用户信息失败: {e}"
-            if e.response is not None:
-                 try: error_msg += f". 响应: {e.response.json()}"
-                 except ValueError: error_msg += f". 响应文本: {e.response.text}"
-            return None, error_msg
+            # 查询待处理数据
+            data = self.get_data(tmdb_id)
+            if not data:
+                return schemas.Response(success=False, message="未找到待处理数据")
+            mediainfo_dict = data.get("mediainfo_dict")
+            mediainfo: schemas.MediaInfo = schemas.MediaInfo.parse_obj(mediainfo_dict)
+            episode_groups = data.get("episode_groups")
         except Exception as e:
-             return None, f"获取用户信息时发生未知错误: {e}"
+            self.log_error(f"解析媒体信息失败: {str(e)}")
+            return schemas.Response(success=False, message="解析媒体信息失败")
+        # 开始刮削
+        self.log_info(f"开始刮削: {mediainfo.title} | {mediainfo.year} | {episode_groups}")
+        self.systemmessage.put("正在刮削中，请稍等!", title="剧集组刮削")
+        if self.start_rt(mediainfo, episode_groups, group_id):
+            self.log_info("刮削剧集组, 执行成功!")
+            self.systemmessage.put("刮削剧集组, 执行成功!", title="剧集组刮削")
+            # 处理成功时， 发送通知
+            if self._notify:
+                self.post_message(
+                    mtype=schemas.NotificationType.Manual,
+                    title="【剧集组处理结果: 成功】",
+                    text=f"媒体名称：{mediainfo.title}\n发行年份: {mediainfo.year}\n剧集组数: {len(episode_groups)}"
+                )
+            return schemas.Response(success=True, message="刮削剧集组, 执行成功!")
+        else:
+            self.log_error("执行失败, 请查看插件日志！")
+            self.systemmessage.put("执行失败, 请查看插件日志！", title="剧集组刮削")
+            # 处理成功时， 发送通知
+            if self._notify:
+                self.post_message(
+                    mtype=schemas.NotificationType.Manual,
+                    title="【剧集组处理结果: 失败】",
+                    text=f"媒体名称：{mediainfo.title}\n发行年份: {mediainfo.year}\n剧集组数: {len(episode_groups)}\n注意: 失败原因请查看日志.."
+                )
+            return schemas.Response(success=False, message="执行失败, 请查看插件日志")
 
     def get_form(self) -> Tuple[List[dict], Dict[str, Any]]:
-        form_structure = [
-            {  # VCard for 基础设置 (保留V2Test的VCard结构)
-                "component": "VCard",
-                "props": {"variant": "outlined", "class": "mb-3"},
-                "content": [
+        """
+        拼装插件配置页面，需要返回两块数据：1、页面配置；2、数据结构
+        """
+        return [
+            {
+                'component': 'VForm',
+                'content': [
                     {
-                        "component": "VCardTitle",
-                        "props": {"class": "d-flex align-center"},
-                        "content": [
+                        'component': 'VRow',
+                        'content': [
                             {
-                                "component": "VIcon",
-                                "props": {"icon": "mdi-cog", "color": "primary", "class": "mr-2"},
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12,
+                                    'md': 3
+                                },
+                                'content': [
+                                    {
+                                        'component': 'VSwitch',
+                                        'props': {
+                                            'model': 'enabled',
+                                            'label': '启用插件',
+                                        }
+                                    }
+                                ]
                             },
-                            {"component": "span", "text": "基础设置"},
-                        ],
-                    },
-                    {"component": "VDivider"},
-                    {
-                        "component": "VCardText",
-                        "content": [
                             {
-                                "component": "VForm",
-                                "content": [
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12,
+                                    'md': 3
+                                },
+                                'content': [
                                     {
-                                        "component": "VRow",
-                                        "content": [
-                                            {
-                                                "component": "VCol",
-                                                "props": {
-                                                    "cols": 12,
-                                                    "md": 4
-                                                },
-                                                "content": [
-                                                    {
-                                                        "component": "VSwitch",
-                                                        "props": {
-                                                            "model": "enable",
-                                                            "label": "启用插件",
-                                                        }
-                                                    }
-                                                ]
-                                            },
-                                            {
-                                                "component": "VCol",
-                                                "props": {
-                                                    "cols": 12,
-                                                    "md": 4
-                                                },
-                                                "content": [
-                                                    {
-                                                        "component": "VSwitch",
-                                                        "props": {
-                                                            "model": "uniqueid_match",
-                                                            "label": "集唯一ID匹配",
-                                                        }
-                                                    }
-                                                ]
-                                            },
-                                        ]
-                                    },
+                                        'component': 'VCheckboxBtn',
+                                        'props': {
+                                            'model': 'autorun',
+                                            'label': '季集匹配时自动刮削',
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12,
+                                    'md': 3
+                                },
+                                'content': [
                                     {
-                                        "component": "VRow",
-                                        "content": [
-                                            {
-                                                "component": "VCol",
-                                                "props": {
-                                                    "cols": 12,
-                                                    "md": 6
-                                                },
-                                                "content": [
-                                                    {
-                                                        "component": "VTextField",
-                                                        "props": {
-                                                            "model": "user",
-                                                            "label": "媒体服务器用户名",
-                                                            "placeholder": "你的Emby/Plex用户名",
-                                                            "hint": "多个用逗号隔开",
-                                                            "persistentHint": True,
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        ]
+                                        'component': 'VCheckboxBtn',
+                                        'props': {
+                                            'model': 'ignorelock',
+                                            'label': '锁定的剧集也刮削',
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12,
+                                    'md': 3
+                                },
+                                'content': [
+                                    {
+                                        'component': 'VCheckboxBtn',
+                                        'props': {
+                                            'model': 'notify',
+                                            'label': '开启通知',
+                                        }
+                                    }
+                                ]
+                            },
+                        ]
+                    },
+                    {
+                        'component': 'VRow',
+                        'content': [
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12,
+                                },
+                                'content': [
+                                    {
+                                        'component': 'VTextField',
+                                        'props': {
+                                            'model': 'delay',
+                                            'label': '入库延迟时间（秒）',
+                                            'placeholder': '120'
+                                        }
                                     }
                                 ]
                             }
                         ]
-                    }
-                ]
-            },
-            {  # VCard for 认证方式和参数设置 (保留V2Test的Tabs结构)
-                "component": "VCard",
-                "props": {"variant": "outlined"},
-                "content": [
-                    {
-                        "component": "VTabs",
-                        "props": {"model": "tab", "grow": True, "color": "primary"},
-                        "content": [
-                            {
-                                "component": "VTab",
-                                "props": {"value": "auth-method-tab"},
-                                "content": [
-                                    {
-                                        "component": "VIcon",
-                                        "props": {"icon": "mdi-shield-key", "start": True, "color": "#1976D2"},
-                                    },
-                                    {"component": "span", "text": "认证方式"},
-                                ],
-                            },
-                            {
-                                "component": "VTab",
-                                "props": {"value": "params-tab"},
-                                "content": [
-                                    {
-                                        "component": "VIcon",
-                                        "props": {"icon": "mdi-tune", "start": True, "color": "#8958f4"},
-                                    },
-                                    {"component": "span", "text": "参数设置"},
-                                ],
-                            },
-                        ],
                     },
-                    {"component": "VDivider"},
                     {
-                        "component": "VWindow",
-                        "props": {"model": "tab"},
-                        "content": [
-                            {  # 认证方式 Tab
-                                "component": "VWindowItem",
-                                "props": {"value": "auth-method-tab"},
-                                "content": [
+                        'component': 'VRow',
+                        'content': [
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12
+                                },
+                                'content': [
                                     {
-                                        "component": "VCardText",
-                                        "content": [
-                                            {
-                                                "component": "VRadioGroup",
-                                                "props": {
-                                                    "model": "auth_method",
-                                                    "inline": False,
-                                                    "label": "选择Bangumi认证方式"
-                                                },
-                                                "content": [
-                                                    {
-                                                        "component": "VRadio",
-                                                        "props": {
-                                                            "label": "Access Token (推荐)",
-                                                            "value": "access-token"
-                                                        }
-                                                    },
-                                                    {
-                                                        "component": "VRadio",
-                                                        "props": {
-                                                            "label": "OAuth 2.0", 
-                                                            "value": "oauth"
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        ]
+                                        'component': 'VTextarea',
+                                        'props': {
+                                            'model': 'allowlist',
+                                            'label': '刮削白名单',
+                                            'rows': 6,
+                                            'placeholder': '使用,分隔电视剧名称'
+                                        }
                                     }
                                 ]
-                            },
-                            {  # 参数设置 Tab
-                                "component": "VWindowItem",
-                                "props": {"value": "params-tab"},
-                                "content": [
+                            }
+                        ]
+                    },
+                    {
+                        'component': 'VRow',
+                        'content': [
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12,
+                                },
+                                'content': [
                                     {
-                                        "component": "VCardText",
-                                        "content": [
-                                            { # Token input
-                                                "component": "VRow",
-                                                # "props": {"v-if": "config.auth_method === 'token'"}, # 前端控制显示
-                                                "content": [
-                                                    {
-                                                        "component": "VCol",
-                                                        "props": {"cols": 12},
-                                                        "content": [
-                                                            {
-                                                                "component": "VTextField",
-                                                                "props": {
-                                                                    "model": "token",
-                                                                    "label": "Bangumi Access Token",
-                                                                    "placeholder": "填写得到的Access token",
-                                                                    "type": "password",
-                                                                    "hint": "用于Token认证方式。获取：https://next.bgm.tv/demo/access-token",
-                                                                    "persistentHint": True,
-                                                                }
-                                                            }
-                                                        ]
-                                                    }
-                                                ]
-                                            },
-                                            { # OAuth inputs
-                                                "component": "VRow",
-                                                # "props": {"v-if": "config.auth_method === 'oauth'"}, # 前端控制显示
-                                                "content": [
-                                                    {
-                                                        "component": "VCol",
-                                                        "props": {"cols": 12, "md": 6},
-                                                        "content": [
-                                                            {
-                                                                "component": "VTextField",
-                                                                "props": {
-                                                                    "model": "oauth_app_id",
-                                                                    "label": "OAuth Application ID",
-                                                                    "placeholder": "在此输入你的App ID",
-                                                                    "hint": "用于OAuth认证方式", # 保持提示
-                                                                    "persistentHint": True #,
-                                                                    #"disabled": True, # 保持禁用
-                                                                }
-                                                            }
-                                                        ]
-                                                    },
-                                                    { 
-                                                        "component": "VCol",
-                                                        "props": {"cols": 12, "md": 6},
-                                                        "content": [
-                                                            {
-                                                                "component": "VTextField",
-                                                                "props": {
-                                                                    "model": "oauth_app_secret",
-                                                                    "label": "OAuth Application Secret",
-                                                                    "placeholder": "在此输入你的App Secret",
-                                                                    "type": "password",
-                                                                    "hint": "用于OAuth认证方式", # 保持提示
-                                                                    "persistentHint": True # ,
-                                                                    #"disabled": True, # 保持禁用
-                                                                }
-                                                            }
-                                                        ]
-                                                    }
-                                                ]
-                                            },
-                                            {
-                                                "component": "VAlert",
-                                                "props": {
-                                                    "type": "info",
-                                                    "variant": "tonal",
-                                                    "text": (
-                                                        "access-token获取：https://next.bgm.tv/demo/access-token\n"
-                                                        "emby添加你mp的webhook（event要包括播放）： http://[MoviePilot地址]:[端口]/api/v1/webhook?token=moviepilot\n"
-                                                        "感谢@HankunYu的想法"
-                                                    ),
-                                                    "style": "white-space: pre-line;"
-                                                }
-                                            }
-                                        ]
+                                        'component': 'VAlert',
+                                        'props': {
+                                            'type': 'info',
+                                            'variant': 'tonal',
+                                            'text': '注意：刮削白名单(留空)则全部刮削. 否则仅刮削白名单.'
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        'component': 'VRow',
+                        'content': [
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12,
+                                },
+                                'content': [
+                                    {
+                                        'component': 'VAlert',
+                                        'props': {
+                                            'type': 'info',
+                                            'variant': 'tonal',
+                                            'text': '注意：如需刮削已经入库的项目, 可通过mp重新整理单集即可.'
+                                        }
                                     }
                                 ]
                             }
@@ -1210,240 +345,1068 @@ class BangumiSyncV2Test(_PluginBase):
                     }
                 ]
             }
-        ]
-
-        default_values = {
-            "enable": False,
-            "uniqueid_match": False,
-            "user": "",
-            "auth_method": "", 
-            "token": "",            # access-token
-            "oauth_app_id": "",     # OAuth App ID
-            "oauth_app_secret": "", # OAuth App Secret
-            "tab": "auth-method-tab",  # 默认显示的标签页
-            # "moviepilot_public_url": "", # 移除默认值
-            "global_oauth_info": None # 全局OAuth信息默认为None
+        ], {
+            "enabled": False,
+            "notify": True,
+            "autorun": True,
+            "ignorelock": False,
+            "allowlist": "",
+            "delay": 120
         }
 
-        return form_structure, default_values
+    def is_objstr(self, obj: Any):
+        if not isinstance(obj, str):
+            return False
+        return str(obj).startswith("{") \
+            or str(obj).startswith("[") \
+            or str(obj).startswith("(")
 
     def get_page(self) -> List[dict]:
         """
-        拼装插件详情页面，显示 OAuth 授权状态和操作按钮。
+        拼装插件详情页面，需要返回页面配置，同时附带数据
         """
-        # 检查是否已配置 OAuth App ID 和 Secret，这是进行 OAuth 的前提
-        # 并且认证方式必须是 oauth
-        if self._auth_method != 'oauth':
+        # 查询待处理数据列表
+        mediainfo_list: List[PluginData] = self.get_data()
+        # 拼装页面
+        contents = []
+        for plugin_data in mediainfo_list:
+            try:
+                tmdb_id = plugin_data.key
+                # fix v1版本数据读取问题
+                if self.is_objstr(plugin_data.value):
+                    data = json.loads(plugin_data.value)
+                else:
+                    data = plugin_data.value
+                mediainfo: schemas.MediaInfo = schemas.MediaInfo.parse_obj(data.get("mediainfo_dict"))
+                episode_groups = data.get("episode_groups")
+            except Exception as e:
+                self.log_error(f"解析媒体信息失败: {plugin_data.key} -> {plugin_data.value} \n ------ \n {str(e)}")
+                continue
+            # 剧集组菜单明细
+            groups_menu = []
+            index = 0
+            for group in episode_groups:
+                index += 1
+                title = group.get('name')
+                groups_menu.append({
+                    'component': 'VListItem',
+                    'props': {
+                        ':key': str(index),
+                        ':value': str(index)
+                    },
+                    'events': {
+                        'click': {
+                            'api': 'plugin/EpisodeGroupMetaTest/start_rt',
+                            'method': 'get',
+                            'params': {
+                                'apikey': settings.API_TOKEN,
+                                'tmdb_id': tmdb_id,
+                                'group_id': group.get('id')
+                            }
+                        }
+                    },
+                    'content': [
+                        {
+                            'component': 'VListItemTitle',
+                            'text': title
+                        },
+                        {
+                            'component': 'VListItemSubtitle',
+                            'text': f"{group.get('group_count')}组, {group.get('episode_count')}集"
+                        },
+                    ]
+                })
+            # 拼装待处理媒体卡片
+            contents.append(
+                {
+                    'component': 'VCard',
+                    'content': [
+                        {
+                            'component': 'VImg',
+                            'props': {
+                                'src': mediainfo.backdrop_path or mediainfo.poster_path,
+                                'height': '120px',
+                                'cover': True
+                            },
+                        },
+                        {
+                            'component': 'VCardTitle',
+                            'content': [
+                                {
+                                    'component': 'a',
+                                    'props': {
+                                        'href': f"{mediainfo.detail_link}/episode_groups",
+                                        'target': '_blank'
+                                    },
+                                    'text': mediainfo.title
+                                }
+                            ]
+                        },
+                        {
+                            'component': 'VCardSubtitle',
+                            'content': [
+                                {
+                                    'component': 'a',
+                                    'props': {
+                                        'href': f"{mediainfo.detail_link}/episode_groups",
+                                        'target': '_blank'
+                                    },
+                                    'text': f"{mediainfo.year} | 共{len(episode_groups)}个剧集组"
+                                }
+                            ]
+                        },
+                        {
+                            'component': 'VCardActions',
+                            'props': {
+                                'style': 'min-height:64px;'
+                            },
+                            'content': [
+                                {
+                                    'component': 'VBtn',
+                                    'props': {
+                                        'class': 'ms-2',
+                                        'size': 'small',
+                                        'rounded': 'xl',
+                                        'elevation': '20',
+                                        'append-icon': 'mdi-chevron-right'
+                                    },
+                                    'text': '选择剧集组',
+                                    'content': [
+                                        {
+                                            'component': 'VMenu',
+                                            'props': {
+                                                'activator': 'parent'
+                                            },
+                                            'content': [
+                                                {
+                                                    'component': 'VList',
+                                                    'content': groups_menu
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    'component': 'VBtn',
+                                    'props': {
+                                        'class': 'ms-2',
+                                        'size': 'small',
+                                        'elevation': '20',
+                                        'rounded': 'xl',
+                                    },
+                                    'text': '忽略',
+                                    'events': {
+                                        'click': {
+                                            'api': 'plugin/EpisodeGroupMetaTest/delete_media_database',
+                                            'method': 'get',
+                                            'params': {
+                                                'apikey': settings.API_TOKEN,
+                                                'tmdb_id': tmdb_id
+                                            }
+                                        }
+                                    },
+                                }
+                            ]
+                        }
+                    ]
+                }
+            )
+
+        if not contents:
             return [
                 {
-                    'component': 'VAlert',
+                    'component': 'div',
+                    'text': '暂无待处理数据',
                     'props': {
-                        'type': 'info',
-                        'variant': 'tonal',
-                        'text': '当前认证方式不是 OAuth。如需使用 OAuth 授权，请先在插件配置的“认证方式”标签页中选择 OAuth。'
+                        'class': 'text-center',
                     }
                 }
             ]
         
-        if not self._oauth_app_id or not self._oauth_app_secret:
-            return [
-                {
-                    'component': 'VAlert',
-                    'props': {
-                        'type': 'warning',
-                        'variant': 'tonal',
-                        'text': '请先在插件配置的“参数设置”中填写 OAuth Application ID 和 Secret。'
-                    }
-                }
-            ]
-        
-        # --- 在后端获取初始 OAuth 状态 ---
-        # 注意：get_page 是同步方法，而 _handle_oauth_status 是异步的。
-        # MoviePilot 的插件 get_page 通常是同步的。
-        # 如果需要在这里调用异步方法，需要 MoviePilot 框架支持或者采用同步方式获取。
-        # 假设我们有一个同步的内部方法来获取状态，或者 _handle_oauth_status 可以被同步调用（不推荐）。
-        # 为了演示，我们先假设可以获取到状态。在实际应用中，这可能需要调整。
-        
-        # 模拟获取状态 (实际应调用类似 self._handle_oauth_status 的逻辑)
-        # oauth_status_data = self._get_current_oauth_status_sync() # 假设有这样一个同步方法
-        # 简化处理：直接使用存储的 _global_oauth_info 判断，但不实时刷新token
-        current_oauth_info = self._get_global_oauth_info()
-        is_authorized = False
-        nickname = "未授权"
-        avatar_url = None
-        if current_oauth_info and current_oauth_info.get('access_token'): # 简单判断
-            # 在实际应用中，这里应该检查token是否过期，并尝试刷新（如果get_page允许异步或有同步机制）
-            is_authorized = True # 简化：只要有token就认为可能已授权，具体状态由 _handle_oauth_status 接口确认
-            nickname = current_oauth_info.get('nickname', '已授权，信息待刷新')
-            avatar_url = current_oauth_info.get('avatar')
-
-        oauth_card_content = [
-            {
-                'component': 'VCardTitle',
-                'text': 'Bangumi OAuth 授权管理'
-            },
-            {
-                'component': 'VCardText',
-                'content': [
-                    { 
-                        'component': 'div',
-                        'props': {'id': 'bangumi-oauth-status-container', 'class': 'mb-4'},
-                        'content': [
-                            {
-                                'component': 'VAvatar', 
-                                'props': {
-                                        'image': avatar_url, 
-                                        'size': '64', 
-                                        'class': 'mb-2 mx-auto', # 居中显示
-                                        'v-if': is_authorized and avatar_url # 仅当授权且有头像时显示
-                                }
-                            },
-                            {
-                                'component': 'VChip',
-                                'props': {
-                                    'color': 'success' if is_authorized else 'warning', 
-                                    'label': True, 
-                                    'class': 'mb-2'
-                                },
-                                'content': [
-                                    {'component': 'VIcon', 'props': {'start': True, 'icon': 'mdi-check-circle' if is_authorized else 'mdi-alert-circle'}},
-                                    {'component': 'span', 'text': nickname }
-                                ]
-                            },
-                            { # 如果已授权，显示更详细的用户信息
-                                'component': 'div',
-                                'props': {
-                                    'v-if': is_authorized and current_oauth_info and current_oauth_info.get('bangumi_user_id'),
-                                    'class': 'text-caption grey--text'
-                                },
-                                'content': [
-                                    {'component': 'span', 'text': f"Bangumi UID: {current_oauth_info.get('bangumi_user_id') if current_oauth_info else ''}"},
-                                    {'component': 'br' },
-                                    {'component': 'span', 'text': f"令牌有效期至: {datetime.datetime.fromtimestamp(current_oauth_info.get('expire_time', 0)).strftime('%Y-%m-%d %H:%M:%S') if current_oauth_info and current_oauth_info.get('expire_time') else 'N/A'}"}
-                                ]
-                            }
-                        ]
-                    },
-                    { 
-                        'component': 'VBtn',
-                        'props': {
-                            'id': 'oauth-authorize-btn-page',
-                            'color': 'primary',
-                            'class': 'mr-2',
-                            'prepend-icon': 'mdi-link-variant',
-                            'disabled': is_authorized, # 如果已授权，则禁用此按钮
-                            # 使用 href 和 target='_blank' 使按钮像链接一样在新标签页打开
-                            'href': f'/api/v1/plugins/{self.plugin_config_prefix.strip("_")}/oauth_authorize?apikey={settings.API_TOKEN}',
-                            'target': '_blank',
-                            'rel': 'noopener noreferrer' # 安全性考虑
-                        },
-                        'text': 'Bangumi 授权'
-                    },
-                    { 
-                        'component': 'VBtn',
-                        'props': {
-                            'id': 'oauth-deauthorize-btn-page',
-                            'color': 'error',
-                            'prepend-icon': 'mdi-link-variant-off',
-                            'comment': '点击解除当前用户的Bangumi OAuth授权',
-                            'disabled': not is_authorized, # 如果未授权，则禁用此按钮
-                            'events': {
-                                'click': {
-                                    'api': 'plugin/BangumiSyncV2Test/oauth_deauthorize',
-                                    'method': 'get', 
-                                    'confirm': '确定要解除 Bangumi OAuth 授权吗？',
-                                    'success_message': '解除授权成功！页面将刷新。',
-                                    'error_message': '解除授权失败，请检查日志。',
-                                    'refresh_on_success': True 
-                                }
-                            }
-                        },
-                        # {
-                        #     'component': 'VBtn', # 添加一个手动刷新按钮
-                        #     'props': {
-                        #         'color': 'info',
-                        #         'class': 'ml-2',
-                        #         'icon': 'mdi-refresh',
-                        #         'events': {'click': {'action': 'refresh_page'}} # 假设的action
-                        #         }
-                        # },
-                        'text': '解除授权'
-                    },
-                    {
-                        'component': 'VAlert',
-                        'props': {'type':'info', 'variant':'tonal', 'density':'compact', 'class':'mt-4', 
-                                  'text':'点击“Bangumi 授权”按钮后，会在新窗口中打开Bangumi的授权页面。请按照提示操作。授权成功或失败，该窗口会自动关闭，此页面状态会刷新。'}
-                    }
-                    
-                ]
-            }
-        ]
-
         return [
             {
                 'component': 'VRow',
+                'props': {
+                    'class': 'mb-3'
+                },
                 'content': [
                     {
                         'component': 'VCol',
-                        'props': {'cols': 12, 'md': 8, 'offset-md': 2}, 
+                        'props': {
+                            'cols': 12,
+                        },
                         'content': [
                             {
-                                'component': 'VCard',
-                                'props': {'variant': 'outlined'},
-                                'content': oauth_card_content
+                                'component': 'VAlert',
+                                'props': {
+                                    'type': 'info',
+                                    'variant': 'tonal',
+                                    'text': '注意：1. 点击名字可跳转tmdb剧集组页面。2. 选择剧集组时后台已经开始执行，请通过日志查看进度，不要重复执行。'
+                                }
                             }
                         ]
                     }
                 ]
+            },
+            {
+                'component': 'div',
+                'props': {
+                    'class': 'grid gap-6 grid-info-card',
+                },
+                'content': contents
             }
         ]
 
+    @eventmanager.register(EventType.TransferComplete)
+    def scrap_rt(self, event: Event):
+        """
+        根据事件判断是否需要刮削
+        """
+        if not self.get_state():
+            return
+        # 事件数据
+        mediainfo: schemas.MediaInfo = event.event_data.get("mediainfo")
+        meta: MetaBase = event.event_data.get("meta")
+        # self.log_error(f"{event.event_data}")
+        if not mediainfo or not meta:
+            return
+        # 非TV类型不处理
+        if mediainfo.type != schemas.MediaType.TV:
+            self.log_warn(f"{mediainfo.title} 非TV类型, 无需处理")
+            return
+        # 没有tmdbID不处理
+        if not mediainfo.tmdb_id:
+            self.log_warn(f"{mediainfo.title} 没有tmdbID, 无需处理")
+            return
+        if len(self._allowlist) != 0 \
+                and mediainfo.title not in self._allowlist:
+            self.log_warn(f"{mediainfo.title} 不在白名单, 无需处理")
+            return
+        # 获取剧集组信息
+        try:
+            episode_groups = self.tv.episode_groups(mediainfo.tmdb_id)
+            if not episode_groups:
+                self.log_warn(f"{mediainfo.title} 没有剧集组, 无需处理")
+                return
+            self.log_info(f"{mediainfo.title_year} 剧集组数量: {len(episode_groups)} - {episode_groups}")
+            # episodegroup = self.tv.group_episodes(episode_groups[0].get('id'))
+        except Exception as e:
+            self.log_error(f"{mediainfo.title} {str(e)}")
+            return
+        # 写入至插件数据
+        mediainfo_dict = None
+        try:
+            # 实际传递的不是基于BaseModel的实例
+            mediainfo_dict = mediainfo.dict()
+        except Exception as e:
+            # app.core.context.MediaInfo
+            try:
+                mediainfo_dict = mediainfo.to_dict()
+            except Exception as e:
+                self.log_error(f"{mediainfo.title} 无法处理MediaInfo数据 {str(e)}")
+        if mediainfo_dict:
+            data = {
+                "episode_groups": episode_groups,
+                "mediainfo_dict": mediainfo_dict
+            }
+            self.save_data(str(mediainfo.tmdb_id), data)
+            self.log_info("写入待处理数据 - ok")
+        # 禁止自动刮削时直接返回
+        if not self._autorun:
+            self.log_warn(f"{mediainfo.title} 未勾选自动刮削, 无需处理")
+            # 发送通知
+            if self._notify and mediainfo_dict:
+                self.post_message(
+                    mtype=schemas.NotificationType.Manual,
+                    title="【待手动处理的剧集组】",
+                    text=f"媒体名称：{mediainfo.title}\n发行年份: {mediainfo.year}\n剧集组数: {len(episode_groups)}"
+                )
+            return
+        # 延迟
+        if self._delay:
+            self.log_warn(f"{mediainfo.title} 将在 {self._delay} 秒后开始处理..")
+            time.sleep(int(self._delay))
+        # 开始处理
+        if self.start_rt(mediainfo=mediainfo, episode_groups=episode_groups):
+        	# 处理完成时， 属于自动匹配的, 发送通知
+            if self._notify and mediainfo_dict:
+                self.post_message(
+                    mtype=schemas.NotificationType.Manual,
+                    title="【已自动匹配的剧集组】",
+                    text=f"媒体名称：{mediainfo.title}\n发行年份: {mediainfo.year}\n剧集组数: {len(episode_groups)}"
+                )
+            return
 
-    def __update_config(self):
-        logger.debug(f"准备执行 __update_config。当前的 self._auth_method 是: '{self._auth_method}', 启用状态: {self._enable}")
-        # 根据当前的认证方式，决定默认打开哪个标签页
-        # 如果用户选择了具体的认证方式，并且希望直接看到参数，可以考虑将 tab 切换到 'params-tab'
-        # 但通常情况下，用户可能还是希望先看到认证方式的选择。
-        # 如果你希望在选择了 token 或 oauth 后，下次打开直接显示参数页，可以取消下面的注释：
-        # if self._auth_method in ['token', 'oauth']:
-        # self._tab = 'params-tab'
-        self.update_config({
-            "enable": self._enable,
-            "uniqueid_match": self._uniqueid_match,
-            "user": self._user,
-            "token": self._token,
-            "auth_method": self._auth_method,
-            "oauth_app_id": self._oauth_app_id,
-            "oauth_app_secret": self._oauth_app_secret,
-            "tab": self._tab, 
-            # "moviepilot_public_url": self._moviepilot_public_url, # 移除保存
-            "global_oauth_info": self._global_oauth_info
-        })
-        # 增加打印所有将要保存的参数
-        config_to_be_saved = {
-            "enable": self._enable,
-            "uniqueid_match": self._uniqueid_match,
-            "user": self._user,
-            "token": self._token,
-            "auth_method": self._auth_method,
-            "oauth_app_id": self._oauth_app_id,
-            "oauth_app_secret": self._oauth_app_secret,
-            "tab": self._tab,
-            "global_oauth_info": "******" if self._global_oauth_info else None # OAuth信息可能较长或敏感，选择性打印
-        }
-        logger.info(f"__update_config: 插件配置已更新并保存，保存的完整参数如下: {config_to_be_saved}")
+    def start_rt(self, mediainfo: schemas.MediaInfo, episode_groups: Any | None, group_id: str = None) -> bool:
+        """
+        通过媒体信息读取剧集组并刮削季集信息
+        """
+        # 当不是从事件触发时，应再次判断是否存在剧集组
+        if not episode_groups:
+            try:
+                episode_groups = self.tv.episode_groups(mediainfo.tmdb_id)
+                if not episode_groups:
+                    self.log_warn(f"{mediainfo.title} 没有剧集组, 无需处理")
+                    return False
+                self.log_info(f"{mediainfo.title_year} 剧集组数量: {len(episode_groups)} - {episode_groups}")
+                # episodegroup = self.tv.group_episodes(episode_groups[0].get('id'))
+            except Exception as e:
+                self.log_error(f"{mediainfo.title} {str(e)}")
+                return False
+        # 获取全部可用的媒体服务器, 兼容v2
+        service_infos = self.service_infos()
+        relust_bool = False
+        if self.mediaserver_helper is None:
+            # v1版本 单一媒体服务器的方式
+            server_list = ["emby", "jellyfin", "plex"]
+            # 遍历所有媒体服务器
+            for server in server_list:
+                self.log_info(f"正在查询媒体服务器: {server}")
+                existsinfo: ExistMediaInfo = self.__media_exists(
+                    mediainfo=mediainfo,
+                    server=server,
+                    server_type=server)
+                if not existsinfo or not existsinfo.itemid:
+                    self.log_warn(f"{mediainfo.title_year} 在媒体库 {server} 中不存在")
+                    continue
+                elif not existsinfo.groupep:
+                    self.log_warn(f"{mediainfo.title_year} 在媒体库 {server} 中没有数据")
+                    continue
+                else:
+                    self.log_info(f"{mediainfo.title_year} 在媒体库 {existsinfo.server} 中找到了这些季集：{existsinfo.groupep}")
+                _bool = self.__start_rt_mediaserver(mediainfo=mediainfo, existsinfo=existsinfo, episode_groups=episode_groups, group_id=group_id)
+                relust_bool = relust_bool or _bool
+        else:
+            # v2版本 遍历所有媒体服务器的方式
+            if not service_infos:
+                self.log_warn(f"{mediainfo.title_year} 无可用的媒体服务器")
+                return False
+            # 遍历媒体服务器
+            for name, info in service_infos.items():
+                self.log_info(f"正在查询媒体服务器: ({info.type}){name}")
+                existsinfo: ExistMediaInfo = self.__media_exists(
+                    mediainfo=mediainfo,
+                    server=name,
+                    server_type=info.type,
+                    mediaserver_instance=info.instance)
+                if not existsinfo or not existsinfo.itemid:
+                    self.log_warn(f"{mediainfo.title_year} 在 ({info.type}){name} 媒体服务器中不存在")
+                    continue
+                elif not existsinfo.groupep:
+                    self.log_warn(f"{mediainfo.title_year} 在 ({info.type}){name} 媒体服务器中没有数据")
+                    continue
+                else:
+                    self.log_info(f"{mediainfo.title_year} 在媒体库 ({existsinfo.server_type}){existsinfo.server} 中找到了这些季集：{existsinfo.groupep}")
+                _bool = self.__start_rt_mediaserver(mediainfo=mediainfo, existsinfo=existsinfo, episode_groups=episode_groups, group_id=group_id, mediaserver_instance=info.instance)
+                relust_bool = relust_bool or _bool
+        return relust_bool
+   
+    def update_provider_ids_with_tmdbeg(self, server_type: str, itemid: str, tmdbeg_id: str, mediaserver_instance: Any = None):
+       """
+       更新媒体项的 ProviderIds 字段，添加 TmdbEg=id 的信息。
+       :param server_type: 媒体服务器类型（emby/jellyfin）
+       :param itemid: 媒体项 ID
+       :param tmdbeg_id: 要写入的 TmdbEg ID
+       :param mediaserver_instance: 媒体服务器实例（v2）
+       """
+       # 获取当前媒体项信息
+       iteminfo = self.get_iteminfo(server_type=server_type, itemid=itemid, mediaserver_instance=mediaserver_instance)
+       if not iteminfo:
+        self.log_error(f"无法获取 {server_type} 媒体项 {itemid} 的信息")
+        return False
 
-    def get_state(self) -> bool:
-        return self._enable
+       # 添加或更新 ProviderIds.TmdbEg 字段
+       if "ProviderIds" not in iteminfo or not isinstance(iteminfo["ProviderIds"], dict):
+           iteminfo["ProviderIds"] = {}
+
+       iteminfo["ProviderIds"]["TmdbEg"] = tmdbeg_id
+       self.log_info(f"准备更新 ProviderIds: {iteminfo['ProviderIds']}")
+
+       # 提交更新
+       result = self.set_iteminfo(
+          server_type=server_type,
+          itemid=itemid,
+          iteminfo=iteminfo,
+          mediaserver_instance=mediaserver_instance
+        )
+
+       if result:
+          self.log_info(f"{server_type} 媒体项 {itemid} 更新成功！添加了 TmdbEg={tmdbeg_id}")
+       else:
+          self.log_error(f"{server_type} 媒体项 {itemid} 更新失败")
+       return result
+
+    def __start_rt_mediaserver(self,
+                               mediainfo: schemas.MediaInfo,
+                               existsinfo: ExistMediaInfo,
+                               episode_groups: Any | None,
+                               group_id: str = None,
+                               mediaserver_instance: Any = None) -> bool:
+        """
+        遍历媒体服务器剧集信息，并匹配合适的剧集组刷新季集信息
+        """
+        self.log_info(f"{mediainfo.title_year} 存在于 {existsinfo.server_type} 媒体服务器: {existsinfo.server}")
+        # 获取全部剧集组信息
+        copy_keys = ['Id', 'Name', 'ChannelNumber', 'OriginalTitle', 'ForcedSortName', 'SortName', 'CommunityRating',
+                     'CriticRating', 'IndexNumber', 'ParentIndexNumber', 'SortParentIndexNumber', 'SortIndexNumber',
+                     'DisplayOrder', 'Album', 'AlbumArtists', 'ArtistItems', 'Overview', 'Status', 'Genres', 'Tags',
+                     'TagItems', 'Studios', 'PremiereDate', 'DateCreated', 'ProductionYear', 'Video3DFormat',
+                     'OfficialRating', 'CustomRating', 'People', 'LockData', 'LockedFields', 'ProviderIds',
+                     'PreferredMetadataLanguage', 'PreferredMetadataCountryCode', 'Taglines']
+        
+        # ✅ 新增标志位：确保 update_provider_ids_with_tmdbeg 只执行一次
+        tmdbeg_updated = False
+
+        for episode_group in episode_groups:
+            if not bool(existsinfo.groupep):
+                break
+            try:
+                id = episode_group.get('id')
+                name = episode_group.get('name')
+                if not id:
+                    continue
+                # 指定剧集组id时, 跳过其他剧集组
+                if group_id and str(id) != str(group_id):
+                    continue
+                # 处理
+                self.log_info(f"正在匹配剧集组: {id}")
+                groups_meta = self.tv.group_episodes(id)
+                if not groups_meta:
+                    continue
+                for groups in groups_meta:
+                    if not bool(existsinfo.groupep):
+                        break
+                    # 剧集组中的季
+                    order = groups.get("order")
+                    # 剧集组中的集列表
+                    episodes = groups.get("episodes")
+                    if order is None or not episodes or len(episodes) == 0:
+                        continue
+                    # 进行集数匹配, 确定剧集组信息
+                    ep = existsinfo.groupep.get(order)
+                    # 指定剧集组id时, 不再通过季集数量匹配
+                    if group_id:
+                        self.log_info(f"已指定剧集组: {name}, {id}, 第 {order} 季")
+                    else:
+                        # 进行集数匹配, 确定剧集组信息
+                        if not ep or len(ep) != len(episodes):
+                            continue
+                        self.log_info(f"已匹配剧集组: {name}, {id}, 第 {order} 季")
+                    # 遍历全部媒体项并更新
+                    if existsinfo.groupid.get(order) is None:
+                        self.log_info(f"媒体库中不存在: {mediainfo.title_year}, 第 {order} 季")
+                        continue
+                    
+                    # 👇 插入新功能：使用emby官方API，修改tvshow.nfo添加 TmdbEg 到 ProviderIds  联动emby神医助手
+                    if not tmdbeg_updated:
+                         # 判断当前媒体服务器是否为 Emby
+                        if existsinfo.server_type == "emby":
+                            self.log_info(f"你使用的的媒体服务器为: {existsinfo.server} ,开始更新TmdbEg")
+                            self.update_provider_ids_with_tmdbeg(
+                            server_type=existsinfo.server_type,
+                            itemid=existsinfo.itemid,
+                            tmdbeg_id=id,
+                            mediaserver_instance=mediaserver_instance
+                        )
+                        else:
+                            self.log_info(f"你使用的的媒体服务器为: {existsinfo.server} ,非emby,不进行TmdbEg更新")
+                        tmdbeg_updated = True
+
+                    for _index, _ids in enumerate(existsinfo.groupid.get(order)):
+                        # 提取出媒体库中集id对应的集数index
+                        ep_num = ep[_index]
+                        for _id in _ids:
+                            # 获取媒体服务器媒体项
+                            iteminfo = self.get_iteminfo(server_type=existsinfo.server_type, itemid=_id, mediaserver_instance=mediaserver_instance)
+                            if not iteminfo:
+                                self.log_info(f"未找到媒体项 - itemid: {_id},  第 {order} 季,  第 {ep_num} 集")
+                                continue
+                            # 锁定的剧集是否也刮削?
+                            if not self._ignorelock:
+                                if iteminfo.get("LockData") or (
+                                        "Name" in iteminfo.get("LockedFields", [])
+                                        and "Overview" in iteminfo.get("LockedFields", [])):
+                                    self.log_warn(f"已锁定媒体项 - itemid: {_id},  第 {order} 季,  第 {ep_num} 集, 如果需要刮削请打开设置中的“锁定的剧集也刮削”选项")
+                                    continue
+                            # 替换项目数据
+                            episode = episodes[ep_num - 1]
+                            new_dict = {}
+                            new_dict.update({k: v for k, v in iteminfo.items() if k in copy_keys})
+                            new_dict["Name"] = episode["name"]
+                            new_dict["Overview"] = episode["overview"]
+                            new_dict["ParentIndexNumber"] = str(order)
+                            new_dict["IndexNumber"] = str(ep_num)
+                            new_dict["LockData"] = True
+                            if episode.get("vote_average"):
+                                new_dict["CommunityRating"] = episode.get("vote_average")
+                            if not new_dict["LockedFields"]:
+                                new_dict["LockedFields"] = []
+                            self.__append_to_list(new_dict["LockedFields"], "Name")
+                            self.__append_to_list(new_dict["LockedFields"], "Overview")
+                            # 更新数据
+                            self.set_iteminfo(server_type=existsinfo.server_type, itemid=_id, iteminfo=new_dict, mediaserver_instance=mediaserver_instance)
+                            # still_path 图片
+                            if episode.get("still_path"):
+                                self.set_item_image(server_type=existsinfo.server_type, itemid=_id,
+                                                    imageurl=f"https://{settings.TMDB_IMAGE_DOMAIN}/t/p/original{episode['still_path']}",
+                                                    mediaserver_instance=mediaserver_instance)
+                            self.log_info(f"已修改剧集 - itemid: {_id},  第 {order} 季,  第 {ep_num} 集")
+                    # 移除已经处理成功的季
+                    existsinfo.groupep.pop(order, 0)
+                    existsinfo.groupid.pop(order, 0)
+                    continue
+            except Exception as e:
+                self.log_warn(f"错误忽略: {str(e)}")
+                continue
+
+        self.log_info(f"{mediainfo.title_year} 已经运行完毕了..")
+        return True
+
+    @staticmethod
+    def __append_to_list(list, item):
+        if item not in list:
+            list.append(item)
+
+    def __media_exists(self, mediainfo: schemas.MediaInfo, server: str, server_type: str, mediaserver_instance: Any = None) -> ExistMediaInfo:
+        """
+        根据媒体信息，返回是否存在于指定媒体服务器中，剧集列表与剧集ID列表
+        :param mediainfo: 媒体信息
+        :return: 剧集列表与剧集ID列表
+        """
+
+        def __emby_media_exists():
+            # 获取系列id
+            item_id = None
+            try:
+                instance = mediaserver_instance or self.emby
+                res = instance.get_data(("[HOST]emby/Items?"
+                                          "IncludeItemTypes=Series"
+                                          "&Fields=ProductionYear"
+                                          "&StartIndex=0"
+                                          "&Recursive=true"
+                                          "&SearchTerm=%s"
+                                          "&Limit=10"
+                                          "&IncludeSearchTypes=false"
+                                          "&api_key=[APIKEY]") % mediainfo.title)
+                res_items = res.json().get("Items")
+                if res_items:
+                    for res_item in res_items:
+                        if res_item.get('Name') == mediainfo.title and (
+                                not mediainfo.year or str(res_item.get('ProductionYear')) == str(mediainfo.year)):
+                            item_id = res_item.get('Id')
+            except Exception as e:
+                self.log_error(f"媒体服务器 ({server_type}){server} 发生了错误, 连接Items出错：" + str(e))
+            if not item_id:
+                return None
+            # 验证tmdbid是否相同
+            item_info = instance.get_iteminfo(item_id)
+            if item_info:
+                if mediainfo.tmdb_id and item_info.tmdbid:
+                    if str(mediainfo.tmdb_id) != str(item_info.tmdbid):
+                        self.log_error(f"tmdbid不匹配或不存在")
+                        return None
+            try:
+                res_json = instance.get_data(
+                    "[HOST]emby/Shows/%s/Episodes?Season=&IsMissing=false&api_key=[APIKEY]" % item_id)
+                if res_json:
+                    tv_item = res_json.json()
+                    res_items = tv_item.get("Items")
+                    group_ep = {}
+                    group_id = {}
+                    for res_item in res_items:
+                        season_index = res_item.get("ParentIndexNumber")
+                        if season_index is None:
+                            continue
+                        episode_index = res_item.get("IndexNumber")
+                        if episode_index is None:
+                            continue
+                        if season_index not in group_ep:
+                            group_ep[season_index] = []
+                            group_id[season_index] = []
+                        if episode_index not in group_ep[season_index]:
+                            group_ep[season_index].append(episode_index)
+                            group_id[season_index].append([])
+                        # 找到准确的插入索引
+                        _index = group_ep[season_index].index(episode_index)
+                        if res_item.get("Id") not in group_id[season_index][_index]:
+                            group_id[season_index][_index].append(res_item.get("Id"))
+                    # 返回
+                    return ExistMediaInfo(
+                        itemid=item_id,
+                        groupep=group_ep,
+                        groupid=group_id,
+                        server_type=server_type,
+                        server=server,
+                    )
+            except Exception as e:
+                self.log_error(f"媒体服务器 ({server_type}){server} 发生了错误, 连接Shows/Id/Episodes出错：{str(e)}")
+            return None
+
+        def __jellyfin_media_exists():
+            # 获取系列id
+            item_id = None
+            try:
+                instance = mediaserver_instance or self.jellyfin
+                res = instance.get_data(url=f"[HOST]Users/[USER]/Items?api_key=[APIKEY]"
+                                                 f"&searchTerm={mediainfo.title}"
+                                                 f"&IncludeItemTypes=Series"
+                                                 f"&Limit=10&Recursive=true")
+                res_items = res.json().get("Items")
+                if res_items:
+                    for res_item in res_items:
+                        if res_item.get('Name') == mediainfo.title and (
+                                not mediainfo.year or str(res_item.get('ProductionYear')) == str(mediainfo.year)):
+                            item_id = res_item.get('Id')
+            except Exception as e:
+                self.log_error(f"媒体服务器 ({server_type}){server} 发生了错误, 连接Items出错：" + str(e))
+            if not item_id:
+                return None
+            # 验证tmdbid是否相同
+            item_info = instance.get_iteminfo(item_id)
+            if item_info:
+                if mediainfo.tmdb_id and item_info.tmdbid:
+                    if str(mediainfo.tmdb_id) != str(item_info.tmdbid):
+                        self.log_error(f"tmdbid不匹配或不存在")
+                        return None
+            try:
+                res_json = instance.get_data(
+                    "[HOST]Shows/%s/Episodes?Season=&IsMissing=false&api_key=[APIKEY]" % item_id)
+                if res_json:
+                    tv_item = res_json.json()
+                    res_items = tv_item.get("Items")
+                    group_ep = {}
+                    group_id = {}
+                    for res_item in res_items:
+                        season_index = res_item.get("ParentIndexNumber")
+                        if season_index is None:
+                            continue
+                        episode_index = res_item.get("IndexNumber")
+                        if episode_index is None:
+                            continue
+                        if season_index not in group_ep:
+                            group_ep[season_index] = []
+                            group_id[season_index] = []
+                        if episode_index not in group_ep[season_index]:
+                            group_ep[season_index].append(episode_index)
+                            group_id[season_index].append([])
+                        # 找到准确的插入索引
+                        _index = group_ep[season_index].index(episode_index)
+                        if res_item.get("Id") not in group_id[season_index][_index]:
+                            group_id[season_index][_index].append(res_item.get("Id"))
+                    # 返回
+                    return ExistMediaInfo(
+                        itemid=item_id,
+                        groupep=group_ep,
+                        groupid=group_id,
+                        server_type=server_type,
+                        server=server,
+                    )
+            except Exception as e:
+                self.log_error(f"媒体服务器 ({server_type}){server} 发生了错误, 连接Shows/Id/Episodes出错：{str(e)}")
+            return None
+
+        def __plex_media_exists():
+            try:
+                instance = mediaserver_instance or self.plex
+                _plex = instance.get_plex()
+                if not _plex:
+                    return None
+                # 根据标题和年份模糊搜索，该结果不够准确
+                videos = _plex.library.search(title=mediainfo.title,
+                                                year=mediainfo.year,
+                                                libtype="show")
+                if (not videos
+                        and mediainfo.original_title
+                        and str(mediainfo.original_title) != str(mediainfo.title)):
+                    videos = _plex.library.search(title=mediainfo.original_title,
+                                                    year=mediainfo.year,
+                                                    libtype="show")
+                if not videos:
+                    return None
+                if isinstance(videos, list):
+                    videos = videos[0]
+                video_tmdbid = __get_ids(videos.guids).get('tmdb_id')
+                if mediainfo.tmdb_id and video_tmdbid:
+                    if str(video_tmdbid) != str(mediainfo.tmdb_id):
+                        self.log_error(f"tmdbid不匹配或不存在")
+                        return None
+                episodes = videos.episodes()
+                group_ep = {}
+                group_id = {}
+                for episode in episodes:
+                    season_index = episode.seasonNumber
+                    if season_index is None:
+                        continue
+                    episode_index = episode.index
+                    if episode_index is None:
+                        continue
+                    episode_id = episode.key
+                    if not episode_id:
+                        continue
+                    if season_index not in group_ep:
+                        group_ep[season_index] = []
+                        group_id[season_index] = []
+                    if episode_index not in group_ep[season_index]:
+                        group_ep[season_index].append(episode_index)
+                        group_id[season_index].append([])
+                    # 找到准确的插入索引
+                    _index = group_ep[season_index].index(episode_index)
+                    if episode_id not in group_id[season_index][_index]:
+                        group_id[season_index][_index].append(episode_id)
+                # 返回
+                return ExistMediaInfo(
+                    itemid=videos.key,
+                    groupep=group_ep,
+                    groupid=group_id,
+                    server_type=server_type,
+                    server=server,
+                )
+            except Exception as e:
+                self.log_error(f"媒体服务器 ({server_type}){server} 发生了错误, 连接Shows/Id/Episodes出错：{str(e)}")
+            return None
+
+        def __get_ids(guids: List[Any]) -> dict:
+            guid_mapping = {
+                "imdb://": "imdb_id",
+                "tmdb://": "tmdb_id",
+                "tvdb://": "tvdb_id"
+            }
+            ids = {}
+            for prefix, varname in guid_mapping.items():
+                ids[varname] = None
+            for guid in guids:
+                for prefix, varname in guid_mapping.items():
+                    if isinstance(guid, dict):
+                        if guid['id'].startswith(prefix):
+                            # 找到匹配的ID
+                            ids[varname] = guid['id'][len(prefix):]
+                            break
+                    else:
+                        if guid.id.startswith(prefix):
+                            # 找到匹配的ID
+                            ids[varname] = guid.id[len(prefix):]
+                            break
+            return ids
+
+        if server_type == "emby":
+            return __emby_media_exists()
+        elif server_type == "jellyfin":
+            return __jellyfin_media_exists()
+        else:
+            return __plex_media_exists()
+
+    def get_iteminfo(self, server_type: str, itemid: str, mediaserver_instance: Any = None) -> dict:
+        """
+        获得媒体项详情
+        """
+
+        def __get_emby_iteminfo() -> dict:
+            """
+            获得Emby媒体项详情
+            """
+            try:
+                instance = mediaserver_instance or self.emby
+                url = f'[HOST]emby/Users/[USER]/Items/{itemid}?' \
+                      f'Fields=ChannelMappingInfo&api_key=[APIKEY]'
+                res = instance.get_data(url=url)
+                if res:
+                    return res.json()
+            except Exception as err:
+                self.log_error(f"获取Emby媒体项详情失败：{str(err)}")
+            return {}
+
+        def __get_jellyfin_iteminfo() -> dict:
+            """
+            获得Jellyfin媒体项详情
+            """
+            try:
+                instance = mediaserver_instance or self.jellyfin
+                url = f'[HOST]Users/[USER]/Items/{itemid}?Fields=ChannelMappingInfo&api_key=[APIKEY]'
+                res = instance.jellyfin.get_data(url=url)
+                if res:
+                    result = res.json()
+                    if result:
+                        result['FileName'] = Path(result['Path']).name
+                    return result
+            except Exception as err:
+                self.log_error(f"获取Jellyfin媒体项详情失败：{str(err)}")
+            return {}
+
+        def __get_plex_iteminfo() -> dict:
+            """
+            获得Plex媒体项详情
+            """
+            iteminfo = {}
+            try:
+                instance = mediaserver_instance or self.plex
+                plexitem = instance.get_plex().library.fetchItem(ekey=itemid)
+                if 'movie' in plexitem.METADATA_TYPE:
+                    iteminfo['Type'] = 'Movie'
+                    iteminfo['IsFolder'] = False
+                elif 'episode' in plexitem.METADATA_TYPE:
+                    iteminfo['Type'] = 'Series'
+                    iteminfo['IsFolder'] = False
+                    if 'show' in plexitem.TYPE:
+                        iteminfo['ChildCount'] = plexitem.childCount
+                iteminfo['Name'] = plexitem.title
+                iteminfo['Id'] = plexitem.key
+                iteminfo['ProductionYear'] = plexitem.year
+                iteminfo['ProviderIds'] = {}
+                for guid in plexitem.guids:
+                    idlist = str(guid.id).split(sep='://')
+                    if len(idlist) < 2:
+                        continue
+                    iteminfo['ProviderIds'][idlist[0]] = idlist[1]
+                for location in plexitem.locations:
+                    iteminfo['Path'] = location
+                    iteminfo['FileName'] = Path(location).name
+                iteminfo['Overview'] = plexitem.summary
+                iteminfo['CommunityRating'] = plexitem.audienceRating
+                # 增加锁定属性列表
+                iteminfo['LockedFields'] = []
+                try:
+                    if plexitem.title.locked:
+                        iteminfo['LockedFields'].append('Name')
+                except Exception as err:
+                    self.log_warn(f"获取Plex媒体项详情失败：{str(err)}")
+                    pass
+                try:
+                    if plexitem.summary.locked:
+                        iteminfo['LockedFields'].append('Overview')
+                except Exception as err:
+                    self.log_warn(f"获取Plex媒体项详情失败：{str(err)}")
+                    pass
+                return iteminfo
+            except Exception as err:
+                self.log_error(f"获取Plex媒体项详情失败：{str(err)}")
+            return {}
+
+        if server_type == "emby":
+            return __get_emby_iteminfo()
+        elif server_type == "jellyfin":
+            return __get_jellyfin_iteminfo()
+        else:
+            return __get_plex_iteminfo()
+
+    def set_iteminfo(self, server_type: str, itemid: str, iteminfo: dict, mediaserver_instance: Any = None):
+        """
+        更新媒体项详情
+        """
+
+        def __set_emby_iteminfo():
+            """
+            更新Emby媒体项详情
+            """
+            try:
+                instance = mediaserver_instance or self.emby
+                res = instance.post_data(
+                    url=f'[HOST]emby/Items/{itemid}?api_key=[APIKEY]&reqformat=json',
+                    data=json.dumps(iteminfo),
+                    headers={
+                        "Content-Type": "application/json"
+                    }
+                )
+                if res and res.status_code in [200, 204]:
+                    return True
+                else:
+                    self.log_error(f"更新Emby媒体项详情失败，错误码：{res.status_code}")
+                    return False
+            except Exception as err:
+                self.log_error(f"更新Emby媒体项详情失败：{str(err)}")
+            return False
+
+        def __set_jellyfin_iteminfo():
+            """
+            更新Jellyfin媒体项详情
+            """
+            try:
+                instance = mediaserver_instance or self.jellyfin
+                res = instance.post_data(
+                    url=f'[HOST]Items/{itemid}?api_key=[APIKEY]',
+                    data=json.dumps(iteminfo),
+                    headers={
+                        "Content-Type": "application/json"
+                    }
+                )
+                if res and res.status_code in [200, 204]:
+                    return True
+                else:
+                    self.log_error(f"更新Jellyfin媒体项详情失败，错误码：{res.status_code}")
+                    return False
+            except Exception as err:
+                self.log_error(f"更新Jellyfin媒体项详情失败：{str(err)}")
+            return False
+
+        def __set_plex_iteminfo():
+            """
+            更新Plex媒体项详情
+            """
+            try:
+                instance = mediaserver_instance or self.plex
+                plexitem = instance.get_plex().library.fetchItem(ekey=itemid)
+                if 'CommunityRating' in iteminfo and iteminfo['CommunityRating']:
+                    edits = {
+                        'audienceRating.value': iteminfo['CommunityRating'],
+                        'audienceRating.locked': 1
+                    }
+                    plexitem.edit(**edits)
+                plexitem.editTitle(iteminfo['Name']).editSummary(iteminfo['Overview']).reload()
+                return True
+            except Exception as err:
+                self.log_error(f"更新Plex媒体项详情失败：{str(err)}")
+            return False
+
+        if server_type == "emby":
+            return __set_emby_iteminfo()
+        elif server_type == "jellyfin":
+            return __set_jellyfin_iteminfo()
+        else:
+            return __set_plex_iteminfo()
+
+    @retry(RequestException, logger=logger)
+    def set_item_image(self, server_type: str, itemid: str, imageurl: str, mediaserver_instance: Any = None):
+        """
+        更新媒体项图片
+        """
+
+        def __download_image():
+            """
+            下载图片
+            """
+            try:
+                if "doubanio.com" in imageurl:
+                    r = RequestUtils(headers={
+                        'Referer': "https://movie.douban.com/"
+                    }, ua=settings.USER_AGENT).get_res(url=imageurl, raise_exception=True)
+                else:
+                    r = RequestUtils().get_res(url=imageurl, raise_exception=True)
+                if r:
+                    return base64.b64encode(r.content).decode()
+                else:
+                    self.log_error(f"{imageurl} 图片下载失败，请检查网络连通性")
+            except Exception as err:
+                self.log_error(f"下载图片失败：{str(err)}")
+            return None
+
+        def __set_emby_item_image(_base64: str):
+            """
+            更新Emby媒体项图片
+            """
+            try:
+                instance = mediaserver_instance or self.emby
+                url = f'[HOST]emby/Items/{itemid}/Images/Primary?api_key=[APIKEY]'
+                res = instance.post_data(
+                    url=url,
+                    data=_base64,
+                    headers={
+                        "Content-Type": "image/png"
+                    }
+                )
+                if res and res.status_code in [200, 204]:
+                    return True
+                else:
+                    self.log_error(f"更新Emby媒体项图片失败，错误码：{res.status_code}")
+                    return False
+            except Exception as result:
+                self.log_error(f"更新Emby媒体项图片失败：{result}")
+            return False
+
+        def __set_jellyfin_item_image():
+            """
+            更新Jellyfin媒体项图片
+            # FIXME 改为预下载图片
+            """
+            try:
+                instance = mediaserver_instance or self.jellyfin
+                url = f'[HOST]Items/{itemid}/RemoteImages/Download?' \
+                      f'Type=Primary&ImageUrl={imageurl}&ProviderName=TheMovieDb&api_key=[APIKEY]'
+                res = instance.post_data(url=url)
+                if res and res.status_code in [200, 204]:
+                    return True
+                else:
+                    self.log_error(f"更新Jellyfin媒体项图片失败，错误码：{res.status_code}")
+                    return False
+            except Exception as err:
+                self.log_error(f"更新Jellyfin媒体项图片失败：{err}")
+            return False
+
+        def __set_plex_item_image():
+            """
+            更新Plex媒体项图片
+            # FIXME 改为预下载图片
+            """
+            try:
+                instance = mediaserver_instance or self.plex
+                plexitem = instance.get_plex().library.fetchItem(ekey=itemid)
+                plexitem.uploadPoster(url=imageurl)
+                return True
+            except Exception as err:
+                self.log_error(f"更新Plex媒体项图片失败：{err}")
+            return False
+
+        if server_type == "emby":
+            # 下载图片获取base64
+            image_base64 = __download_image()
+            if image_base64:
+                return __set_emby_item_image(image_base64)
+        elif server_type == "jellyfin":
+            return __set_jellyfin_item_image()
+        else:
+            return __set_plex_item_image()
+        return None
+
+    def service_infos(self, type_filter: Optional[str] = None):
+        """
+        服务信息
+        """
+        if self.mediaserver_helper is None:
+            # 动态载入媒体服务器帮助类
+            module_name = "app.helper.mediaserver"
+            spec = importlib.util.find_spec(module_name)
+            if spec is not None:
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+                if hasattr(module, 'MediaServerHelper'):
+                    self.log_info(f"v2版本初始化媒体库类")
+                    self.mediaserver_helper = module.MediaServerHelper()
+        if self.mediaserver_helper is None:
+            if self.emby is None:
+                self.log_info(f"v1版本初始化媒体库类")
+                self.emby = Emby()
+                self.plex = Plex()
+                self.jellyfin = Jellyfin()
+            return None
+
+        services = self.mediaserver_helper.get_services(type_filter=type_filter)#, name_filters=self._mediaservers)
+        if not services:
+            self.log_warn("获取媒体服务器实例失败，请检查配置")
+            return None
+
+        active_services = {}
+        for service_name, service_info in services.items():
+            if service_info.instance.is_inactive():
+                self.log_warn(f"媒体服务器 {service_name} 未连接，请检查配置")
+            else:
+                active_services[service_name] = service_info
+
+        if not active_services:
+            self.log_warn("没有已连接的媒体服务器，请检查配置")
+            return None
+
+        return active_services
+
+    def log_error(self, ss: str):
+        logger.error(f"<{self.plugin_name}> {str(ss)}")
+
+    def log_warn(self, ss: str):
+        logger.warn(f"<{self.plugin_name}> {str(ss)}")
+
+    def log_info(self, ss: str):
+        logger.info(f"<{self.plugin_name}> {str(ss)}")
 
     def stop_service(self):
+        """
+        停止服务
+        """
         pass
-
-import asyncio 
-
-if __name__ == "__main__":
-    # 测试代码需要适应全局模式，并且在MoviePilot环境外运行可能受限
-     subject_id, _, _ = asyncio.run(BangumiSyncV2Test().get_subjectid_by_title("葬送的芙莉莲", 1, 1, None))
-     if subject_id:
-        asyncio.run(BangumiSyncV2Test().sync_watching_status(subject_id, 1, None))
-    #print("请在MoviePilot插件环境中运行和测试。")
