@@ -39,7 +39,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.1.6" # 版本更新
+    plugin_version = "1.1.7" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -751,7 +751,7 @@ class BangumiSyncV2Test(_PluginBase):
              },
         ]
 
-    async def _handle_oauth_authorize(self, request: Any, user: Any, apikey: str) -> Any: # 返回类型可能是 RedirectResponse 或 HTMLResponse
+    async def _handle_oauth_authorize(self, request: Any, apikey: str, user: Optional[Any] = None) -> Any: # 返回类型可能是 RedirectResponse 或 HTMLResponse
 
         if apikey != settings.API_TOKEN:
             error_html = self._build_oauth_callback_html("API密钥错误。", is_error=True)
@@ -773,7 +773,7 @@ class BangumiSyncV2Test(_PluginBase):
         state_param = quote_plus(json.dumps(state_data))
         auth_url = f"{BANGUMI_AUTHORIZE_URL}?client_id={self._oauth_app_id}&redirect_uri={quote_plus(redirect_uri)}&response_type=code&state={state_param}"
         
-        logger.info(f"开始全局Bangumi OAuth授权 (操作用户: {getattr(user, 'id', 'Unknown')})，回调至: {redirect_uri}，授权URL: {auth_url}")
+        logger.info(f"开始全局Bangumi OAuth授权 (操作用户: {getattr(user, 'id', 'Unknown') if user else 'N/A'})，回调至: {redirect_uri}，授权URL: {auth_url}")
         # 直接重定向到 Bangumi 授权URL
         return RedirectResponse(url=auth_url, status_code=302)
 
@@ -1333,7 +1333,7 @@ class BangumiSyncV2Test(_PluginBase):
                             'prepend-icon': 'mdi-link-variant',
                             'disabled': is_authorized, # 如果已授权，则禁用此按钮
                             # 使用 href 和 target='_blank' 使按钮像链接一样在新标签页打开
-                            'href': f'/api/v1/plugins/{self.plugin_config_prefix.strip("_")}/oauth_authorize?apikey={settings.API_TOKEN}&user=00001',
+                            'href': f'/api/v1/plugins/{self.plugin_config_prefix.strip("_")}/oauth_authorize?apikey={settings.API_TOKEN}',
                             'target': '_blank',
                             'rel': 'noopener noreferrer' # 安全性考虑
                         },
