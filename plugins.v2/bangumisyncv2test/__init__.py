@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from app import schemas
 from app.core.event import eventmanager, Event
 from app.core.config import settings
-from app.core.metainfo import MetaInfo # MetaInfo 未在原版 BangumiSyncDebug 中使用
+from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.plugins import _PluginBase
 from app.schemas import WebhookEventInfo # MediaInfo 未在原版 BangumiSyncDebug 中使用
@@ -18,12 +18,10 @@ from app.schemas.types import EventType # MediaType 未在原版 BangumiSyncDebu
 from app.utils.http import RequestUtils # RequestUtils 未在原版 BangumiSyncDebug 中直接使用，而是通过 requests.Session
 from cachetools import cached, TTLCache
 import requests # 注意：在async函数中应使用异步HTTP库如httpx
-from urllib.parse import urlencode, quote_plus # 用于构建URL参数
+from urllib.parse import urlencode, quote_plus, unquote_plus # 用于构建URL参数和解码
 #from app.core.user import User # 导入User模型以获取用户ID
 #from app.core.request import Request # 导入Request模型以处理API请求和响应
 # User 和 Request 类型将使用 Any 代替，因为它们在目标环境中不存在
-from typing import Tuple, List, Dict, Any
-
 
 
 
@@ -31,6 +29,7 @@ from typing import Tuple, List, Dict, Any
 BANGUMI_AUTHORIZE_URL = "https://bgm.tv/oauth/authorize" # 授权页面 URL
 BANGUMI_TOKEN_URL = "https://bgm.tv/oauth/access_token" # 令牌交换接口 URL
 BANGUMI_USER_INFO_URL = "https://api.bgm.tv/v0/me" # 获取用户信息的接口示例
+from fastapi.responses import HTMLResponse
 
 class BangumiSyncV2Test(_PluginBase):
     # 插件名称
@@ -40,7 +39,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.1.1" # 版本更新
+    plugin_version = "1.1.2" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -772,44 +771,100 @@ class BangumiSyncV2Test(_PluginBase):
         logger.info(f"开始全局Bangumi OAuth授权 (操作用户: {getattr(user, 'id', 'Unknown')})，回调至: {redirect_uri}，授权URL: {auth_url}")
         return {"status": "success", "auth_url": auth_url} 
 
-    async def _handle_oauth_callback(self, request: Any, apikey: str, user: Optional[Any] = None) -> schemas.Response:            #处理回调
+    def _build_oauth_callback_html(self, message_content: str, is_error: bool = False, post_message_on_success: bool = False) -> str:
+        title = "Bangumi OAuth Error" if is_error else "Bangumi OAuth"
+        body_content = f"<h1>{title}</h1><p>{message_content}</p>"
+        script_content = ""
+        
+        if not is_error:
+            body_content += "<p>此窗口将自动关闭。</p>"
+            if post_message_on_success:
+                # 向父窗口发送消息并关闭当前窗口
+                # 注意: targetOrigin 设置为 '*' 是为了简单，生产环境应设为 MoviePilot 的实际源
+                script_content = f"""
+                <script>
+                    if (window.opener) {{
+                        window.opener.postMessage('BANGUMI-OAUTH-COMPLETE', '*');
+                    }}
+                    window.close();
+                </script>
+                """
+            else: # 如果不 postMessage，也尝试关闭
+                 script_content = "<script>window.close();</script>"
+        else:
+            body_content += "<p>请关闭此窗口并重试。</p>"
+
+        html_output = f"""
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="UTF--8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>{title}</title>
+            <style>
+                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif; margin: 20px; line-height: 1.6; color: #333; background-color: #f4f4f4; text-align: center; }}
+                .container {{ background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); display: inline-block; text-align: left; }}
+                h1 {{ color: #333; }}
+                p {{ color: #555; }}
+                .error h1 {{ color: #d9534f; }}
+                .error p {{ color: #d9534f; }}
+            </style>
+        </head>
+        <body class="{'error' if is_error else ''}">
+            <div class="container">
+                {body_content}
+            </div>
+            {script_content}
+        </body>
+        </html>
+        """
+        return html_output
+
+    async def _handle_oauth_callback(self, request: Any, apikey: str, user: Optional[Any] = None) -> HTMLResponse:
         
         if apikey != settings.API_TOKEN:
-            return schemas.Response(success=False, message="API密钥错误")
+            error_html = self._build_oauth_callback_html("API密钥错误", is_error=True)
+            return HTMLResponse(content=error_html, status_code=401)
         
         code = request.query_params.get('code')
         state_param = request.query_params.get('state')
         error_from_bgm = request.query_params.get('error')
         
-        response_obj = request.Response
-        response_obj.ContentType = "text/html"; response_obj.StatusCode = 200
-        writer = response_obj.OutputWriter
-        async def send_html(msg: str, is_err: bool = False):
-            title = "Bangumi OAuth Error" if is_err else "Bangumi OAuth"
-            body = f"<h1>{title}</h1><p>{msg}</p>"
-            if not is_err: body += "<p>授权成功！此窗口将自动关闭。</p><script>if(window.opener){window.opener.postMessage('BANGUMI-OAUTH-COMPLETE', '*');} window.close();</script>"
-            else: body += "<p>请关闭此窗口并重试。</p>"
-            await writer.write_async(f"<html><head><title>{title}</title></head><body>{body}</body></html>".encode('utf-8'))
-            await response_obj.CompleteAsync()
-
-        if error_from_bgm: await send_html(f"Bangumi返回错误: {error_from_bgm}", True); return
-        if not code or not state_param: await send_html("回调参数不完整。", True); return
+        if error_from_bgm:
+            error_html = self._build_oauth_callback_html(f"Bangumi返回错误: {error_from_bgm}", is_error=True)
+            return HTMLResponse(content=error_html)
+        if not code or not state_param:
+            error_html = self._build_oauth_callback_html("回调参数不完整。", is_error=True)
+            return HTMLResponse(content=error_html)
 
         try:
-            state_data = json.loads(quote_plus(state_param, inverse=True))
-            # moviepilot_user_id = state_data.get('mp_user_id') # 不再从state中获取mp_user_id
-            
-            if not state_data.get('csrf_token'): # 仅校验CSRF token
-                await send_html("State参数无效或CSRF校验失败。", True); return
-        except Exception as e: await send_html(f"解析回调参数时发生错误: {e}", True); return
+            # state_param 从 query string 获取，FastAPI/Starlette 通常会自动URL解码一次。
+            # Bangumi 在构建 authorize URL 时，state 是 json.dumps 后 quote_plus 编码的。
+            # 所以这里需要 unquote_plus (如果 Bangumi 返回的是编码后的) 再 json.loads。
+            # 如果 state_param 已经是解码后的 JSON 字符串，则直接 json.loads(state_param)。
+            # 为保险起见，先尝试 unquote_plus。
+            try:
+                state_json_str = unquote_plus(state_param)
+            except TypeError: # 如果 state_param 不是字符串或字节串
+                state_json_str = state_param
+            state_data = json.loads(state_json_str)
+            if not state_data.get('csrf_token'):
+                error_html = self._build_oauth_callback_html("State参数无效或CSRF校验失败。", is_error=True)
+                return HTMLResponse(content=error_html)
+        except Exception as e:
+            logger.error(f"解析回调 state 参数 '{state_param}' (尝试解码后为 '{state_json_str if 'state_json_str' in locals() else 'N/A'}') 时出错: {e}")
+            error_html = self._build_oauth_callback_html(f"解析回调参数时发生错误: {e}", is_error=True)
+            return HTMLResponse(content=error_html)
         
         if not self._oauth_app_id or not self._oauth_app_secret:
-            await send_html("插件OAuth配置不完整。", True); return
+            error_html = self._build_oauth_callback_html("插件OAuth配置不完整。", is_error=True)
+            return HTMLResponse(content=error_html)
 
         moviepilot_base_url = self._get_moviepilot_base_url(request) # 传入 request 对象
         if not moviepilot_base_url:
             logger.error("全局OAuth回调: MoviePilot 公开 URL 未配置或无效，无法构建令牌交换的回调地址。")
-            await send_html("插件内部错误：无法确定 MoviePilot 服务器地址。", True); return
+            error_html = self._build_oauth_callback_html("插件内部错误：无法确定 MoviePilot 服务器地址。", is_error=True)
+            return HTMLResponse(content=error_html)
 
         callback_path = f"/api/v1/plugins/{self.plugin_config_prefix.strip('_')}/oauth_callback" # 保持与 get_api 中的路径一致
         redirect_uri_for_token = f"{moviepilot_base_url}{callback_path}"
@@ -833,18 +888,21 @@ class BangumiSyncV2Test(_PluginBase):
             
             self._store_global_oauth_info(token_data)
             logger.info(f"全局成功通过Bangumi OAuth授权，Bangumi用户: {token_data.get('nickname')}")
-            await send_html(f"成功授权Bangumi账户：{token_data.get('nickname')}")
+            success_html = self._build_oauth_callback_html(f"成功授权Bangumi账户：{token_data.get('nickname')}", post_message_on_success=True)
+            return HTMLResponse(content=success_html)
         except requests.exceptions.HTTPError as http_err:
             error_msg = f"交换令牌时HTTP错误: {http_err}"
             try: error_msg += f". 响应: {http_err.response.json()}"
             except ValueError: error_msg += f". 响应文本: {http_err.response.text}"
             logger.error(f"全局OAuth回调: {error_msg}")
-            await send_html(error_msg, True)
+            error_html = self._build_oauth_callback_html(error_msg, is_error=True)
+            return HTMLResponse(content=error_html)
         except Exception as e:
             logger.exception(f"全局OAuth回调处理中发生未知错误: {e}")
-            await send_html(f"处理回调时发生内部错误: {e}", True)
+            error_html = self._build_oauth_callback_html(f"处理回调时发生内部错误: {e}", is_error=True)
+            return HTMLResponse(content=error_html)
 
-    async def _handle_oauth_status(self, request: Any, user: Any , apikey: str) -> schemas.Response:                             #获取当前OAuth状态
+    async def _handle_oauth_status(self, request: Any, user: Any , apikey: str) -> schemas.Response:
         
         if apikey != settings.API_TOKEN:
             return schemas.Response(success=False, message="API密钥错误")
@@ -864,7 +922,7 @@ class BangumiSyncV2Test(_PluginBase):
                 "bangumi_user_id": refreshed_oauth_info.get('bangumi_user_id'),
                 "expire_time_readable": datetime.datetime.fromtimestamp(refreshed_oauth_info.get('expire_time', 0)).strftime('%Y-%m-%d %H:%M:%S') if refreshed_oauth_info.get('expire_time') else "N/A"}
 
-    async def _handle_oauth_deauthorize(self, request: Any, user: Any, apikey: str) -> schemas.Response:                               #解除授权
+    async def _handle_oauth_deauthorize(self, request: Any, user: Any, apikey: str) -> schemas.Response:
         
         if apikey != settings.API_TOKEN:
             return schemas.Response(success=False, message="API密钥错误")            
