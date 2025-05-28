@@ -29,7 +29,7 @@ from urllib.parse import urlencode, quote_plus, unquote_plus # 用于构建URL�
 BANGUMI_AUTHORIZE_URL = "https://bgm.tv/oauth/authorize" # 授权页面 URL
 BANGUMI_TOKEN_URL = "https://bgm.tv/oauth/access_token" # 令牌交换接口 URL
 BANGUMI_USER_INFO_URL = "https://api.bgm.tv/v0/me" # 获取用户信息的接口示例
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 class BangumiSyncV2Test(_PluginBase):
     # 插件名称
@@ -39,7 +39,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.1.3" # 版本更新
+    plugin_version = "1.1.5" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -751,16 +751,20 @@ class BangumiSyncV2Test(_PluginBase):
              },
         ]
 
-    async def _handle_oauth_authorize(self, request: Any, user: Any, apikey: str) -> schemas.Response:       #开始授权函数
+    async def _handle_oauth_authorize(self, request: Any, user: Any, apikey: str) -> Any: # 返回类型可能是 RedirectResponse 或 HTMLResponse
 
         if apikey != settings.API_TOKEN:
-            return schemas.Response(success=False, message="API密钥错误")
+            error_html = self._build_oauth_callback_html("API密钥错误。", is_error=True)
+            return HTMLResponse(content=error_html, status_code=401)
+
         if not self._oauth_app_id:
-            return {"status": "error", "message": "插件未配置Bangumi OAuth Application ID。"}
+            error_html = self._build_oauth_callback_html("插件未配置Bangumi OAuth Application ID。", is_error=True)
+            return HTMLResponse(content=error_html, status_code=400)
         
         moviepilot_base_url = self._get_moviepilot_base_url(request) # 传入 request 对象
         if not moviepilot_base_url:
-            return {"status": "error", "message": "MoviePilot 公开 URL 未配置或无效，无法构建回调地址。"}
+            error_html = self._build_oauth_callback_html("MoviePilot 公开 URL 未配置或无效，无法构建回调地址。", is_error=True)
+            return HTMLResponse(content=error_html, status_code=500)
 
         callback_path = f"/api/v1/plugins/{self.plugin_config_prefix.strip('_')}/oauth_callback" # 保持与 get_api 中的路径一致
         redirect_uri = f"{moviepilot_base_url}{callback_path}"
@@ -768,8 +772,10 @@ class BangumiSyncV2Test(_PluginBase):
         
         state_param = quote_plus(json.dumps(state_data))
         auth_url = f"{BANGUMI_AUTHORIZE_URL}?client_id={self._oauth_app_id}&redirect_uri={quote_plus(redirect_uri)}&response_type=code&state={state_param}"
+        
         logger.info(f"开始全局Bangumi OAuth授权 (操作用户: {getattr(user, 'id', 'Unknown')})，回调至: {redirect_uri}，授权URL: {auth_url}")
-        return {"status": "success", "auth_url": auth_url} 
+        # 直接重定向到 Bangumi 授权URL
+        return RedirectResponse(url=auth_url, status_code=302)
 
     def _build_oauth_callback_html(self, message_content: str, is_error: bool = False, post_message_on_success: bool = False) -> str:
         title = "Bangumi OAuth Error" if is_error else "Bangumi OAuth"
@@ -1326,18 +1332,10 @@ class BangumiSyncV2Test(_PluginBase):
                             'class': 'mr-2',
                             'prepend-icon': 'mdi-link-variant',
                             'disabled': is_authorized, # 如果已授权，则禁用此按钮
-                            'events': {
-                                'click': {
-                                    'api': 'plugin/BangumiSyncV2Test/oauth_authorize',
-                                    'method': 'get',
-                                    # 前端框架需要处理这个API调用的响应，特别是包含 auth_url 的情况
-                                    'action': 'open_auth_window_and_refresh_on_close', # 假设的自定义action
-                                    'params': {
-                                        'apikey': settings.API_TOKEN,
-                                        'user': '00001'
-                                    }
-                                }
-                            }
+                            # 使用 href 和 target='_blank' 使按钮像链接一样在新标签页打开
+                            'href': f'/api/v1/plugins/{self.plugin_config_prefix.strip("_")}/oauth_authorize?apikey={settings.API_TOKEN}',
+                            'target': '_blank',
+                            'rel': 'noopener noreferrer' # 安全性考虑
                         },
                         'text': 'Bangumi 授权'
                     },
@@ -1351,7 +1349,7 @@ class BangumiSyncV2Test(_PluginBase):
                             'disabled': not is_authorized, # 如果未授权，则禁用此按钮
                             'events': {
                                 'click': {
-                                    'api': 'plugin/BangumiSyncV2Tes/oauth_deauthorize',
+                                    'api': 'plugin/BangumiSyncV2Test/oauth_deauthorize',
                                     'method': 'get', 
                                     'confirm': '确定要解除 Bangumi OAuth 授权吗？',
                                     'success_message': '解除授权成功！页面将刷新。',
