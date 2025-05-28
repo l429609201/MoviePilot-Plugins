@@ -39,7 +39,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.1.2" # 版本更新
+    plugin_version = "1.1.3" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -783,8 +783,9 @@ class BangumiSyncV2Test(_PluginBase):
                 # 注意: targetOrigin 设置为 '*' 是为了简单，生产环境应设为 MoviePilot 的实际源
                 script_content = f"""
                 <script>
-                    if (window.opener) {{
-                        window.opener.postMessage('BANGUMI-OAUTH-COMPLETE', '*');
+                    if (window.opener && !window.opener.closed) {{
+                        // 直接尝试重新加载父页面
+                        window.opener.location.reload();
                     }}
                     window.close();
                 </script>
@@ -1332,10 +1333,8 @@ class BangumiSyncV2Test(_PluginBase):
                                     # 前端框架需要处理这个API调用的响应，特别是包含 auth_url 的情况
                                     'action': 'open_auth_window_and_refresh_on_close', # 假设的自定义action
                                     'params': {
-                                        'apikey': settings.API_TOKEN
-                                        # ,
-                                        # 'tmdb_id': tmdb_id,
-                                        # 'group_id': group.get('id')
+                                        'apikey': settings.API_TOKEN,
+                                        'user': '00001'
                                     }
                                 }
                             }
