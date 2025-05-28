@@ -39,7 +39,7 @@ class BangumiSyncV2Test(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg"
     # 插件版本
-    plugin_version = "1.1.5" # 版本更新
+    plugin_version = "1.1.6" # 版本更新
     # 插件作者
     plugin_author = "honue,happyTonakai,AAA"
     # 作者主页
@@ -1333,7 +1333,7 @@ class BangumiSyncV2Test(_PluginBase):
                             'prepend-icon': 'mdi-link-variant',
                             'disabled': is_authorized, # 如果已授权，则禁用此按钮
                             # 使用 href 和 target='_blank' 使按钮像链接一样在新标签页打开
-                            'href': f'/api/v1/plugins/{self.plugin_config_prefix.strip("_")}/oauth_authorize?apikey={settings.API_TOKEN}',
+                            'href': f'/api/v1/plugins/{self.plugin_config_prefix.strip("_")}/oauth_authorize?apikey={settings.API_TOKEN}&user=00001',
                             'target': '_blank',
                             'rel': 'noopener noreferrer' # 安全性考虑
                         },
