@@ -38,7 +38,7 @@ class ExistMediaInfo(BaseModel):
 
 class EpisodeGroupMetaTest(_PluginBase):
     # 插件名称
-    plugin_name = "TMDB剧集组刮削Test"
+    plugin_name = "TMDB剧集组刮削-魔改版"
     # 插件描述
     plugin_desc = "从TMDB剧集组刮削季集的实际顺序。"
     # 插件图标
@@ -48,7 +48,7 @@ class EpisodeGroupMetaTest(_PluginBase):
     # 插件版本
     plugin_version = "1.0.8"
     # 插件作者
-    plugin_author = "AAA"
+    plugin_author = "Misaka10876"
     # 作者主页
     author_url = "https://github.com/l429609201"
     # 插件配置项ID前缀
