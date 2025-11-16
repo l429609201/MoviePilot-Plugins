@@ -11,18 +11,30 @@
       "v2.1.1": "回退代码"
     }
   },
-    "EpisodeGroupMetaTest": {
-        "name": "TMDB剧集组刮削Test",
-        "description": "从TMDB剧集组刮削季集的实际顺序。",
-        "labels": "刮削",
-        "version": "1.0.8",
-        "icon": "Element_A.png",
-        "author": "AAA",
-        "level": 1,
-        "v2": true,
-        "history": {
-            "v1.0.8": "移除多余代码"
-        }
-    
+  "EpisodeGroupMetaTest": {
+    "name": "TMDB剧集组刮削Test",
+    "description": "从TMDB剧集组刮削季集的实际顺序。",
+    "labels": "刮削",
+    "version": "1.0.8",
+    "icon": "Element_A.png",
+    "author": "AAA",
+    "level": 1,
+    "v2": true,
+    "history": {
+      "v1.0.8": "移除多余代码"
+    }
+  },
+  "DanmakuAutoImport": {
+    "name": "弹幕库自动导入",
+    "description": "媒体下载完成后自动推送至弹幕库下载弹幕,支持任务队列和定时处理",
+    "labels": "弹幕",
+    "version": "2.0.0",
+    "icon": "https://raw.githubusercontent.com/l429609201/misaka_danmu_server/main/public/favicon.ico",
+    "author": "Misaka10876",
+    "level": 2,
+    "v2": true,
+    "history": {
+      "v2.0.0": "V2版本,优化Vue界面,支持任务队列、定时处理、延时导入、失败重试等功能"
+    }
   }
 }

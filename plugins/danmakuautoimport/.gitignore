@@ -1,0 +1,18 @@
+# 前端源代码 - 不上传到Git
+src/
+node_modules/
+package.json
+package-lock.json
+vite.config.js
+index.html
+README.md
+
+# 编辑器和系统文件
+.vscode/
+.idea/
+.DS_Store
+*.log
+
+# 只保留编译后的dist目录
+!dist/
+
