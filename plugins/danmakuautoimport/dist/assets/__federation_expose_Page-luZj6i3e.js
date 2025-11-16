@@ -1,5 +1,5 @@
 import { importShared } from './__federation_fn_import-D90ltIgz.js';
-import { G as useFocus, u as useRender, f as forwardRefs, I as makeVInputProps, X as makeVCheckboxBtnProps, J as VInput, C as VCheckboxBtn, Y as useDensity, Z as makeTagProps, $ as makeDensityProps, a as makeComponentProps, a0 as useBackgroundColor, a1 as useBorder, a2 as useElevation, a3 as useRounded, a4 as makeRoundedProps, a5 as makeElevationProps, a6 as makeBorderProps, a7 as VImg, h as VDefaultsProvider, a8 as VExpandTransition, d as useScopeId, i as makeVOverlayProps, e as VOverlay, _ as _export_sfc, O as VCard, P as VCardTitle, x as VIcon, Q as VCardText, R as VRow, S as VCol, y as VList, z as VListItem, a9 as VListItemTitle, W as VSpacer, E as VChip, aa as VProgressLinear, w as VTextField, U as VBtn, A as VDivider, T as VCardActions } from './VTextField-CGqJ1PIv.js';
+import { G as useFocus, u as useRender, f as forwardRefs, I as makeVInputProps, X as makeVCheckboxBtnProps, J as VInput, C as VCheckboxBtn, Y as useDensity, Z as makeTagProps, $ as makeDensityProps, a as makeComponentProps, a0 as useBackgroundColor, a1 as useBorder, a2 as useElevation, a3 as useRounded, a4 as makeRoundedProps, a5 as makeElevationProps, a6 as makeBorderProps, a7 as VImg, h as VDefaultsProvider, a8 as VExpandTransition, d as useScopeId, i as makeVOverlayProps, e as VOverlay, _ as _export_sfc, O as VCard, P as VCardTitle, x as VIcon, Q as VCardText, R as VRow, S as VCol, y as VList, z as VListItem, a9 as VListItemTitle, W as VSpacer, E as VChip, aa as VProgressLinear, w as VTextField, U as VBtn, ab as VChipGroup, A as VDivider, T as VCardActions } from './VTextField-KM5yn5yp.js';
 import { t as genericComponent, v as propsFactory, z as useProxiedModel, C as omit, Y as filterInputAttrs, Z as provideTheme, _ as makeThemeProps, O as convertToUnit, r as useRtl, $ as provideDefaults } from './theme-DXwvKF_I.js';
 
 const {mergeProps:_mergeProps$1,createVNode:_createVNode$5} = await importShared('vue');
@@ -412,17 +412,28 @@ const _hoisted_16 = { class: "ml-2 font-weight-bold" };
 const _hoisted_17 = { class: "text-caption" };
 const _hoisted_18 = { class: "text-caption text-center" };
 const _hoisted_19 = { class: "text-caption text-center" };
-const _hoisted_20 = {
+const _hoisted_20 = { class: "text-caption font-weight-bold" };
+const _hoisted_21 = {
   class: "text-body-2 font-weight-bold",
   style: {"width":"50px"}
 };
-const _hoisted_21 = { class: "text-center" };
-const _hoisted_22 = { class: "text-caption" };
-const _hoisted_23 = { class: "text-caption" };
+const _hoisted_22 = { class: "text-center" };
+const _hoisted_23 = { class: "text-center" };
 const _hoisted_24 = { class: "text-caption" };
-const _hoisted_25 = { class: "text-center" };
-const _hoisted_26 = { class: "text-right" };
-const _hoisted_27 = { class: "d-flex justify-end" };
+const _hoisted_25 = { class: "text-caption" };
+const _hoisted_26 = { class: "text-caption" };
+const _hoisted_27 = { class: "text-center" };
+const _hoisted_28 = { class: "text-right" };
+const _hoisted_29 = { class: "d-flex justify-end" };
+const _hoisted_30 = {
+  key: 0,
+  class: "bg-grey-lighten-5"
+};
+const _hoisted_31 = {
+  colspan: "8",
+  class: "pa-3"
+};
+const _hoisted_32 = { class: "text-caption font-weight-bold mb-2" };
 
 const {ref,computed,watch,onMounted,onUnmounted} = await importShared('vue');
 
@@ -465,9 +476,17 @@ const rateLimitData = ref(null);
 const countdown = ref(0);
 const countdownTimer = ref(null);
 
+// 缓冲区和整合相关
+const bufferCount = ref(0);
+const consolidateCountdown = ref(0);
+const consolidateTimer = ref(null);
+
 // 搜索和批量操作相关
 const searchQuery = ref('');
 const selectedTasks = ref([]);
+
+// 展开折叠相关
+const expandedTasks = ref([]);
 const selectAll = ref(false);
 
 // 过滤后的任务列表
@@ -517,7 +536,7 @@ const formatCountdown = (seconds) => {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 };
 
-// 启动倒计时
+// 启动流控倒计时
 const startCountdown = (initialSeconds) => {
   countdown.value = initialSeconds;
 
@@ -537,6 +556,36 @@ const startCountdown = (initialSeconds) => {
   }, 1000);
 };
 
+// 启动整合倒计时
+const startConsolidateCountdown = (initialSeconds) => {
+  consolidateCountdown.value = initialSeconds;
+
+  // 清除旧的定时器
+  if (consolidateTimer.value) {
+    clearInterval(consolidateTimer.value);
+  }
+
+  // 启动新的定时器
+  consolidateTimer.value = setInterval(() => {
+    if (consolidateCountdown.value > 0) {
+      consolidateCountdown.value--;
+    } else {
+      // 倒计时结束,刷新数据
+      refreshTasks();
+    }
+  }, 1000);
+};
+
+// 展开/折叠任务
+const toggleExpand = (taskId) => {
+  const index = expandedTasks.value.indexOf(taskId);
+  if (index > -1) {
+    expandedTasks.value.splice(index, 1);
+  } else {
+    expandedTasks.value.push(taskId);
+  }
+};
+
 const refreshTasks = async () => {
   loading.value = true;
   try {
@@ -550,10 +599,23 @@ const refreshTasks = async () => {
       Object.assign(stats.value, statsResponse);
     }
 
-    // 调用插件API获取待处理任务
+    // 调用插件API获取待处理任务和缓冲区状态
     const tasksResponse = await props.api.get(`plugin/${pluginId}/pending_tasks`);
-    if (tasksResponse && Array.isArray(tasksResponse)) {
-      tasks.value = tasksResponse;
+    if (tasksResponse) {
+      // 新格式: { buffer_count, consolidate_countdown, tasks }
+      if (tasksResponse.tasks && Array.isArray(tasksResponse.tasks)) {
+        tasks.value = tasksResponse.tasks;
+        bufferCount.value = tasksResponse.buffer_count || 0;
+        consolidateCountdown.value = tasksResponse.consolidate_countdown || 0;
+
+        // 启动整合倒计时
+        if (bufferCount.value > 0 && consolidateCountdown.value > 0) {
+          startConsolidateCountdown(consolidateCountdown.value);
+        }
+      } else if (Array.isArray(tasksResponse)) {
+        // 兼容旧格式
+        tasks.value = tasksResponse;
+      }
     }
 
     // 调用插件API获取流控状态
@@ -712,6 +774,13 @@ const stopCountdown = () => {
   }
 };
 
+const stopConsolidateCountdown = () => {
+  if (consolidateTimer.value) {
+    clearInterval(consolidateTimer.value);
+    consolidateTimer.value = null;
+  }
+};
+
 // 监听选择变化,自动更新全选状态
 watch(selectedTasks, (newVal) => {
   const selectableTasksCount = filteredTasks.value.filter(task => task.status !== 'processing').length;
@@ -732,6 +801,7 @@ onMounted(() => {
 onUnmounted(() => {
   stopAutoRefresh();
   stopCountdown();
+  stopConsolidateCountdown();
 });
 
 return (_ctx, _cache) => {
@@ -754,6 +824,7 @@ return (_ctx, _cache) => {
                                                              
                                                                
                                                              
+                                                                   
                                                              
                                                                        
 
@@ -1023,7 +1094,7 @@ return (_ctx, _cache) => {
                                           size: "small",
                                           class: "mr-2"
                                         }),
-                                        _cache[11] || (_cache[11] = _createElementVNode("span", null, "全局流控", -1))
+                                        _cache[11] || (_cache[11] = _createElementVNode("span", null, "下载流控", -1))
                                       ]),
                                       _: 1
                                     }),
@@ -1220,7 +1291,7 @@ return (_ctx, _cache) => {
                       size: "small",
                       class: "mr-2"
                     }),
-                    _cache[23] || (_cache[23] = _createElementVNode("span", null, "待处理任务", -1)),
+                    _cache[24] || (_cache[24] = _createElementVNode("span", null, "待处理任务", -1)),
                     _createVNode(VChip, {
                       size: "x-small",
                       color: "info",
@@ -1232,6 +1303,30 @@ return (_ctx, _cache) => {
                       ]),
                       _: 1
                     }),
+                    (bufferCount.value > 0)
+                      ? (_openBlock(), _createBlock(VChip, {
+                          key: 0,
+                          size: "small",
+                          color: "warning",
+                          variant: "flat",
+                          class: "ml-2",
+                          style: {"border-radius":"16px"}
+                        }, {
+                          default: _withCtx(() => [
+                            _cache[23] || (_cache[23] = _createElementVNode("span", { class: "text-caption" }, "整合:", -1)),
+                            _createVNode(VProgressLinear, {
+                              "model-value": (consolidateCountdown.value / 30) * 100,
+                              color: "white",
+                              height: "4",
+                              rounded: "",
+                              class: "mx-2",
+                              style: {"width":"60px"}
+                            }, null, 8, ["model-value"]),
+                            _createElementVNode("span", _hoisted_20, _toDisplayString(consolidateCountdown.value) + "/30秒", 1)
+                          ]),
+                          _: 1
+                        }))
+                      : _createCommentVNode("", true),
                     _createVNode(VSpacer),
                     _createVNode(VTextField, {
                       modelValue: searchQuery.value,
@@ -1276,7 +1371,7 @@ return (_ctx, _cache) => {
                                   "prepend-icon": "mdi-delete",
                                   onClick: batchDeleteTasks
                                 }, {
-                                  default: _withCtx(() => [...(_cache[24] || (_cache[24] = [
+                                  default: _withCtx(() => [...(_cache[25] || (_cache[25] = [
                                     _createTextVNode(" 批量删除 ", -1)
                                   ]))]),
                                   _: 1
@@ -1288,7 +1383,7 @@ return (_ctx, _cache) => {
                                   "prepend-icon": "mdi-close",
                                   onClick: clearSelection
                                 }, {
-                                  default: _withCtx(() => [...(_cache[25] || (_cache[25] = [
+                                  default: _withCtx(() => [...(_cache[26] || (_cache[26] = [
                                     _createTextVNode(" 取消选择 ", -1)
                                   ]))]),
                                   _: 1
@@ -1305,7 +1400,11 @@ return (_ctx, _cache) => {
                           default: _withCtx(() => [
                             _createElementVNode("thead", null, [
                               _createElementVNode("tr", null, [
-                                _createElementVNode("th", _hoisted_20, [
+                                _cache[27] || (_cache[27] = _createElementVNode("th", {
+                                  class: "text-body-2 font-weight-bold",
+                                  style: {"width":"40px"}
+                                }, null, -1)),
+                                _createElementVNode("th", _hoisted_21, [
                                   _createVNode(VCheckbox, {
                                     modelValue: selectAll.value,
                                     "onUpdate:modelValue": _cache[1] || (_cache[1] = $event => ((selectAll).value = $event)),
@@ -1314,85 +1413,131 @@ return (_ctx, _cache) => {
                                     onClick: toggleSelectAll
                                   }, null, 8, ["modelValue"])
                                 ]),
-                                _cache[26] || (_cache[26] = _createElementVNode("th", {
+                                _cache[28] || (_cache[28] = _createElementVNode("th", {
                                   class: "text-body-2 font-weight-bold text-center",
                                   style: {"width":"60px"}
                                 }, "类型", -1)),
-                                _cache[27] || (_cache[27] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "标题", -1)),
-                                _cache[28] || (_cache[28] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "剧集信息", -1)),
-                                _cache[29] || (_cache[29] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "添加时间", -1)),
-                                _cache[30] || (_cache[30] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-center" }, "状态", -1)),
-                                _cache[31] || (_cache[31] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-right" }, "操作", -1))
+                                _cache[29] || (_cache[29] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "标题", -1)),
+                                _cache[30] || (_cache[30] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "剧集信息", -1)),
+                                _cache[31] || (_cache[31] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "添加时间", -1)),
+                                _cache[32] || (_cache[32] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-center" }, "状态", -1)),
+                                _cache[33] || (_cache[33] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-right" }, "操作", -1))
                               ])
                             ]),
                             _createElementVNode("tbody", null, [
                               (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(filteredTasks.value, (task) => {
-                                return (_openBlock(), _createElementBlock("tr", {
+                                return (_openBlock(), _createElementBlock(_Fragment, {
                                   key: task.task_id
                                 }, [
-                                  _createElementVNode("td", null, [
-                                    _createVNode(VCheckbox, {
-                                      modelValue: selectedTasks.value,
-                                      "onUpdate:modelValue": _cache[2] || (_cache[2] = $event => ((selectedTasks).value = $event)),
-                                      value: task.task_id,
-                                      density: "compact",
-                                      "hide-details": "",
-                                      disabled: task.status === 'processing'
-                                    }, null, 8, ["modelValue", "value", "disabled"])
-                                  ]),
-                                  _createElementVNode("td", _hoisted_21, [
-                                    _createVNode(VIcon, {
-                                      icon: task.media_type === 'tv' ? 'mdi-television-classic' : 'mdi-filmstrip',
-                                      color: task.media_type === 'tv' ? 'primary' : 'secondary',
-                                      size: "small"
-                                    }, null, 8, ["icon", "color"])
-                                  ]),
-                                  _createElementVNode("td", _hoisted_22, _toDisplayString(task.title), 1),
-                                  _createElementVNode("td", _hoisted_23, _toDisplayString(task.episode_info || '-'), 1),
-                                  _createElementVNode("td", _hoisted_24, _toDisplayString(task.add_time || '-'), 1),
-                                  _createElementVNode("td", _hoisted_25, [
-                                    _createVNode(VChip, {
-                                      size: "small",
-                                      color: getStatusColor(task.status),
-                                      variant: "flat"
-                                    }, {
-                                      default: _withCtx(() => [
-                                        _createTextVNode(_toDisplayString(getStatusText(task.status)), 1)
-                                      ]),
-                                      _: 2
-                                    }, 1032, ["color"])
-                                  ]),
-                                  _createElementVNode("td", _hoisted_26, [
-                                    _createElementVNode("div", _hoisted_27, [
-                                      _createVNode(VBtn, {
-                                        density: "comfortable",
-                                        icon: "",
-                                        variant: "text",
-                                        color: "grey-darken-1",
+                                  _createElementVNode("tr", null, [
+                                    _createElementVNode("td", _hoisted_22, [
+                                      (task.is_consolidated && task.episode_count > 0)
+                                        ? (_openBlock(), _createBlock(VBtn, {
+                                            key: 0,
+                                            icon: "",
+                                            size: "x-small",
+                                            variant: "text",
+                                            onClick: $event => (toggleExpand(task.task_id))
+                                          }, {
+                                            default: _withCtx(() => [
+                                              _createVNode(VIcon, {
+                                                icon: expandedTasks.value.includes(task.task_id) ? 'mdi-chevron-down' : 'mdi-chevron-right',
+                                                size: "small"
+                                              }, null, 8, ["icon"])
+                                            ]),
+                                            _: 2
+                                          }, 1032, ["onClick"]))
+                                        : _createCommentVNode("", true)
+                                    ]),
+                                    _createElementVNode("td", null, [
+                                      _createVNode(VCheckbox, {
+                                        modelValue: selectedTasks.value,
+                                        "onUpdate:modelValue": _cache[2] || (_cache[2] = $event => ((selectedTasks).value = $event)),
+                                        value: task.task_id,
+                                        density: "compact",
+                                        "hide-details": "",
+                                        disabled: task.status === 'processing'
+                                      }, null, 8, ["modelValue", "value", "disabled"])
+                                    ]),
+                                    _createElementVNode("td", _hoisted_23, [
+                                      _createVNode(VIcon, {
+                                        icon: task.media_type === 'tv' ? 'mdi-television-classic' : 'mdi-filmstrip',
+                                        color: task.media_type === 'tv' ? 'primary' : 'secondary',
+                                        size: "small"
+                                      }, null, 8, ["icon", "color"])
+                                    ]),
+                                    _createElementVNode("td", _hoisted_24, _toDisplayString(task.title), 1),
+                                    _createElementVNode("td", _hoisted_25, _toDisplayString(task.episode_info || '-'), 1),
+                                    _createElementVNode("td", _hoisted_26, _toDisplayString(task.add_time || '-'), 1),
+                                    _createElementVNode("td", _hoisted_27, [
+                                      _createVNode(VChip, {
                                         size: "small",
-                                        disabled: task.status === 'processing',
-                                        onClick: $event => (deleteTask(task))
+                                        color: getStatusColor(task.status),
+                                        variant: "flat"
                                       }, {
                                         default: _withCtx(() => [
-                                          _createVNode(VIcon, {
-                                            icon: "mdi-delete",
-                                            size: "small"
-                                          }),
-                                          _createVNode(VTooltip, {
-                                            activator: "parent",
-                                            location: "top"
-                                          }, {
-                                            default: _withCtx(() => [...(_cache[32] || (_cache[32] = [
-                                              _createTextVNode("删除此任务", -1)
-                                            ]))]),
-                                            _: 1
-                                          })
+                                          _createTextVNode(_toDisplayString(getStatusText(task.status)), 1)
                                         ]),
-                                        _: 1
-                                      }, 8, ["disabled", "onClick"])
+                                        _: 2
+                                      }, 1032, ["color"])
+                                    ]),
+                                    _createElementVNode("td", _hoisted_28, [
+                                      _createElementVNode("div", _hoisted_29, [
+                                        _createVNode(VBtn, {
+                                          density: "comfortable",
+                                          icon: "",
+                                          variant: "text",
+                                          color: "grey-darken-1",
+                                          size: "small",
+                                          disabled: task.status === 'processing',
+                                          onClick: $event => (deleteTask(task))
+                                        }, {
+                                          default: _withCtx(() => [
+                                            _createVNode(VIcon, {
+                                              icon: "mdi-delete",
+                                              size: "small"
+                                            }),
+                                            _createVNode(VTooltip, {
+                                              activator: "parent",
+                                              location: "top"
+                                            }, {
+                                              default: _withCtx(() => [...(_cache[34] || (_cache[34] = [
+                                                _createTextVNode("删除此任务", -1)
+                                              ]))]),
+                                              _: 1
+                                            })
+                                          ]),
+                                          _: 1
+                                        }, 8, ["disabled", "onClick"])
+                                      ])
                                     ])
-                                  ])
-                                ]))
+                                  ]),
+                                  (task.is_consolidated && expandedTasks.value.includes(task.task_id))
+                                    ? (_openBlock(), _createElementBlock("tr", _hoisted_30, [
+                                        _createElementVNode("td", _hoisted_31, [
+                                          _createElementVNode("div", _hoisted_32, "集数列表 (共" + _toDisplayString(task.episode_count) + "集):", 1),
+                                          _createVNode(VChipGroup, null, {
+                                            default: _withCtx(() => [
+                                              (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(task.episodes, (ep, index) => {
+                                                return (_openBlock(), _createBlock(VChip, {
+                                                  key: index,
+                                                  size: "small",
+                                                  color: "primary",
+                                                  variant: "outlined"
+                                                }, {
+                                                  default: _withCtx(() => [
+                                                    _createTextVNode(" S" + _toDisplayString(String(ep.season).padStart(2, '0')) + "E" + _toDisplayString(String(ep.episode).padStart(2, '0')), 1)
+                                                  ]),
+                                                  _: 2
+                                                }, 1024))
+                                              }), 128))
+                                            ]),
+                                            _: 2
+                                          }, 1024)
+                                        ])
+                                      ]))
+                                    : _createCommentVNode("", true)
+                                ], 64))
                               }), 128))
                             ])
                           ]),
@@ -1412,7 +1557,7 @@ return (_ctx, _cache) => {
                             size: "small",
                             class: "mb-1"
                           }),
-                          _cache[33] || (_cache[33] = _createElementVNode("div", { class: "text-caption" }, "没有匹配的任务", -1))
+                          _cache[35] || (_cache[35] = _createElementVNode("div", { class: "text-caption" }, "没有匹配的任务", -1))
                         ]),
                         _: 1
                       }))
@@ -1426,7 +1571,7 @@ return (_ctx, _cache) => {
                             size: "small",
                             class: "mb-1"
                           }),
-                          _cache[34] || (_cache[34] = _createElementVNode("div", { class: "text-caption" }, "暂无待处理任务", -1))
+                          _cache[36] || (_cache[36] = _createElementVNode("div", { class: "text-caption" }, "暂无待处理任务", -1))
                         ]),
                         _: 1
                       }))
@@ -1446,7 +1591,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[35] || (_cache[35] = [
+              default: _withCtx(() => [...(_cache[37] || (_cache[37] = [
                 _createTextVNode(" 配置 ", -1)
               ]))]),
               _: 1
@@ -1460,7 +1605,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[36] || (_cache[36] = [
+              default: _withCtx(() => [...(_cache[38] || (_cache[38] = [
                 _createTextVNode(" 刷新状态 ", -1)
               ]))]),
               _: 1
@@ -1472,7 +1617,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[37] || (_cache[37] = [
+              default: _withCtx(() => [...(_cache[39] || (_cache[39] = [
                 _createTextVNode(" 清空队列 ", -1)
               ]))]),
               _: 1
@@ -1484,7 +1629,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[38] || (_cache[38] = [
+              default: _withCtx(() => [...(_cache[40] || (_cache[40] = [
                 _createTextVNode(" 关闭 ", -1)
               ]))]),
               _: 1
@@ -1500,6 +1645,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-7447ffde"]]);
+const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-b9fd9ecf"]]);
 
 export { Page as default };

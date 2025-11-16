@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.3.9"
+    plugin_version = "2.5.0"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -52,9 +52,12 @@ class DanmakuAutoImport(_PluginBase):
     _retry_count = 3
 
     # 任务队列
+    _buffer_tasks: List[Dict[str, Any]] = []  # 缓冲区
     _pending_tasks: List[Dict[str, Any]] = []
     _processing_tasks: Dict[str, Dict[str, Any]] = {}
     _lock = Lock()
+    _last_consolidate_time = None  # 上次整合时间
+    _consolidate_interval = 30  # 整合间隔(秒)
 
     def init_plugin(self, config: dict = None):
         """初始化插件"""
@@ -78,8 +81,10 @@ class DanmakuAutoImport(_PluginBase):
             self._retry_count = int(config.get("retry_count", 3))
 
         # 初始化队列
+        self._buffer_tasks = []
         self._pending_tasks = []
         self._processing_tasks = {}
+        self._last_consolidate_time = datetime.now(tz=pytz.timezone(settings.TZ))
 
     def get_state(self) -> bool:
         """获取插件状态"""
@@ -137,8 +142,8 @@ class DanmakuAutoImport(_PluginBase):
             logger.debug(f"弹幕自动导入: 跳过非动漫媒体 {mediainfo.title}")
             return
 
-        # 添加到队列
-        self._add_to_queue(mediainfo, meta)
+        # 添加到缓冲区
+        self._add_to_buffer(mediainfo, meta)
 
     @eventmanager.register(EventType.PluginAction)
     def on_plugin_action(self, event: Event):
@@ -156,33 +161,127 @@ class DanmakuAutoImport(_PluginBase):
         elif action == "clear_queue":
             self._clear_queue(event_data)
 
-    def _add_to_queue(self, mediainfo, meta):
-        """添加任务到队列"""
+    def _add_to_buffer(self, mediainfo, meta):
+        """添加任务到缓冲区"""
         with self._lock:
-            # 检查队列大小
-            if len(self._pending_tasks) >= self._max_queue_size:
-                logger.warning(f"弹幕自动导入: 队列已满({self._max_queue_size}),跳过添加")
-                return
-
-            # 创建任务
+            # 创建缓冲任务
             task = {
                 "id": str(uuid.uuid4()),
                 "mediainfo": mediainfo,
                 "meta": meta,
-                "add_time": datetime.now(tz=pytz.timezone(settings.TZ)),
-                "retry_count": 0,
-                "status": "pending",
-                "error_msg": None,
-                "danmu_task_id": None
+                "add_time": datetime.now(tz=pytz.timezone(settings.TZ))
             }
 
-            self._pending_tasks.append(task)
-            logger.info(f"弹幕自动导入: 已添加任务到队列 - {mediainfo.title} (队列长度: {len(self._pending_tasks)})")
+            self._buffer_tasks.append(task)
+            logger.info(f"弹幕自动导入: 已添加到缓冲区 - {mediainfo.title} (缓冲区长度: {len(self._buffer_tasks)})")
+
+    def _consolidate_buffer(self):
+        """整合缓冲区任务"""
+        with self._lock:
+            if not self._buffer_tasks:
+                return
+
+            # 检查是否到达整合时间
+            now = datetime.now(tz=pytz.timezone(settings.TZ))
+            if self._last_consolidate_time:
+                elapsed = (now - self._last_consolidate_time).total_seconds()
+                if elapsed < self._consolidate_interval:
+                    return
+
+            logger.info(f"弹幕自动导入: 开始整合缓冲区任务 (缓冲区长度: {len(self._buffer_tasks)})")
+
+            # 按tmdb_id和media_type分组
+            groups = {}
+            for task in self._buffer_tasks:
+                mediainfo = task["mediainfo"]
+                meta = task["meta"]
+
+                # 电影直接添加,不整合
+                if mediainfo.type == MediaType.MOVIE:
+                    self._add_to_queue_direct(task)
+                    continue
+
+                # 电视剧按tmdb_id分组
+                key = f"{mediainfo.tmdb_id}_{mediainfo.type.value}"
+                if key not in groups:
+                    groups[key] = {
+                        "mediainfo": mediainfo,
+                        "episodes": []
+                    }
+
+                # 添加集数信息
+                episode_info = {}
+                if meta:
+                    if hasattr(meta, "begin_season") and meta.begin_season:
+                        episode_info["season"] = meta.begin_season
+                    if hasattr(meta, "begin_episode") and meta.begin_episode:
+                        episode_info["episode"] = meta.begin_episode
+
+                if episode_info:
+                    groups[key]["episodes"].append(episode_info)
+
+            # 创建整合任务
+            for key, group in groups.items():
+                task = {
+                    "id": str(uuid.uuid4()),
+                    "mediainfo": group["mediainfo"],
+                    "meta": None,
+                    "episodes": group["episodes"],  # 集数列表
+                    "add_time": now,
+                    "retry_count": 0,
+                    "status": "pending",
+                    "error_msg": None,
+                    "danmu_task_id": None,
+                    "is_consolidated": True  # 标记为整合任务
+                }
+
+                # 检查队列大小
+                if len(self._pending_tasks) >= self._max_queue_size:
+                    logger.warning(f"弹幕自动导入: 队列已满({self._max_queue_size}),停止整合")
+                    break
+
+                self._pending_tasks.append(task)
+                logger.info(f"弹幕自动导入: 已整合任务 - {group['mediainfo'].title} ({len(group['episodes'])}集)")
+
+            # 清空缓冲区
+            self._buffer_tasks.clear()
+            self._last_consolidate_time = now
+            logger.info(f"弹幕自动导入: 缓冲区整合完成 (待处理队列长度: {len(self._pending_tasks)})")
+
+    def _add_to_queue_direct(self, buffer_task):
+        """直接添加任务到队列(不整合)"""
+        mediainfo = buffer_task["mediainfo"]
+        meta = buffer_task["meta"]
+
+        # 检查队列大小
+        if len(self._pending_tasks) >= self._max_queue_size:
+            logger.warning(f"弹幕自动导入: 队列已满({self._max_queue_size}),跳过添加")
+            return
+
+        # 创建任务
+        task = {
+            "id": str(uuid.uuid4()),
+            "mediainfo": mediainfo,
+            "meta": meta,
+            "episodes": None,  # 电影无集数
+            "add_time": datetime.now(tz=pytz.timezone(settings.TZ)),
+            "retry_count": 0,
+            "status": "pending",
+            "error_msg": None,
+            "danmu_task_id": None,
+            "is_consolidated": False
+        }
+
+        self._pending_tasks.append(task)
+        logger.info(f"弹幕自动导入: 已添加任务到队列 - {mediainfo.title}")
 
     def _process_queue(self):
         """处理队列中的任务"""
         if not self._enabled:
             return
+
+        # 先整合缓冲区
+        self._consolidate_buffer()
 
         logger.info("弹幕自动导入: 开始处理队列任务")
 
@@ -485,15 +584,28 @@ class DanmakuAutoImport(_PluginBase):
             }
 
     def _get_pending_tasks(self):
-        """API端点: 获取待处理任务列表 (返回 List[Dict[str, Any]])"""
-        result = []
+        """API端点: 获取待处理任务列表和缓冲区状态"""
         try:
             # 确保_pending_tasks已初始化
             if not hasattr(self, '_pending_tasks'):
-                logger.warning(f"弹幕自动导入: _pending_tasks未初始化,返回空列表")
-                return []
+                logger.warning(f"弹幕自动导入: _pending_tasks未初始化,返回空数据")
+                return {
+                    "buffer_count": 0,
+                    "consolidate_countdown": 0,
+                    "tasks": []
+                }
 
             with self._lock:
+                # 计算缓冲区倒计时
+                consolidate_countdown = 0
+                if self._last_consolidate_time:
+                    now = datetime.now(tz=pytz.timezone(settings.TZ))
+                    elapsed = (now - self._last_consolidate_time).total_seconds()
+                    consolidate_countdown = max(0, int(self._consolidate_interval - elapsed))
+                else:
+                    consolidate_countdown = self._consolidate_interval
+
+                result = []
 
                 for task in self._pending_tasks[:50]:  # 最多返回50个
                     try:
@@ -501,17 +613,6 @@ class DanmakuAutoImport(_PluginBase):
                         if not mediainfo:
                             logger.debug(f"弹幕自动导入: 跳过无mediainfo的任务")
                             continue
-
-                        # 构建季集信息
-                        episode_info = ''
-                        if hasattr(mediainfo, 'season') and mediainfo.season:
-                            episode_info = f"S{mediainfo.season:02d}"
-                            if hasattr(mediainfo, 'episode') and mediainfo.episode:
-                                episode_info += f"E{mediainfo.episode:02d}"
-                        elif hasattr(mediainfo, 'episode') and mediainfo.episode:
-                            episode_info = f"E{mediainfo.episode:02d}"
-                        else:
-                            episode_info = '-'
 
                         # 安全获取add_time
                         add_time_str = '未知'
@@ -533,24 +634,58 @@ class DanmakuAutoImport(_PluginBase):
                         except Exception as type_err:
                             logger.warning(f"弹幕自动导入: 获取media_type失败: {type_err}")
 
-                        result.append({
-                            "task_id": task.get('task_id'),
+                        # 构建任务数据
+                        task_data = {
+                            "task_id": task.get('id'),  # 使用id而非task_id
                             "title": mediainfo.title or '未知标题',
                             "media_type": media_type_str,
-                            "episode_info": episode_info,
                             "status": task.get('status', 'pending'),
                             "add_time": add_time_str,
                             "retry_count": task.get('retry_count', 0),
-                            "tmdb_id": mediainfo.tmdb_id or '无'
-                        })
+                            "tmdb_id": mediainfo.tmdb_id or '无',
+                            "is_consolidated": task.get('is_consolidated', False)
+                        }
+
+                        # 如果是整合任务,添加集数列表
+                        if task.get('is_consolidated') and task.get('episodes'):
+                            episodes = task.get('episodes', [])
+                            task_data["episode_count"] = len(episodes)
+                            task_data["episodes"] = episodes
+                            # 构建集数摘要
+                            episode_summary = f"{len(episodes)}集"
+                            task_data["episode_info"] = episode_summary
+                        else:
+                            # 单集或电影
+                            episode_info = ''
+                            if hasattr(mediainfo, 'season') and mediainfo.season:
+                                episode_info = f"S{mediainfo.season:02d}"
+                                if hasattr(mediainfo, 'episode') and mediainfo.episode:
+                                    episode_info += f"E{mediainfo.episode:02d}"
+                            elif hasattr(mediainfo, 'episode') and mediainfo.episode:
+                                episode_info = f"E{mediainfo.episode:02d}"
+                            else:
+                                episode_info = '-'
+                            task_data["episode_info"] = episode_info
+                            task_data["episode_count"] = 0
+                            task_data["episodes"] = None
+
+                        result.append(task_data)
                     except Exception as e:
                         logger.error(f"弹幕自动导入: 处理任务数据时出错: {e}", exc_info=True)
                         continue
 
-                return result
+                return {
+                    "buffer_count": len(self._buffer_tasks),
+                    "consolidate_countdown": consolidate_countdown,
+                    "tasks": result
+                }
         except Exception as e:
             logger.error(f"弹幕自动导入: 获取待处理任务列表失败: {e}", exc_info=True)
-            return []
+            return {
+                "buffer_count": 0,
+                "consolidate_countdown": 0,
+                "tasks": []
+            }
 
     def _delete_task(self, payload: dict = None) -> Dict[str, Any]:
         """API端点: 删除指定任务"""
