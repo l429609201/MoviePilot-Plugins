@@ -478,6 +478,11 @@ class DanmakuAutoImport(_PluginBase):
         """API端点: 获取待处理任务列表"""
         result = []
         try:
+            # ✅ 确保_pending_tasks已初始化
+            if not hasattr(self, '_pending_tasks'):
+                logger.warning(f"弹幕自动导入: _pending_tasks未初始化,返回空列表")
+                return []
+
             with self._lock:
                 logger.info(f"弹幕自动导入: 开始获取待处理任务列表,当前队列长度: {len(self._pending_tasks)}")
 
@@ -534,6 +539,10 @@ class DanmakuAutoImport(_PluginBase):
                         continue
 
                 logger.info(f"弹幕自动导入: 成功构建任务列表,共 {len(result)} 个任务")
+                # ✅ 确保返回的是list类型
+                if not isinstance(result, list):
+                    logger.error(f"弹幕自动导入: result不是list类型,而是{type(result)},返回空列表")
+                    return []
                 return result
         except Exception as e:
             logger.error(f"弹幕自动导入: 获取待处理任务列表失败: {e}", exc_info=True)
