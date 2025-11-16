@@ -423,17 +423,27 @@ const _hoisted_24 = { class: "text-caption" };
 const _hoisted_25 = { class: "text-caption" };
 const _hoisted_26 = { class: "text-caption" };
 const _hoisted_27 = { class: "text-center" };
-const _hoisted_28 = { class: "text-right" };
-const _hoisted_29 = { class: "d-flex justify-end" };
-const _hoisted_30 = {
+const _hoisted_28 = { class: "text-center" };
+const _hoisted_29 = {
+  key: 0,
+  class: "px-2"
+};
+const _hoisted_30 = { class: "text-caption" };
+const _hoisted_31 = {
+  key: 1,
+  class: "text-caption text-grey"
+};
+const _hoisted_32 = { class: "text-right" };
+const _hoisted_33 = { class: "d-flex justify-end" };
+const _hoisted_34 = {
   key: 0,
   class: "bg-grey-lighten-5"
 };
-const _hoisted_31 = {
-  colspan: "8",
+const _hoisted_35 = {
+  colspan: "9",
   class: "pa-3"
 };
-const _hoisted_32 = { class: "text-caption font-weight-bold mb-2" };
+const _hoisted_36 = { class: "text-caption font-weight-bold mb-2" };
 
 const {ref,computed,watch,onMounted,onUnmounted} = await importShared('vue');
 
@@ -1421,7 +1431,11 @@ return (_ctx, _cache) => {
                                 _cache[30] || (_cache[30] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "剧集信息", -1)),
                                 _cache[31] || (_cache[31] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "添加时间", -1)),
                                 _cache[32] || (_cache[32] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-center" }, "状态", -1)),
-                                _cache[33] || (_cache[33] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-right" }, "操作", -1))
+                                _cache[33] || (_cache[33] = _createElementVNode("th", {
+                                  class: "text-body-2 font-weight-bold text-center",
+                                  style: {"width":"150px"}
+                                }, "进度", -1)),
+                                _cache[34] || (_cache[34] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-right" }, "操作", -1))
                               ])
                             ]),
                             _createElementVNode("tbody", null, [
@@ -1482,7 +1496,24 @@ return (_ctx, _cache) => {
                                       }, 1032, ["color"])
                                     ]),
                                     _createElementVNode("td", _hoisted_28, [
-                                      _createElementVNode("div", _hoisted_29, [
+                                      (task.status === 'processing' && task.progress !== undefined)
+                                        ? (_openBlock(), _createElementBlock("div", _hoisted_29, [
+                                            _createVNode(VProgressLinear, {
+                                              "model-value": task.progress,
+                                              color: task.progress < 0 ? 'error' : 'info',
+                                              height: "6",
+                                              rounded: ""
+                                            }, {
+                                              default: _withCtx(({ value }) => [
+                                                _createElementVNode("span", _hoisted_30, _toDisplayString(Math.ceil(value)) + "%", 1)
+                                              ]),
+                                              _: 1
+                                            }, 8, ["model-value", "color"])
+                                          ]))
+                                        : (_openBlock(), _createElementBlock("span", _hoisted_31, "-"))
+                                    ]),
+                                    _createElementVNode("td", _hoisted_32, [
+                                      _createElementVNode("div", _hoisted_33, [
                                         _createVNode(VBtn, {
                                           density: "comfortable",
                                           icon: "",
@@ -1501,7 +1532,7 @@ return (_ctx, _cache) => {
                                               activator: "parent",
                                               location: "top"
                                             }, {
-                                              default: _withCtx(() => [...(_cache[34] || (_cache[34] = [
+                                              default: _withCtx(() => [...(_cache[35] || (_cache[35] = [
                                                 _createTextVNode("删除此任务", -1)
                                               ]))]),
                                               _: 1
@@ -1513,9 +1544,9 @@ return (_ctx, _cache) => {
                                     ])
                                   ]),
                                   (task.is_consolidated && expandedTasks.value.includes(task.task_id))
-                                    ? (_openBlock(), _createElementBlock("tr", _hoisted_30, [
-                                        _createElementVNode("td", _hoisted_31, [
-                                          _createElementVNode("div", _hoisted_32, "集数列表 (共" + _toDisplayString(task.episode_count) + "集):", 1),
+                                    ? (_openBlock(), _createElementBlock("tr", _hoisted_34, [
+                                        _createElementVNode("td", _hoisted_35, [
+                                          _createElementVNode("div", _hoisted_36, "集数列表 (共" + _toDisplayString(task.episode_count) + "集):", 1),
                                           _createVNode(VChipGroup, null, {
                                             default: _withCtx(() => [
                                               (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(task.episodes, (ep, index) => {
@@ -1557,7 +1588,7 @@ return (_ctx, _cache) => {
                             size: "small",
                             class: "mb-1"
                           }),
-                          _cache[35] || (_cache[35] = _createElementVNode("div", { class: "text-caption" }, "没有匹配的任务", -1))
+                          _cache[36] || (_cache[36] = _createElementVNode("div", { class: "text-caption" }, "没有匹配的任务", -1))
                         ]),
                         _: 1
                       }))
@@ -1571,7 +1602,7 @@ return (_ctx, _cache) => {
                             size: "small",
                             class: "mb-1"
                           }),
-                          _cache[36] || (_cache[36] = _createElementVNode("div", { class: "text-caption" }, "暂无待处理任务", -1))
+                          _cache[37] || (_cache[37] = _createElementVNode("div", { class: "text-caption" }, "暂无待处理任务", -1))
                         ]),
                         _: 1
                       }))
@@ -1591,7 +1622,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[37] || (_cache[37] = [
+              default: _withCtx(() => [...(_cache[38] || (_cache[38] = [
                 _createTextVNode(" 配置 ", -1)
               ]))]),
               _: 1
@@ -1605,7 +1636,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[38] || (_cache[38] = [
+              default: _withCtx(() => [...(_cache[39] || (_cache[39] = [
                 _createTextVNode(" 刷新状态 ", -1)
               ]))]),
               _: 1
@@ -1617,7 +1648,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[39] || (_cache[39] = [
+              default: _withCtx(() => [...(_cache[40] || (_cache[40] = [
                 _createTextVNode(" 清空队列 ", -1)
               ]))]),
               _: 1
@@ -1629,7 +1660,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[40] || (_cache[40] = [
+              default: _withCtx(() => [...(_cache[41] || (_cache[41] = [
                 _createTextVNode(" 关闭 ", -1)
               ]))]),
               _: 1
@@ -1645,6 +1676,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-b9fd9ecf"]]);
+const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-647fdd64"]]);
 
 export { Page as default };

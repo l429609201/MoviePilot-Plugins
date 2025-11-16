@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.5.0"
+    plugin_version = "1.0.0"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -48,6 +48,7 @@ class DanmakuAutoImport(_PluginBase):
     _process_batch_size = 1
     _only_anime = False
     _search_type = "tmdb"
+    _task_progress = {}  # 任务进度字典 {task_id: progress}
     _auto_retry = True
     _retry_count = 3
 
@@ -88,7 +89,11 @@ class DanmakuAutoImport(_PluginBase):
 
     def get_state(self) -> bool:
         """获取插件状态"""
-        return self._enabled and bool(self._danmu_server_url) and bool(self._external_api_key)
+        state = self._enabled and bool(self._danmu_server_url) and bool(self._external_api_key)
+        logger.debug(f"弹幕自动导入: get_state() 返回={state}, _enabled={self._enabled}, "
+                    f"_danmu_server_url={'已配置' if self._danmu_server_url else '未配置'}, "
+                    f"_external_api_key={'已配置' if self._external_api_key else '未配置'}")
+        return state
 
     @staticmethod
     def get_command() -> List[Dict[str, Any]]:
@@ -129,13 +134,20 @@ class DanmakuAutoImport(_PluginBase):
         if not self._enabled:
             return
 
+        # 调试: 打印事件对象信息
+        logger.debug(f"弹幕自动导入: 收到TransferComplete事件, event类型={type(event)}")
+
         event_data = event.event_data or {}
+        logger.debug(f"弹幕自动导入: event_data键列表={list(event_data.keys())}")
+
         mediainfo = event_data.get("mediainfo")
         meta = event_data.get("meta")
 
         if not mediainfo:
-            logger.warning("弹幕自动导入: 未获取到媒体信息")
+            logger.warning(f"弹幕自动导入: 未获取到媒体信息, event_data内容={event_data}")
             return
+
+        logger.info(f"弹幕自动导入: 收到转移完成事件 - {mediainfo.title}, 类型={mediainfo.type}")
 
         # 如果只处理动漫且当前不是动漫，则跳过
         if self._only_anime and mediainfo.type != MediaType.TV:
@@ -323,9 +335,15 @@ class DanmakuAutoImport(_PluginBase):
         try:
             logger.info(f"弹幕自动导入: 开始导入 {mediainfo.title}")
 
+            # 初始化进度
+            self._task_progress[task_id] = 0
+
             # 构建API请求
             api_url = f"{self._danmu_server_url}/api/control/import/auto"
             params = {"api_key": self._external_api_key}
+
+            # 更新进度: 准备请求
+            self._task_progress[task_id] = 20
 
             # 构建请求数据
             data = {
@@ -341,10 +359,16 @@ class DanmakuAutoImport(_PluginBase):
                 if hasattr(meta, "begin_episode") and meta.begin_episode:
                     data["episode"] = meta.begin_episode
 
+            # 更新进度: 发送请求
+            self._task_progress[task_id] = 40
+
             # 发送请求
             response = RequestUtils(timeout=30).post_res(url=api_url, params=params, json=data)
             if not response or response.status_code != 202:
                 raise Exception(f"API请求失败: {response.status_code if response else 'No response'}")
+
+            # 更新进度: 处理响应
+            self._task_progress[task_id] = 70
 
             result = response.json()
             danmu_task_id = result.get("taskId")
@@ -352,6 +376,10 @@ class DanmakuAutoImport(_PluginBase):
             # 更新任务状态
             task["status"] = "success"
             task["danmu_task_id"] = danmu_task_id
+
+            # 更新进度: 完成
+            self._task_progress[task_id] = 100
+
             logger.info(f"弹幕自动导入: 导入成功 {mediainfo.title} - 任务ID: {danmu_task_id}")
 
             # 发送通知
@@ -367,6 +395,9 @@ class DanmakuAutoImport(_PluginBase):
             task["error_msg"] = str(e)
             task["retry_count"] += 1
 
+            # 标记进度为失败
+            self._task_progress[task_id] = -1
+
             # 检查是否需要重试
             if self._auto_retry and task["retry_count"] < self._retry_count:
                 logger.info(f"弹幕自动导入: 任务 {task_id} 将重试 (第{task['retry_count']}次)")
@@ -381,6 +412,10 @@ class DanmakuAutoImport(_PluginBase):
             with self._lock:
                 if task_id in self._processing_tasks:
                     del self._processing_tasks[task_id]
+                # 清理进度数据(延迟5秒,让前端有时间显示完成状态)
+                if task_id in self._task_progress:
+                    time.sleep(5)
+                    del self._task_progress[task_id]
 
     def _view_queue(self, event_data: dict):
         """查看队列"""
@@ -634,16 +669,21 @@ class DanmakuAutoImport(_PluginBase):
                         except Exception as type_err:
                             logger.warning(f"弹幕自动导入: 获取media_type失败: {type_err}")
 
+                        # 获取任务进度
+                        task_id = task.get('id')
+                        progress = self._task_progress.get(task_id, 0)
+
                         # 构建任务数据
                         task_data = {
-                            "task_id": task.get('id'),  # 使用id而非task_id
+                            "task_id": task_id,  # 使用id而非task_id
                             "title": mediainfo.title or '未知标题',
                             "media_type": media_type_str,
                             "status": task.get('status', 'pending'),
                             "add_time": add_time_str,
                             "retry_count": task.get('retry_count', 0),
                             "tmdb_id": mediainfo.tmdb_id or '无',
-                            "is_consolidated": task.get('is_consolidated', False)
+                            "is_consolidated": task.get('is_consolidated', False),
+                            "progress": progress  # 添加进度字段
                         }
 
                         # 如果是整合任务,添加集数列表
@@ -724,41 +764,30 @@ class DanmakuAutoImport(_PluginBase):
             url = f"{base_url}/api/control/rate-limit/status"
             params = {"api_key": self._external_api_key}
 
-            logger.info(f"弹幕自动导入: 请求流控状态 URL={url}, API_KEY={self._external_api_key[:8]}...")
-
             response = requests.get(url, params=params, timeout=10)
-            logger.info(f"弹幕自动导入: 流控状态响应 status_code={response.status_code}, content_type={response.headers.get('content-type')}, content_length={len(response.text)}")
-
-            # 打印响应内容的前500个字符用于调试
-            logger.info(f"弹幕自动导入: 响应内容预览: {response.text[:500]}")
-
             response.raise_for_status()
 
             # 检查响应内容
             if not response.text:
-                logger.error(f"获取流控状态失败: 服务器返回空响应")
+                logger.error(f"弹幕自动导入: 获取流控状态失败 - 服务器返回空响应")
                 return {"error": True, "message": "服务器返回空响应"}
 
             try:
                 data = response.json()
-                logger.info(f"弹幕自动导入: 流控状态获取成功, globalEnabled={data.get('globalEnabled')}")
                 # ✅ 直接返回data,不包装success字段,让MoviePilot框架自动包装
                 return data
             except ValueError as json_err:
-                logger.error(f"获取流控状态失败: JSON解析错误 - {str(json_err)}")
-                logger.error(f"获取流控状态失败: 完整响应内容 - {response.text}")
+                logger.error(f"弹幕自动导入: 获取流控状态失败 - JSON解析错误: {str(json_err)}")
                 return {"error": True, "message": f"服务器响应格式错误: {str(json_err)}"}
 
         except requests.exceptions.HTTPError as e:
-            logger.error(f"获取流控状态失败: HTTP错误 - status_code={e.response.status_code if e.response else 'N/A'}")
-            logger.error(f"获取流控状态失败: HTTP错误响应 - {e.response.text if e.response else 'N/A'}")
+            logger.error(f"弹幕自动导入: 获取流控状态失败 - HTTP错误 {e.response.status_code if e.response else 'N/A'}")
             return {"error": True, "message": f"HTTP错误: {str(e)}"}
         except requests.exceptions.RequestException as e:
-            logger.error(f"获取流控状态失败: 网络请求错误 - {str(e)}")
+            logger.error(f"弹幕自动导入: 获取流控状态失败 - 网络请求错误: {str(e)}")
             return {"error": True, "message": f"网络请求失败: {str(e)}"}
         except Exception as e:
-            logger.error(f"获取流控状态失败: 未知错误 - {str(e)}")
-            logger.exception("详细错误堆栈:")
+            logger.error(f"弹幕自动导入: 获取流控状态失败 - 未知错误: {str(e)}")
             return {"error": True, "message": f"获取流控状态失败: {str(e)}"}
 
     def get_form(self) -> Tuple[Optional[List[dict]], Dict[str, Any]]:
