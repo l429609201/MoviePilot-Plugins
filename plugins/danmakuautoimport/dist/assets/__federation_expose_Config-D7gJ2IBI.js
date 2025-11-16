@@ -3192,12 +3192,9 @@ const _sfc_main = {
     default: () => ({})
   }
 },
-  emits: ['switch'],
-  setup(__props, { emit: __emit }) {
+  setup(__props) {
 
 const props = __props;
-
-const emit = __emit;
 
 const form = ref(null);
 const isFormValid = ref(true);
@@ -3316,7 +3313,7 @@ return (_ctx, _cache) => {
               color: "primary",
               size: "small"
             }),
-            _cache[13] || (_cache[13] = _createElementVNode("span", null, "弹幕库自动导入配置", -1))
+            _cache[12] || (_cache[12] = _createElementVNode("span", null, "弹幕库自动导入配置", -1))
           ]),
           _: 1
         }),
@@ -3342,7 +3339,7 @@ return (_ctx, _cache) => {
                           color: "primary",
                           size: "small"
                         }),
-                        _cache[14] || (_cache[14] = _createElementVNode("span", null, "基本设置", -1))
+                        _cache[13] || (_cache[13] = _createElementVNode("span", null, "基本设置", -1))
                       ]),
                       _: 1
                     }),
@@ -3364,7 +3361,7 @@ return (_ctx, _cache) => {
                                   }, null, 8, ["color"]),
                                   _createElementVNode("div", _hoisted_3, [
                                     _createElementVNode("div", _hoisted_4, [
-                                      _cache[15] || (_cache[15] = _createElementVNode("div", null, [
+                                      _cache[14] || (_cache[14] = _createElementVNode("div", null, [
                                         _createElementVNode("div", { class: "text-subtitle-2" }, "启用插件"),
                                         _createElementVNode("div", { class: "text-caption text-grey" }, "是否启用弹幕自动导入")
                                       ], -1)),
@@ -3397,7 +3394,7 @@ return (_ctx, _cache) => {
                                   }, null, 8, ["color"]),
                                   _createElementVNode("div", _hoisted_6, [
                                     _createElementVNode("div", _hoisted_7, [
-                                      _cache[16] || (_cache[16] = _createElementVNode("div", null, [
+                                      _cache[15] || (_cache[15] = _createElementVNode("div", null, [
                                         _createElementVNode("div", { class: "text-subtitle-2" }, "启用通知"),
                                         _createElementVNode("div", { class: "text-caption text-grey" }, "导入完成后发送通知")
                                       ], -1)),
@@ -3430,7 +3427,7 @@ return (_ctx, _cache) => {
                                   }, null, 8, ["color"]),
                                   _createElementVNode("div", _hoisted_9, [
                                     _createElementVNode("div", _hoisted_10, [
-                                      _cache[17] || (_cache[17] = _createElementVNode("div", null, [
+                                      _cache[16] || (_cache[16] = _createElementVNode("div", null, [
                                         _createElementVNode("div", { class: "text-subtitle-2" }, "仅处理动漫"),
                                         _createElementVNode("div", { class: "text-caption text-grey" }, "只处理动漫类型媒体")
                                       ], -1)),
@@ -3471,7 +3468,7 @@ return (_ctx, _cache) => {
                           color: "primary",
                           size: "small"
                         }),
-                        _cache[18] || (_cache[18] = _createElementVNode("span", null, "服务器设置", -1))
+                        _cache[17] || (_cache[17] = _createElementVNode("span", null, "服务器设置", -1))
                       ]),
                       _: 1
                     }),
@@ -3540,7 +3537,7 @@ return (_ctx, _cache) => {
                           color: "primary",
                           size: "small"
                         }),
-                        _cache[19] || (_cache[19] = _createElementVNode("span", null, "任务设置", -1))
+                        _cache[18] || (_cache[18] = _createElementVNode("span", null, "任务设置", -1))
                       ]),
                       _: 1
                     }),
@@ -3631,7 +3628,7 @@ return (_ctx, _cache) => {
                           color: "primary",
                           size: "small"
                         }),
-                        _cache[20] || (_cache[20] = _createElementVNode("span", null, "高级设置", -1))
+                        _cache[19] || (_cache[19] = _createElementVNode("span", null, "高级设置", -1))
                       ]),
                       _: 1
                     }),
@@ -3673,7 +3670,7 @@ return (_ctx, _cache) => {
                                   }, null, 8, ["color"]),
                                   _createElementVNode("div", _hoisted_12, [
                                     _createElementVNode("div", _hoisted_13, [
-                                      _cache[21] || (_cache[21] = _createElementVNode("div", null, [
+                                      _cache[20] || (_cache[20] = _createElementVNode("div", null, [
                                         _createElementVNode("div", { class: "text-subtitle-2" }, "失败自动重试"),
                                         _createElementVNode("div", { class: "text-caption text-grey" }, "导入失败后自动重试")
                                       ], -1)),
@@ -3736,7 +3733,7 @@ return (_ctx, _cache) => {
                           class: "mr-2",
                           size: "small"
                         }),
-                        _cache[22] || (_cache[22] = _createElementVNode("span", { class: "text-caption" }, " 插件会在媒体下载完成后自动将任务添加到队列,由定时任务处理。支持延时导入、失败重试等功能。 ", -1))
+                        _cache[21] || (_cache[21] = _createElementVNode("span", { class: "text-caption" }, " 插件会在媒体下载完成后自动将任务添加到队列,由定时任务处理。支持延时导入、失败重试等功能。 ", -1))
                       ]),
                       _: 1
                     })
@@ -3753,19 +3750,6 @@ return (_ctx, _cache) => {
         _createVNode(VCardActions, { class: "px-2 py-1" }, {
           default: _withCtx(() => [
             _createVNode(VBtn, {
-              color: "primary",
-              variant: "text",
-              "prepend-icon": "mdi-chart-box",
-              size: "small",
-              onClick: _cache[12] || (_cache[12] = $event => (emit('switch')))
-            }, {
-              default: _withCtx(() => [...(_cache[23] || (_cache[23] = [
-                _createTextVNode(" 数据 ", -1)
-              ]))]),
-              _: 1
-            }),
-            _createVNode(VSpacer),
-            _createVNode(VBtn, {
               color: "info",
               variant: "text",
               "prepend-icon": "mdi-test-tube",
@@ -3773,11 +3757,12 @@ return (_ctx, _cache) => {
               onClick: testConnection,
               loading: testing.value
             }, {
-              default: _withCtx(() => [...(_cache[24] || (_cache[24] = [
+              default: _withCtx(() => [...(_cache[22] || (_cache[22] = [
                 _createTextVNode(" 测试连接 ", -1)
               ]))]),
               _: 1
             }, 8, ["loading"]),
+            _createVNode(VSpacer),
             _createVNode(VBtn, {
               color: "secondary",
               variant: "text",
@@ -3785,7 +3770,7 @@ return (_ctx, _cache) => {
               size: "small",
               onClick: resetConfig
             }, {
-              default: _withCtx(() => [...(_cache[25] || (_cache[25] = [
+              default: _withCtx(() => [...(_cache[23] || (_cache[23] = [
                 _createTextVNode(" 重置 ", -1)
               ]))]),
               _: 1
@@ -3798,7 +3783,7 @@ return (_ctx, _cache) => {
               onClick: saveConfigManually,
               loading: saving.value
             }, {
-              default: _withCtx(() => [...(_cache[26] || (_cache[26] = [
+              default: _withCtx(() => [...(_cache[24] || (_cache[24] = [
                 _createTextVNode(" 保存配置 ", -1)
               ]))]),
               _: 1
@@ -3814,6 +3799,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-3b5b54f6"]]);
+const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-9c17176c"]]);
 
 export { Config as default };

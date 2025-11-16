@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.0.8"
+    plugin_version = "2.0.9"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -313,55 +313,6 @@ class DanmakuAutoImport(_PluginBase):
 
     # ========== V2 API 接口 ==========
 
-    def _get_config(self) -> Dict[str, Any]:
-        """API: 获取当前配置"""
-        return {
-            "enabled": self._enabled,
-            "notify": self._notify,
-            "danmu_server_url": self._danmu_server_url,
-            "external_api_key": self._external_api_key,
-            "cron": self._cron,
-            "delay_seconds": self._delay_seconds,
-            "max_queue_size": self._max_queue_size,
-            "process_batch_size": self._process_batch_size,
-            "only_anime": self._only_anime,
-            "search_type": self._search_type,
-            "auto_retry": self._auto_retry,
-            "retry_count": self._retry_count
-        }
-
-    def _save_config(self, config_payload: dict) -> Dict[str, Any]:
-        """API: 保存配置"""
-        logger.info(f"弹幕自动导入: 收到配置保存请求")
-        try:
-            # 更新配置
-            self._enabled = config_payload.get("enabled", self._enabled)
-            self._notify = config_payload.get("notify", self._notify)
-            self._danmu_server_url = config_payload.get("danmu_server_url", "").rstrip("/")
-            self._external_api_key = config_payload.get("external_api_key", "")
-            self._cron = config_payload.get("cron", self._cron)
-            self._delay_seconds = int(config_payload.get("delay_seconds", self._delay_seconds))
-            self._max_queue_size = int(config_payload.get("max_queue_size", self._max_queue_size))
-            self._process_batch_size = int(config_payload.get("process_batch_size", self._process_batch_size))
-            self._only_anime = config_payload.get("only_anime", self._only_anime)
-            self._search_type = config_payload.get("search_type", self._search_type)
-            self._auto_retry = config_payload.get("auto_retry", self._auto_retry)
-            self._retry_count = int(config_payload.get("retry_count", self._retry_count))
-
-            # 保存配置
-            config_to_save = self._get_config()
-            self.update_config(config_to_save)
-
-            # 重新初始化
-            self.init_plugin(self.get_config())
-
-            logger.info("弹幕自动导入: 配置已保存并重新初始化")
-            return {"message": "配置已成功保存", "saved_config": self._get_config()}
-
-        except Exception as e:
-            logger.error(f"弹幕自动导入: 保存配置失败 - {e}")
-            return {"message": f"保存配置失败: {e}", "error": True}
-
     def _trigger_manual_process(self) -> Dict[str, Any]:
         """API: 手动触发处理"""
         logger.info("弹幕自动导入: 收到手动处理请求")
@@ -441,9 +392,15 @@ class DanmakuAutoImport(_PluginBase):
             "retry_count": self._retry_count
         }
 
-    def _save_config(self, config_payload: dict) -> Dict[str, Any]:
+    def _save_config(self, config_payload: dict = None) -> Dict[str, Any]:
         """API端点: 保存插件配置"""
         logger.info(f"弹幕自动导入: 收到配置保存请求: {config_payload}")
+
+        # 防御性检查
+        if config_payload is None:
+            logger.error("弹幕自动导入: 配置数据为空")
+            return {"message": "配置数据为空", "error": True, "saved_config": self._get_config()}
+
         try:
             # 更新实例变量
             self._enabled = config_payload.get('enable', self._enabled)
@@ -550,8 +507,12 @@ class DanmakuAutoImport(_PluginBase):
 
             return tasks
 
-    def _delete_task(self, payload: dict) -> Dict[str, Any]:
+    def _delete_task(self, payload: dict = None) -> Dict[str, Any]:
         """API端点: 删除指定任务"""
+        if payload is None:
+            logger.error("弹幕自动导入: 删除任务请求数据为空")
+            return {"success": False, "message": "请求数据为空"}
+
         task_id = payload.get('task_id')
         if not task_id:
             return {"success": False, "message": "未指定任务ID"}
