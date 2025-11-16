@@ -3192,9 +3192,12 @@ const _sfc_main = {
     default: () => ({})
   }
 },
-  setup(__props) {
+  emits: ['switch', 'close'],
+  setup(__props, { emit: __emit }) {
 
 const props = __props;
+
+const emit = __emit;
 
 const form = ref(null);
 const isFormValid = ref(true);
@@ -3754,7 +3757,7 @@ return (_ctx, _cache) => {
               variant: "text",
               "prepend-icon": "mdi-database",
               size: "small",
-              onClick: _cache[12] || (_cache[12] = $event => (_ctx.$emit('switch-to-page')))
+              onClick: _cache[12] || (_cache[12] = $event => (emit('switch')))
             }, {
               default: _withCtx(() => [...(_cache[23] || (_cache[23] = [
                 _createTextVNode(" 数据 ", -1)
@@ -3811,6 +3814,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-ec2a2e29"]]);
+const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-cfb79f9e"]]);
 
 export { Config as default };
