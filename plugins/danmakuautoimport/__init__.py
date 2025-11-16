@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.1.0"
+    plugin_version = "2.1.2"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -220,7 +220,7 @@ class DanmakuAutoImport(_PluginBase):
             logger.info(f"弹幕自动导入: 开始导入 {mediainfo.title}")
 
             # 构建API请求
-            api_url = f"{self._danmu_server_url}/api/external/import/auto"
+            api_url = f"{self._danmu_server_url}/api/control/import/auto"
             params = {"api_key": self._external_api_key}
 
             # 构建请求数据
@@ -399,7 +399,7 @@ class DanmakuAutoImport(_PluginBase):
         # 防御性检查
         if config_payload is None:
             logger.error("弹幕自动导入: 配置数据为空")
-            return {"message": "配置数据为空", "error": True, "saved_config": self._get_config()}
+            return {"success": False, "message": "配置数据为空", "saved_config": self._get_config()}
 
         try:
             # 更新实例变量
@@ -441,11 +441,11 @@ class DanmakuAutoImport(_PluginBase):
 
             logger.info(f"弹幕自动导入: 配置已保存并重新初始化")
 
-            return {"message": "配置已成功保存", "saved_config": self._get_config()}
+            return {"success": True, "message": "配置已成功保存", "saved_config": self._get_config()}
 
         except Exception as e:
             logger.error(f"弹幕自动导入: 保存配置失败: {e}", exc_info=True)
-            return {"message": f"保存配置失败: {e}", "error": True, "saved_config": self._get_config()}
+            return {"success": False, "message": f"保存配置失败: {e}", "saved_config": self._get_config()}
 
     def _get_queue_stats(self) -> Dict[str, Any]:
         """API端点: 获取队列统计信息"""
@@ -465,13 +465,16 @@ class DanmakuAutoImport(_PluginBase):
             # 暂时返回空列表,后续可以添加历史记录功能
 
             return {
-                "enabled": self._enabled,
-                "pending": len(self._pending_tasks),
-                "processing": len(self._processing_tasks),
-                "max_queue_size": self._max_queue_size,
-                "cron": self._cron,
-                "next_run_time": next_run_time,
-                "last_run_results": last_run_results
+                "success": True,
+                "data": {
+                    "enabled": self._enabled,
+                    "pending": len(self._pending_tasks),
+                    "processing": len(self._processing_tasks),
+                    "max_queue_size": self._max_queue_size,
+                    "cron": self._cron,
+                    "next_run_time": next_run_time,
+                    "last_run_results": last_run_results
+                }
             }
 
     def _get_pending_tasks(self) -> List[Dict[str, Any]]:
@@ -505,7 +508,7 @@ class DanmakuAutoImport(_PluginBase):
                     "tmdb_id": mediainfo.tmdb_id or '无'
                 })
 
-            return tasks
+            return {"success": True, "data": tasks}
 
     def _delete_task(self, payload: dict = None) -> Dict[str, Any]:
         """API端点: 删除指定任务"""
@@ -539,14 +542,27 @@ class DanmakuAutoImport(_PluginBase):
 
         try:
             import requests
-            url = f"{self._danmu_server_url}/api/external/rate-limit/status"
+            url = f"{self._danmu_server_url}/api/control/rate-limit/status"
             params = {"api_key": self._external_api_key}
 
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
 
-            data = response.json()
-            return {"success": True, "data": data}
+            # 检查响应内容
+            if not response.text:
+                logger.error(f"获取流控状态失败: 服务器返回空响应")
+                return {"success": False, "message": "服务器返回空响应"}
+
+            try:
+                data = response.json()
+                return {"success": True, "data": data}
+            except ValueError as json_err:
+                logger.error(f"获取流控状态失败: 响应不是有效的JSON - {response.text[:200]}")
+                return {"success": False, "message": f"服务器响应格式错误: {str(json_err)}"}
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"获取流控状态失败: 网络请求错误 - {str(e)}")
+            return {"success": False, "message": f"网络请求失败: {str(e)}"}
         except Exception as e:
             logger.error(f"获取流控状态失败: {str(e)}")
             return {"success": False, "message": f"获取流控状态失败: {str(e)}"}
