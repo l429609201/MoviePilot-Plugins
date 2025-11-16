@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.0.3"
+    plugin_version = "2.0.4"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -493,11 +493,28 @@ class DanmakuAutoImport(_PluginBase):
     def _get_queue_stats(self) -> Dict[str, Any]:
         """API端点: 获取队列统计信息"""
         with self._lock:
+            # 获取下次运行时间
+            next_run_time = 'N/A'
+            if hasattr(self, '_scheduler') and self._scheduler:
+                jobs = self._scheduler.get_jobs()
+                if jobs:
+                    next_run = jobs[0].next_run_time
+                    if next_run:
+                        next_run_time = next_run.strftime('%Y-%m-%d %H:%M:%S')
+
+            # 获取最近处理历史(最多5条)
+            last_run_results = []
+            # 这里可以从self._processing_tasks或历史记录中获取
+            # 暂时返回空列表,后续可以添加历史记录功能
+
             return {
+                "enabled": self._enabled,
                 "pending": len(self._pending_tasks),
                 "processing": len(self._processing_tasks),
                 "max_queue_size": self._max_queue_size,
-                "cron": self._cron
+                "cron": self._cron,
+                "next_run_time": next_run_time,
+                "last_run_results": last_run_results
             }
 
     def _get_pending_tasks(self) -> List[Dict[str, Any]]:
@@ -554,6 +571,25 @@ class DanmakuAutoImport(_PluginBase):
 
             return {"success": False, "message": "未找到指定任务"}
 
+    def _get_rate_limit_status(self) -> Dict[str, Any]:
+        """API端点: 获取流控状态"""
+        if not self._danmu_server_url or not self._external_api_key:
+            return {"success": False, "message": "未配置弹幕库服务器地址或API密钥"}
+
+        try:
+            import requests
+            url = f"{self._danmu_server_url}/api/external/rate-limit/status"
+            params = {"api_key": self._external_api_key}
+
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+
+            data = response.json()
+            return {"success": True, "data": data}
+        except Exception as e:
+            logger.error(f"获取流控状态失败: {str(e)}")
+            return {"success": False, "message": f"获取流控状态失败: {str(e)}"}
+
     def get_form(self) -> Tuple[Optional[List[dict]], Dict[str, Any]]:
         """
         Vue模式下返回None,但提供初始配置数据
@@ -597,6 +633,13 @@ class DanmakuAutoImport(_PluginBase):
                 "methods": ["POST"],
                 "auth": "bear",
                 "summary": "删除指定任务"
+            },
+            {
+                "path": "/rate_limit_status",
+                "endpoint": self._get_rate_limit_status,
+                "methods": ["GET"],
+                "auth": "bear",
+                "summary": "获取弹幕库流控状态"
             }
         ]
 
