@@ -1666,10 +1666,14 @@ const testConnection = async () => {
   testing.value = true;
   try {
     const response = await props.api.get('plugin/DanmakuAutoImport/rate_limit_status');
-    if (response.success) {
+    // ✅ 修复: 后端直接返回data或error对象,不再包装success字段
+    if (response.error) {
+      alert('连接测试失败: ' + (response.message || '未知错误'));
+    } else if (response.globalEnabled !== undefined) {
+      // 成功获取到流控数据
       alert('连接测试成功!\n弹幕库服务器连接正常');
     } else {
-      alert('连接测试失败: ' + (response.message || '未知错误'));
+      alert('连接测试失败: 响应格式异常');
     }
   } catch (error) {
     console.error('测试连接失败:', error);
@@ -2213,6 +2217,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-cfb79f9e"]]);
+const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-febcd2d2"]]);
 
 export { Config as default };

@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.3.0"
+    plugin_version = "2.3.1"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -552,7 +552,7 @@ class DanmakuAutoImport(_PluginBase):
     def _get_rate_limit_status(self) -> Dict[str, Any]:
         """API端点: 获取流控状态"""
         if not self._danmu_server_url or not self._external_api_key:
-            return {"success": False, "message": "未配置弹幕库服务器地址或API密钥"}
+            return {"error": True, "message": "未配置弹幕库服务器地址或API密钥"}
 
         try:
             import requests
@@ -574,28 +574,29 @@ class DanmakuAutoImport(_PluginBase):
             # 检查响应内容
             if not response.text:
                 logger.error(f"获取流控状态失败: 服务器返回空响应")
-                return {"success": False, "message": "服务器返回空响应"}
+                return {"error": True, "message": "服务器返回空响应"}
 
             try:
                 data = response.json()
                 logger.info(f"弹幕自动导入: 流控状态获取成功, globalEnabled={data.get('globalEnabled')}")
-                return {"success": True, "data": data}
+                # ✅ 直接返回data,不包装success字段,让MoviePilot框架自动包装
+                return data
             except ValueError as json_err:
                 logger.error(f"获取流控状态失败: JSON解析错误 - {str(json_err)}")
                 logger.error(f"获取流控状态失败: 完整响应内容 - {response.text}")
-                return {"success": False, "message": f"服务器响应格式错误: {str(json_err)}"}
+                return {"error": True, "message": f"服务器响应格式错误: {str(json_err)}"}
 
         except requests.exceptions.HTTPError as e:
             logger.error(f"获取流控状态失败: HTTP错误 - status_code={e.response.status_code if e.response else 'N/A'}")
             logger.error(f"获取流控状态失败: HTTP错误响应 - {e.response.text if e.response else 'N/A'}")
-            return {"success": False, "message": f"HTTP错误: {str(e)}"}
+            return {"error": True, "message": f"HTTP错误: {str(e)}"}
         except requests.exceptions.RequestException as e:
             logger.error(f"获取流控状态失败: 网络请求错误 - {str(e)}")
-            return {"success": False, "message": f"网络请求失败: {str(e)}"}
+            return {"error": True, "message": f"网络请求失败: {str(e)}"}
         except Exception as e:
             logger.error(f"获取流控状态失败: 未知错误 - {str(e)}")
             logger.exception("详细错误堆栈:")
-            return {"success": False, "message": f"获取流控状态失败: {str(e)}"}
+            return {"error": True, "message": f"获取流控状态失败: {str(e)}"}
 
     def get_form(self) -> Tuple[Optional[List[dict]], Dict[str, Any]]:
         """
