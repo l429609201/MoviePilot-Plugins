@@ -430,6 +430,11 @@ const props = __props;
 
 const emit = __emit;
 
+// ✅ 参考logsclean: 使用函数获取插件ID
+const getPluginId = () => {
+  return "DanmakuAutoImport"
+};
+
 const stats = ref({
   enabled: false,
   pending: 0,
@@ -491,21 +496,24 @@ const getStatusText = (status) => {
 const refreshTasks = async () => {
   loading.value = true;
   try {
+    // ✅ 参考logsclean: 使用getPluginId()函数
+    const pluginId = getPluginId();
+
     // 调用插件API获取队列统计
-    const statsResponse = await props.api.get('plugin/DanmakuAutoImport/queue_stats');
+    const statsResponse = await props.api.get(`plugin/${pluginId}/queue_stats`);
     // MoviePilot框架会自动包装响应,所以直接使用返回的数据
     if (statsResponse) {
       Object.assign(stats.value, statsResponse);
     }
 
     // 调用插件API获取待处理任务
-    const tasksResponse = await props.api.get('plugin/DanmakuAutoImport/pending_tasks');
+    const tasksResponse = await props.api.get(`plugin/${pluginId}/pending_tasks`);
     if (tasksResponse && Array.isArray(tasksResponse)) {
       tasks.value = tasksResponse;
     }
 
     // 调用插件API获取流控状态
-    const rateLimitResponse = await props.api.get('plugin/DanmakuAutoImport/rate_limit_status');
+    const rateLimitResponse = await props.api.get(`plugin/${pluginId}/rate_limit_status`);
     // ✅ 修复: 后端直接返回data或error对象,不再包装success字段
     if (rateLimitResponse && !rateLimitResponse.error && rateLimitResponse.globalEnabled !== undefined) {
       rateLimitData.value = rateLimitResponse;
@@ -525,7 +533,9 @@ const deleteTask = async (task) => {
   }
 
   try {
-    const response = await props.api.post('plugin/DanmakuAutoImport/delete_task', { task_id: task.task_id });
+    // ✅ 参考logsclean: 使用getPluginId()函数
+    const pluginId = getPluginId();
+    const response = await props.api.post(`plugin/${pluginId}/delete_task`, { task_id: task.task_id });
     if (response.success) {
       // 刷新任务列表
       await refreshTasks();
@@ -553,9 +563,12 @@ const batchDeleteTasks = async () => {
     let successCount = 0;
     let failCount = 0;
 
+    // ✅ 参考logsclean: 使用getPluginId()函数
+    const pluginId = getPluginId();
+
     for (const taskId of selectedTasks.value) {
       try {
-        const response = await props.api.post('plugin/DanmakuAutoImport/delete_task', { task_id: taskId });
+        const response = await props.api.post(`plugin/${pluginId}/delete_task`, { task_id: taskId });
         if (response.success) {
           successCount++;
         } else {
@@ -612,10 +625,13 @@ const clearAllTasks = async () => {
   }
 
   try {
+    // ✅ 参考logsclean: 使用getPluginId()函数
+    const pluginId = getPluginId();
+
     // 删除所有待处理任务
     for (const task of tasks.value) {
       if (task.status !== 'processing') {
-        await props.api.post('plugin/DanmakuAutoImport/delete_task', { task_id: task.task_id });
+        await props.api.post(`plugin/${pluginId}/delete_task`, { task_id: task.task_id });
       }
     }
     // 刷新任务列表
@@ -1242,6 +1258,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-4b6dec2a"]]);
+const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-448d3f14"]]);
 
 export { Page as default };

@@ -1598,6 +1598,11 @@ const props = __props;
 
 const emit = __emit;
 
+// ✅ 参考logsclean: 使用函数获取插件ID
+const getPluginId = () => {
+  return "DanmakuAutoImport"
+};
+
 const form = ref(null);
 const isFormValid = ref(true);
 const testing = ref(false);
@@ -1641,7 +1646,9 @@ const saveConfigManually = async () => {
 
   saving.value = true;
   try {
-    const response = await props.api.post('plugin/DanmakuAutoImport/config', localConfig);
+    // ✅ 参考logsclean: 使用getPluginId()函数
+    const pluginId = getPluginId();
+    const response = await props.api.post(`plugin/${pluginId}/config`, localConfig);
     if (response.success) {
       alert('配置保存成功');
       // 更新备份
@@ -1665,7 +1672,9 @@ const testConnection = async () => {
 
   testing.value = true;
   try {
-    const response = await props.api.get('plugin/DanmakuAutoImport/rate_limit_status');
+    // ✅ 参考logsclean: 使用getPluginId()函数
+    const pluginId = getPluginId();
+    const response = await props.api.get(`plugin/${pluginId}/rate_limit_status`);
     // ✅ 修复: 后端直接返回data或error对象,不再包装success字段
     if (response.error) {
       alert('连接测试失败: ' + (response.message || '未知错误'));
@@ -2217,6 +2226,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-febcd2d2"]]);
+const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-d7b42a15"]]);
 
 export { Config as default };
