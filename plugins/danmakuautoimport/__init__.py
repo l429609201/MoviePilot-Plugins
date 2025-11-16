@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.3.4"
+    plugin_version = "2.3.7"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -476,17 +476,14 @@ class DanmakuAutoImport(_PluginBase):
 
     def _get_pending_tasks(self):
         """API端点: 获取待处理任务列表 (返回 List[Dict[str, Any]])"""
-        logger.info(f"弹幕自动导入: _get_pending_tasks方法被调用")
         result = []
         try:
-            # ✅ 确保_pending_tasks已初始化
+            # 确保_pending_tasks已初始化
             if not hasattr(self, '_pending_tasks'):
                 logger.warning(f"弹幕自动导入: _pending_tasks未初始化,返回空列表")
-                logger.info(f"弹幕自动导入: 返回值类型: {type([])}, 返回值: {[]}")
                 return []
 
             with self._lock:
-                logger.info(f"弹幕自动导入: 开始获取待处理任务列表,当前队列长度: {len(self._pending_tasks)}")
 
                 for task in self._pending_tasks[:50]:  # 最多返回50个
                     try:
@@ -540,17 +537,9 @@ class DanmakuAutoImport(_PluginBase):
                         logger.error(f"弹幕自动导入: 处理任务数据时出错: {e}", exc_info=True)
                         continue
 
-                logger.info(f"弹幕自动导入: 成功构建任务列表,共 {len(result)} 个任务")
-                # ✅ 确保返回的是list类型
-                if not isinstance(result, list):
-                    logger.error(f"弹幕自动导入: result不是list类型,而是{type(result)},返回空列表")
-                    return []
-                logger.info(f"弹幕自动导入: 准备返回,返回值类型: {type(result)}, 返回值长度: {len(result)}")
-                logger.info(f"弹幕自动导入: 返回值内容: {result}")
                 return result
         except Exception as e:
             logger.error(f"弹幕自动导入: 获取待处理任务列表失败: {e}", exc_info=True)
-            logger.info(f"弹幕自动导入: 异常返回空列表,类型: {type([])}")
             return []
 
     def _delete_task(self, payload: dict = None) -> Dict[str, Any]:
