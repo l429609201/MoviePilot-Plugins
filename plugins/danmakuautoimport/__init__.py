@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.3.3"
+    plugin_version = "2.3.4"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -474,8 +474,8 @@ class DanmakuAutoImport(_PluginBase):
                 "last_run_results": last_run_results
             }
 
-    def _get_pending_tasks(self) -> List[Dict[str, Any]]:
-        """API端点: 获取待处理任务列表"""
+    def _get_pending_tasks(self):
+        """API端点: 获取待处理任务列表 (返回 List[Dict[str, Any]])"""
         result = []
         try:
             # ✅ 确保_pending_tasks已初始化
