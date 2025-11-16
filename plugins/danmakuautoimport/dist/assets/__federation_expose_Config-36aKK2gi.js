@@ -1,6 +1,6 @@
-import { importShared } from './__federation_fn_import-Tq99R_rR.js';
-import { c as createSimpleFunctional, u as useVariant, a as useDensity, b as useDimension, d as useElevation, e as useLocation, f as usePosition, g as useRounded, h as useTextColor, i as genOverlays, V as VIcon, j as VDefaultsProvider, k as VBtn, m as makeVariantProps, l as makeTagProps, n as makeRoundedProps, o as makePositionProps, p as makeLocationProps, q as makeElevationProps, r as makeDimensionProps, s as makeDensityProps, t as makeComponentProps, v as useRender, w as deepEqual, R as Ripple, x as useBackgroundColor, M as MaybeTransition, y as makeTransitionProps, z as VSlideYTransition, A as parseAnchor, B as flipSide, C as flipAlign, D as flipCorner, E as getAxis, F as useRouter, G as useBackButton, H as makeLoaderProps, I as useLoader, L as LoaderSlot, J as VExpandXTransition, K as Intersect, N as useResizeObserver, O as useItems, P as makeItemsProps, Q as VList, S as VListItem, T as VDivider, U as VListSubheader, W as VAvatar, X as VChip, Y as VScaleTransition, Z as VProgressCircular, _ as VRow, $ as VCol } from './VList-kfXN4ci3.js';
-import { t as isOn, v as eventName, w as propsFactory, x as genericComponent, y as useProxiedModel, z as provideTheme, u as useLocale, A as makeThemeProps, B as IconValue, c as consoleWarn, P as PREFERS_REDUCED_MOTION, C as acceleratedEasing, E as deceleratedEasing, F as standardEasing, H as EventProp, J as provideDefaults, K as filterInputAttrs, M as wrapInArray, N as matchesSelector, O as omit, Q as callEvent, R as getCurrentInstanceName, S as getCurrentInstance, U as useToggleScope, V as pick, r as useRtl, I as IN_BROWSER, W as destructComputed, X as CircularBuffer, Y as consoleError, Z as convertToUnit, _ as clamp, $ as defer, a0 as templateRef, o as useDisplay, a1 as isClickInsideElement, a2 as focusableChildren, a3 as focusChild, a4 as getNextElement, a5 as debounce, a6 as getPropertyFromItem, a7 as camelizeProps, a8 as ensureValidVNode, a9 as checkPrintable, aa as SUPPORTS_MATCH_MEDIA } from './theme-BgZDIKbD.js';
+import { importShared } from './__federation_fn_import-9Z7hiN6o.js';
+import { u as useRender, m as makeComponentProps, a as makeDensityProps, d as deepEqual, R as Ripple, V as VIcon, b as useDensity, c as useTextColor, e as useBackgroundColor, M as MaybeTransition, f as makeTransitionProps, g as VSlideYTransition, h as makeDimensionProps, i as useDimension, p as parseAnchor, j as flipSide, k as flipAlign, l as flipCorner, n as getAxis, o as useRouter, q as useBackButton, r as VDefaultsProvider, s as makeRoundedProps, t as makeLoaderProps, v as useLoader, w as useRounded, L as LoaderSlot, x as VExpandXTransition, I as Intersect, y as useResizeObserver, z as useItems, A as makeItemsProps, B as VList, C as VListItem, D as VDivider, E as VListSubheader, F as VAvatar, G as VChip, H as VScaleTransition, J as VProgressCircular, _ as _export_sfc, K as VCard, N as VCardTitle, O as VCardText, P as VRow, Q as VCol, S as VCardActions, T as VBtn, U as VSpacer } from './VList-GrR_JHJE.js';
+import { t as isOn, v as eventName, w as propsFactory, x as useProxiedModel, c as consoleWarn, y as genericComponent, P as PREFERS_REDUCED_MOTION, z as acceleratedEasing, A as deceleratedEasing, B as standardEasing, C as makeThemeProps, E as EventProp, F as IconValue, H as provideDefaults, J as filterInputAttrs, K as wrapInArray, M as matchesSelector, N as omit, u as useLocale, O as callEvent, Q as getCurrentInstanceName, R as getCurrentInstance, S as useToggleScope, U as pick, V as provideTheme, r as useRtl, I as IN_BROWSER, W as destructComputed, X as CircularBuffer, Y as consoleError, Z as convertToUnit, _ as clamp, $ as defer, a0 as templateRef, o as useDisplay, a1 as isClickInsideElement, a2 as focusableChildren, a3 as focusChild, a4 as getNextElement, a5 as debounce, a6 as getPropertyFromItem, a7 as camelizeProps, a8 as ensureValidVNode, a9 as checkPrintable, aa as SUPPORTS_MATCH_MEDIA } from './theme-BcIEhh1k.js';
 
 class Box {
   constructor(args) {
@@ -253,217 +253,7 @@ function isFixedPosition(el) {
   return false;
 }
 
-// Utilities
-const VAlertTitle = createSimpleFunctional('v-alert-title');
-
-// Utilities
-const {computed: computed$g} = await importShared('vue');
-// Types
-// Composables
-const makeIconSizeProps = propsFactory({
-  iconSize: [Number, String],
-  iconSizes: {
-    type: Array,
-    default: () => [['x-small', 10], ['small', 16], ['default', 24], ['large', 28], ['x-large', 32]]
-  }
-}, 'iconSize');
-function useIconSizes(props, fallback) {
-  const iconSize = computed$g(() => {
-    const iconSizeMap = new Map(props.iconSizes);
-    const _iconSize = props.iconSize ?? fallback() ?? 'default';
-    return iconSizeMap.has(_iconSize) ? iconSizeMap.get(_iconSize) : _iconSize;
-  });
-  return {
-    iconSize
-  };
-}
-
-const {normalizeClass:_normalizeClass$c,normalizeStyle:_normalizeStyle$b,createElementVNode:_createElementVNode$e,mergeProps:_mergeProps$b,createVNode:_createVNode$g} = await importShared('vue');
-const {toRef: toRef$g} = await importShared('vue');
-const allowedTypes = ['success', 'info', 'warning', 'error'];
-const makeVAlertProps = propsFactory({
-  border: {
-    type: [Boolean, String],
-    validator: val => {
-      return typeof val === 'boolean' || ['top', 'end', 'bottom', 'start'].includes(val);
-    }
-  },
-  borderColor: String,
-  closable: Boolean,
-  closeIcon: {
-    type: IconValue,
-    default: '$close'
-  },
-  closeLabel: {
-    type: String,
-    default: '$vuetify.close'
-  },
-  icon: {
-    type: [Boolean, String, Function, Object],
-    default: null
-  },
-  modelValue: {
-    type: Boolean,
-    default: true
-  },
-  prominent: Boolean,
-  title: String,
-  text: String,
-  type: {
-    type: String,
-    validator: val => allowedTypes.includes(val)
-  },
-  ...makeComponentProps(),
-  ...makeDensityProps(),
-  ...makeDimensionProps(),
-  ...makeElevationProps(),
-  ...makeIconSizeProps(),
-  ...makeLocationProps(),
-  ...makePositionProps(),
-  ...makeRoundedProps(),
-  ...makeTagProps(),
-  ...makeThemeProps(),
-  ...makeVariantProps({
-    variant: 'flat'
-  })
-}, 'VAlert');
-const VAlert = genericComponent()({
-  name: 'VAlert',
-  props: makeVAlertProps(),
-  emits: {
-    'click:close': e => true,
-    'update:modelValue': value => true
-  },
-  setup(props, _ref) {
-    let {
-      emit,
-      slots
-    } = _ref;
-    const isActive = useProxiedModel(props, 'modelValue');
-    const icon = toRef$g(() => {
-      if (props.icon === false) return undefined;
-      if (!props.type) return props.icon;
-      return props.icon ?? `$${props.type}`;
-    });
-    const {
-      iconSize
-    } = useIconSizes(props, () => props.prominent ? 44 : undefined);
-    const {
-      themeClasses
-    } = provideTheme(props);
-    const {
-      colorClasses,
-      colorStyles,
-      variantClasses
-    } = useVariant(() => ({
-      color: props.color ?? props.type,
-      variant: props.variant
-    }));
-    const {
-      densityClasses
-    } = useDensity(props);
-    const {
-      dimensionStyles
-    } = useDimension(props);
-    const {
-      elevationClasses
-    } = useElevation(props);
-    const {
-      locationStyles
-    } = useLocation(props);
-    const {
-      positionClasses
-    } = usePosition(props);
-    const {
-      roundedClasses
-    } = useRounded(props);
-    const {
-      textColorClasses,
-      textColorStyles
-    } = useTextColor(() => props.borderColor);
-    const {
-      t
-    } = useLocale();
-    const closeProps = toRef$g(() => ({
-      'aria-label': t(props.closeLabel),
-      onClick(e) {
-        isActive.value = false;
-        emit('click:close', e);
-      }
-    }));
-    return () => {
-      const hasPrepend = !!(slots.prepend || icon.value);
-      const hasTitle = !!(slots.title || props.title);
-      const hasClose = !!(slots.close || props.closable);
-      const iconProps = {
-        density: props.density,
-        icon: icon.value,
-        size: props.iconSize || props.prominent ? iconSize.value : undefined
-      };
-      return isActive.value && _createVNode$g(props.tag, {
-        "class": _normalizeClass$c(['v-alert', props.border && {
-          'v-alert--border': !!props.border,
-          [`v-alert--border-${props.border === true ? 'start' : props.border}`]: true
-        }, {
-          'v-alert--prominent': props.prominent
-        }, themeClasses.value, colorClasses.value, densityClasses.value, elevationClasses.value, positionClasses.value, roundedClasses.value, variantClasses.value, props.class]),
-        "style": _normalizeStyle$b([colorStyles.value, dimensionStyles.value, locationStyles.value, props.style]),
-        "role": "alert"
-      }, {
-        default: () => [genOverlays(false, 'v-alert'), props.border && _createElementVNode$e("div", {
-          "key": "border",
-          "class": _normalizeClass$c(['v-alert__border', textColorClasses.value]),
-          "style": _normalizeStyle$b(textColorStyles.value)
-        }, null), hasPrepend && _createElementVNode$e("div", {
-          "key": "prepend",
-          "class": "v-alert__prepend"
-        }, [!slots.prepend ? _createVNode$g(VIcon, _mergeProps$b({
-          "key": "prepend-icon"
-        }, iconProps), null) : _createVNode$g(VDefaultsProvider, {
-          "key": "prepend-defaults",
-          "disabled": !icon.value,
-          "defaults": {
-            VIcon: {
-              ...iconProps
-            }
-          }
-        }, slots.prepend)]), _createElementVNode$e("div", {
-          "class": "v-alert__content"
-        }, [hasTitle && _createVNode$g(VAlertTitle, {
-          "key": "title"
-        }, {
-          default: () => [slots.title?.() ?? props.title]
-        }), slots.text?.() ?? props.text, slots.default?.()]), slots.append && _createElementVNode$e("div", {
-          "key": "append",
-          "class": "v-alert__append"
-        }, [slots.append()]), hasClose && _createElementVNode$e("div", {
-          "key": "close",
-          "class": "v-alert__close"
-        }, [!slots.close ? _createVNode$g(VBtn, _mergeProps$b({
-          "key": "close-btn",
-          "icon": props.closeIcon,
-          "size": "x-small",
-          "variant": "text"
-        }, closeProps.value), null) : _createVNode$g(VDefaultsProvider, {
-          "key": "close-defaults",
-          "defaults": {
-            VBtn: {
-              icon: props.closeIcon,
-              size: 'x-small',
-              variant: 'text'
-            }
-          }
-        }, {
-          default: () => [slots.close?.({
-            props: closeProps.value
-          })]
-        })])]
-      });
-    };
-  }
-});
-
-const {computed: computed$f,inject: inject$5,markRaw,provide: provide$3,ref: ref$d,shallowRef: shallowRef$a,toRef: toRef$f,watch: watch$c} = await importShared('vue');
+const {computed: computed$f,inject: inject$5,markRaw,provide: provide$3,ref: ref$d,shallowRef: shallowRef$a,toRef: toRef$f,watch: watch$b} = await importShared('vue');
 const FormKey = Symbol.for('vuetify:form');
 const makeFormProps = propsFactory({
   disabled: Boolean,
@@ -514,7 +304,7 @@ function createForm(props) {
   function resetValidation() {
     items.value.forEach(item => item.resetValidation());
   }
-  watch$c(items, () => {
+  watch$b(items, () => {
     let valid = 0;
     let invalid = 0;
     const results = [];
@@ -691,7 +481,7 @@ function forwardRefs(target) {
   });
 }
 
-const {normalizeClass:_normalizeClass$b,normalizeStyle:_normalizeStyle$a,createElementVNode:_createElementVNode$d} = await importShared('vue');
+const {normalizeClass:_normalizeClass$b,normalizeStyle:_normalizeStyle$a,createElementVNode:_createElementVNode$e} = await importShared('vue');
 const {ref: ref$c} = await importShared('vue');
 const makeVFormProps = propsFactory({
   ...makeComponentProps(),
@@ -734,7 +524,7 @@ const VForm = genericComponent()({
       }
       e.preventDefault();
     }
-    useRender(() => _createElementVNode$d("form", {
+    useRender(() => _createElementVNode$e("form", {
       "ref": formRef,
       "class": _normalizeClass$b(['v-form', props.class]),
       "style": _normalizeStyle$a(props.style),
@@ -912,7 +702,7 @@ function getDimensions(target, el) {
   };
 }
 
-const {normalizeClass:_normalizeClass$a,normalizeStyle:_normalizeStyle$9,createElementVNode:_createElementVNode$c} = await importShared('vue');
+const {normalizeClass:_normalizeClass$a,normalizeStyle:_normalizeStyle$9,createElementVNode:_createElementVNode$d} = await importShared('vue');
 const makeVLabelProps = propsFactory({
   text: String,
   onClick: EventProp(),
@@ -926,7 +716,7 @@ const VLabel = genericComponent()({
     let {
       slots
     } = _ref;
-    useRender(() => _createElementVNode$c("label", {
+    useRender(() => _createElementVNode$d("label", {
       "class": _normalizeClass$a(['v-label', {
         'v-label--clickable': !!props.onClick
       }, props.class]),
@@ -937,7 +727,7 @@ const VLabel = genericComponent()({
   }
 });
 
-const {normalizeClass:_normalizeClass$9,normalizeStyle:_normalizeStyle$8,createElementVNode:_createElementVNode$b} = await importShared('vue');
+const {normalizeClass:_normalizeClass$9,normalizeStyle:_normalizeStyle$8,createElementVNode:_createElementVNode$c} = await importShared('vue');
 const {onScopeDispose: onScopeDispose$6,provide: provide$2,toRef: toRef$e,useId: useId$8} = await importShared('vue');
 const VSelectionControlGroupSymbol = Symbol.for('vuetify:selection-control-group');
 const makeSelectionControlGroupProps = propsFactory({
@@ -1025,7 +815,7 @@ genericComponent()({
         valueComparator: toRef$e(() => props.valueComparator)
       }
     });
-    useRender(() => _createElementVNode$b("div", {
+    useRender(() => _createElementVNode$c("div", {
       "class": _normalizeClass$9(['v-selection-control-group', {
         'v-selection-control-group--inline': props.inline
       }, props.class]),
@@ -1036,7 +826,7 @@ genericComponent()({
   }
 });
 
-const {mergeProps:_mergeProps$9,createElementVNode:_createElementVNode$a,Fragment:_Fragment$7,createVNode:_createVNode$e,normalizeClass:_normalizeClass$8,withDirectives:_withDirectives$4,normalizeStyle:_normalizeStyle$7} = await importShared('vue');
+const {mergeProps:_mergeProps$9,createElementVNode:_createElementVNode$b,Fragment:_Fragment$7,createVNode:_createVNode$e,normalizeClass:_normalizeClass$8,withDirectives:_withDirectives$4,normalizeStyle:_normalizeStyle$7} = await importShared('vue');
 const {computed: computed$e,inject: inject$4,nextTick: nextTick$7,ref: ref$b,shallowRef: shallowRef$9,toRef: toRef$d,useId: useId$7} = await importShared('vue');
 const makeVSelectionControlProps = propsFactory({
   label: String,
@@ -1176,7 +966,7 @@ const VSelectionControl = genericComponent()({
         }
       }) : props.label;
       const [rootAttrs, inputAttrs] = filterInputAttrs(attrs);
-      const inputNode = _createElementVNode$a("input", _mergeProps$9({
+      const inputNode = _createElementVNode$b("input", _mergeProps$9({
         "ref": input,
         "checked": model.value,
         "disabled": !!props.disabled,
@@ -1191,7 +981,7 @@ const VSelectionControl = genericComponent()({
         "name": props.name,
         "aria-checked": props.type === 'checkbox' ? model.value : undefined
       }, inputAttrs), null);
-      return _createElementVNode$a("div", _mergeProps$9({
+      return _createElementVNode$b("div", _mergeProps$9({
         "class": ['v-selection-control', {
           'v-selection-control--dirty': model.value,
           'v-selection-control--disabled': props.disabled,
@@ -1202,13 +992,13 @@ const VSelectionControl = genericComponent()({
         }, densityClasses.value, props.class]
       }, rootAttrs, {
         "style": props.style
-      }), [_createElementVNode$a("div", {
+      }), [_createElementVNode$b("div", {
         "class": _normalizeClass$8(['v-selection-control__wrapper', textColorClasses.value]),
         "style": _normalizeStyle$7(textColorStyles.value)
       }, [slots.default?.({
         backgroundColorClasses,
         backgroundColorStyles
-      }), _withDirectives$4(_createElementVNode$a("div", {
+      }), _withDirectives$4(_createElementVNode$b("div", {
         "class": _normalizeClass$8(['v-selection-control__input'])
       }, [slots.input?.({
         model,
@@ -1223,7 +1013,7 @@ const VSelectionControl = genericComponent()({
           onBlur,
           id: id.value
         }
-      }) ?? _createElementVNode$a(_Fragment$7, null, [icon.value && _createVNode$e(VIcon, {
+      }) ?? _createElementVNode$b(_Fragment$7, null, [icon.value && _createVNode$e(VIcon, {
         "key": "icon",
         "icon": icon.value
       }, null), inputNode])]), [[Ripple, !props.disabled && !props.readonly && props.ripple, null, {
@@ -1336,7 +1126,7 @@ function useInputIcon(props) {
   };
 }
 
-const {createElementVNode:_createElementVNode$9,normalizeClass:_normalizeClass$7,normalizeStyle:_normalizeStyle$6,createVNode:_createVNode$b} = await importShared('vue');
+const {createElementVNode:_createElementVNode$a,normalizeClass:_normalizeClass$7,normalizeStyle:_normalizeStyle$6,createVNode:_createVNode$b} = await importShared('vue');
 const {computed: computed$d} = await importShared('vue');
 const makeVMessagesProps = propsFactory({
   active: Boolean,
@@ -1372,7 +1162,7 @@ const VMessages = genericComponent()({
       "class": _normalizeClass$7(['v-messages', textColorClasses.value, props.class]),
       "style": _normalizeStyle$6([textColorStyles.value, props.style])
     }, {
-      default: () => [props.active && messages.value.map((message, i) => _createElementVNode$9("div", {
+      default: () => [props.active && messages.value.map((message, i) => _createElementVNode$a("div", {
         "class": "v-messages__message",
         "key": `${i}-${messages.value}`
       }, [slots.message ? slots.message({
@@ -1425,7 +1215,7 @@ function useRules(fn) {
   return rules?.resolve(fn) ?? toRef$a(fn);
 }
 
-const {computed: computed$b,nextTick: nextTick$6,onBeforeMount,onBeforeUnmount: onBeforeUnmount$2,onMounted: onMounted$2,ref: ref$a,shallowRef: shallowRef$8,unref,useId: useId$6,watch: watch$b} = await importShared('vue');
+const {computed: computed$b,nextTick: nextTick$6,onBeforeMount,onBeforeUnmount: onBeforeUnmount$2,onMounted: onMounted$2,ref: ref$a,shallowRef: shallowRef$8,unref,useId: useId$6,watch: watch$a} = await importShared('vue');
 const makeValidationProps = propsFactory({
   disabled: {
     type: Boolean,
@@ -1520,11 +1310,11 @@ function useValidation(props) {
     form.update?.(uid.value, isValid.value, errorMessages.value);
   });
   useToggleScope(() => validateOn.value.input || validateOn.value.invalidInput && isValid.value === false, () => {
-    watch$b(validationModel, () => {
+    watch$a(validationModel, () => {
       if (validationModel.value != null) {
         validate();
       } else if (props.focused) {
-        const unwatch = watch$b(() => props.focused, val => {
+        const unwatch = watch$a(() => props.focused, val => {
           if (!val) validate();
           unwatch();
         });
@@ -1532,11 +1322,11 @@ function useValidation(props) {
     });
   });
   useToggleScope(() => validateOn.value.blur, () => {
-    watch$b(() => props.focused, val => {
+    watch$a(() => props.focused, val => {
       if (!val) validate();
     });
   });
-  watch$b([isValid, errorMessages], () => {
+  watch$a([isValid, errorMessages], () => {
     form.update?.(uid.value, isValid.value, errorMessages.value);
   });
   async function reset() {
@@ -1590,7 +1380,7 @@ function useValidation(props) {
   };
 }
 
-const {createVNode:_createVNode$a,createElementVNode:_createElementVNode$8,normalizeClass:_normalizeClass$6,normalizeStyle:_normalizeStyle$5} = await importShared('vue');
+const {createVNode:_createVNode$a,createElementVNode:_createElementVNode$9,normalizeClass:_normalizeClass$6,normalizeStyle:_normalizeStyle$5} = await importShared('vue');
 const {computed: computed$a,toRef: toRef$9,useId: useId$5} = await importShared('vue');
 const makeVInputProps = propsFactory({
   id: String,
@@ -1705,7 +1495,7 @@ const VInput = genericComponent()({
     useRender(() => {
       const hasPrepend = !!(slots.prepend || props.prependIcon);
       const hasAppend = !!(slots.append || props.appendIcon);
-      return _createElementVNode$8("div", {
+      return _createElementVNode$9("div", {
         "class": _normalizeClass$6(['v-input', `v-input--${props.direction}`, {
           'v-input--center-affix': props.centerAffix,
           'v-input--focused': props.focused,
@@ -1713,23 +1503,23 @@ const VInput = genericComponent()({
           'v-input--hide-spin-buttons': props.hideSpinButtons
         }, densityClasses.value, themeClasses.value, rtlClasses.value, validationClasses.value, props.class]),
         "style": _normalizeStyle$5([dimensionStyles.value, props.style])
-      }, [hasPrepend && _createElementVNode$8("div", {
+      }, [hasPrepend && _createElementVNode$9("div", {
         "key": "prepend",
         "class": "v-input__prepend"
       }, [slots.prepend?.(slotProps.value), props.prependIcon && _createVNode$a(InputIcon, {
         "key": "prepend-icon",
         "name": "prepend",
         "color": iconColor.value
-      }, null)]), slots.default && _createElementVNode$8("div", {
+      }, null)]), slots.default && _createElementVNode$9("div", {
         "class": "v-input__control"
-      }, [slots.default?.(slotProps.value)]), hasAppend && _createElementVNode$8("div", {
+      }, [slots.default?.(slotProps.value)]), hasAppend && _createElementVNode$9("div", {
         "key": "append",
         "class": "v-input__append"
       }, [props.appendIcon && _createVNode$a(InputIcon, {
         "key": "append-icon",
         "name": "append",
         "color": iconColor.value
-      }, null), slots.append?.(slotProps.value)]), hasDetails.value && _createElementVNode$8("div", {
+      }, null), slots.append?.(slotProps.value)]), hasDetails.value && _createElementVNode$9("div", {
         "id": messagesId.value,
         "class": "v-input__details",
         "role": "alert",
@@ -1800,7 +1590,7 @@ function anchorToPoint(anchor, box) {
   }, box);
 }
 
-const {computed: computed$9,nextTick: nextTick$5,onScopeDispose: onScopeDispose$5,ref: ref$9,watch: watch$a} = await importShared('vue');
+const {computed: computed$9,nextTick: nextTick$5,onScopeDispose: onScopeDispose$5,ref: ref$9,watch: watch$9} = await importShared('vue');
 const locationStrategies = {
   static: staticLocationStrategy,
   // specific viewport position, usually centered
@@ -1828,7 +1618,7 @@ function useLocationStrategies(props, data) {
   const updateLocation = ref$9();
   if (IN_BROWSER) {
     useToggleScope(() => !!(data.isActive.value && props.locationStrategy), reset => {
-      watch$a(() => props.locationStrategy, reset);
+      watch$9(() => props.locationStrategy, reset);
       onScopeDispose$5(() => {
         window.removeEventListener('resize', onResize);
         visualViewport?.removeEventListener('resize', onVisualResize);
@@ -1977,7 +1767,7 @@ function connectedLocationStrategy(data, props, contentStyles) {
     width: 0,
     height: 0
   });
-  watch$a(data.target, (newTarget, oldTarget) => {
+  watch$9(data.target, (newTarget, oldTarget) => {
     if (oldTarget && !Array.isArray(oldTarget)) observer.unobserve(oldTarget);
     if (!Array.isArray(newTarget)) {
       if (newTarget) observer.observe(newTarget);
@@ -1987,7 +1777,7 @@ function connectedLocationStrategy(data, props, contentStyles) {
   }, {
     immediate: true
   });
-  watch$a(data.contentEl, (newContentEl, oldContentEl) => {
+  watch$9(data.contentEl, (newContentEl, oldContentEl) => {
     if (oldContentEl) observer.unobserve(oldContentEl);
     if (newContentEl) observer.observe(newContentEl);
   }, {
@@ -2196,7 +1986,7 @@ function connectedLocationStrategy(data, props, contentStyles) {
       flipped
     };
   }
-  watch$a(() => [preferredAnchor.value, preferredOrigin.value, props.offset, props.minWidth, props.minHeight, props.maxWidth, props.maxHeight], () => updateLocation());
+  watch$9(() => [preferredAnchor.value, preferredOrigin.value, props.offset, props.minWidth, props.minHeight, props.maxWidth, props.maxHeight], () => updateLocation());
   nextTick$5(() => {
     const result = updateLocation();
 
@@ -2421,7 +2211,7 @@ function useDelay(props, cb) {
   };
 }
 
-const {computed: computed$8,effectScope,inject: inject$2,mergeProps: mergeProps$3,nextTick: nextTick$4,onScopeDispose: onScopeDispose$3,ref: ref$8,watch: watch$9,watchEffect: watchEffect$2} = await importShared('vue');
+const {computed: computed$8,effectScope,inject: inject$2,mergeProps: mergeProps$3,nextTick: nextTick$4,onScopeDispose: onScopeDispose$3,ref: ref$8,watch: watch$8,watchEffect: watchEffect$2} = await importShared('vue');
 const makeActivatorProps = propsFactory({
   target: [String, Object],
   activator: [String, Object],
@@ -2565,12 +2355,12 @@ function useActivator(props, _ref) {
     }
     return events;
   });
-  watch$9(isTop, val => {
+  watch$8(isTop, val => {
     if (val && (props.openOnHover && !isHovered && (!openOnFocus.value || !isFocused) || openOnFocus.value && !isFocused && (!props.openOnHover || !isHovered)) && !contentEl.value?.contains(document.activeElement)) {
       isActive.value = false;
     }
   });
-  watch$9(isActive, val => {
+  watch$8(isActive, val => {
     if (!val) {
       setTimeout(() => {
         cursorTarget.value = undefined;
@@ -2596,7 +2386,7 @@ function useActivator(props, _ref) {
     return Array.isArray(target.value) ? undefined : target.value;
   });
   let scope;
-  watch$9(() => !!props.activator, val => {
+  watch$8(() => !!props.activator, val => {
     if (val && IN_BROWSER) {
       scope = effectScope();
       scope.run(() => {
@@ -2631,7 +2421,7 @@ function _useActivator(props, vm, _ref2) {
     activatorEl,
     activatorEvents
   } = _ref2;
-  watch$9(() => props.activator, (val, oldVal) => {
+  watch$8(() => props.activator, (val, oldVal) => {
     if (oldVal && val !== oldVal) {
       const activator = getActivator(oldVal);
       activator && unbindActivatorProps(activator);
@@ -2642,7 +2432,7 @@ function _useActivator(props, vm, _ref2) {
   }, {
     immediate: true
   });
-  watch$9(() => props.activatorProps, () => {
+  watch$8(() => props.activatorProps, () => {
     bindActivatorProps();
   });
   onScopeDispose$3(() => {
@@ -2709,14 +2499,14 @@ function useHydration() {
 }
 
 // Utilities
-const {shallowRef: shallowRef$6,toRef: toRef$8,watch: watch$8} = await importShared('vue');
+const {shallowRef: shallowRef$6,toRef: toRef$8,watch: watch$7} = await importShared('vue');
 const makeLazyProps = propsFactory({
   eager: Boolean
 }, 'lazy');
 function useLazy(props, active) {
   const isBooted = shallowRef$6(false);
   const hasContent = toRef$8(() => isBooted.value || props.eager || active.value);
-  watch$8(active, () => isBooted.value = true);
+  watch$7(active, () => isBooted.value = true);
   function onAfterLeave() {
     if (!props.eager) isBooted.value = false;
   }
@@ -2738,14 +2528,14 @@ function useScopeId() {
   };
 }
 
-const {inject: inject$1,onScopeDispose: onScopeDispose$2,provide: provide$1,reactive,readonly,shallowRef: shallowRef$5,toRaw,toRef: toRef$7,toValue: toValue$1,watchEffect: watchEffect$1} = await importShared('vue');
+const {inject: inject$1,onScopeDispose: onScopeDispose$2,provide: provide$1,reactive: reactive$1,readonly,shallowRef: shallowRef$5,toRaw,toRef: toRef$7,toValue: toValue$1,watchEffect: watchEffect$1} = await importShared('vue');
 const StackSymbol = Symbol.for('vuetify:stack');
-const globalStack = reactive([]);
+const globalStack = reactive$1([]);
 function useStack(isActive, zIndex, disableGlobalStack) {
   const vm = getCurrentInstance('useStack');
   const createStackEntry = !disableGlobalStack;
   const parent = inject$1(StackSymbol, undefined);
-  const stack = reactive({
+  const stack = reactive$1({
     activeChildren: new Set()
   });
   provide$1(StackSymbol, stack);
@@ -2896,8 +2686,8 @@ const ClickOutside = {
   }
 };
 
-const {mergeProps:_mergeProps$6,createElementVNode:_createElementVNode$7,createVNode:_createVNode$9,Fragment:_Fragment$6,vShow:_vShow$2,withDirectives:_withDirectives$3} = await importShared('vue');
-const {computed: computed$6,mergeProps: mergeProps$2,onBeforeUnmount: onBeforeUnmount$1,ref: ref$7,Teleport,Transition,watch: watch$7} = await importShared('vue');
+const {mergeProps:_mergeProps$6,createElementVNode:_createElementVNode$8,createVNode:_createVNode$9,Fragment:_Fragment$6,vShow:_vShow$2,withDirectives:_withDirectives$3} = await importShared('vue');
+const {computed: computed$6,mergeProps: mergeProps$2,onBeforeUnmount: onBeforeUnmount$1,ref: ref$7,Teleport,Transition,watch: watch$6} = await importShared('vue');
 function Scrim(props) {
   const {
     modelValue,
@@ -2908,7 +2698,7 @@ function Scrim(props) {
     "name": "fade-transition",
     "appear": true
   }, {
-    default: () => [props.modelValue && _createElementVNode$7("div", _mergeProps$6({
+    default: () => [props.modelValue && _createElementVNode$8("div", _mergeProps$6({
       "class": ['v-overlay__scrim', props.color.backgroundColorClasses.value],
       "style": props.color.backgroundColorStyles.value
     }, rest), null)]
@@ -3029,7 +2819,7 @@ const VOverlay = genericComponent()({
     const {
       scopeId
     } = useScopeId();
-    watch$7(() => props.disabled, v => {
+    watch$6(() => props.disabled, v => {
       if (v) isActive.value = false;
     });
     const {
@@ -3058,7 +2848,7 @@ const VOverlay = genericComponent()({
       // If using scrim, only close if clicking on it rather than anything opened on top
       !props.scrim || e.target === scrimEl.value || e instanceof MouseEvent && e.shadowTarget === scrimEl.value);
     }
-    IN_BROWSER && watch$7(isActive, val => {
+    IN_BROWSER && watch$6(isActive, val => {
       if (val) {
         window.addEventListener('keydown', onKeydown);
       } else {
@@ -3100,7 +2890,7 @@ const VOverlay = genericComponent()({
       });
     });
     const top = ref$7();
-    watch$7(() => isActive.value && (props.absolute || props.contained) && teleportTarget.value == null, val => {
+    watch$6(() => isActive.value && (props.absolute || props.contained) && teleportTarget.value == null, val => {
       if (val) {
         const scrollParent = getScrollParent(root.value);
         if (scrollParent && scrollParent !== document.scrollingElement) {
@@ -3130,7 +2920,7 @@ const VOverlay = genericComponent()({
       _onAfterLeave();
       emit('afterLeave');
     }
-    useRender(() => _createElementVNode$7(_Fragment$6, null, [slots.activator?.({
+    useRender(() => _createElementVNode$8(_Fragment$6, null, [slots.activator?.({
       isActive: isActive.value,
       targetRef,
       props: mergeProps$2({
@@ -3140,7 +2930,7 @@ const VOverlay = genericComponent()({
       "disabled": !teleportTarget.value,
       "to": teleportTarget.value
     }, {
-      default: () => [_createElementVNode$7("div", _mergeProps$6({
+      default: () => [_createElementVNode$8("div", _mergeProps$6({
         "class": ['v-overlay', {
           'v-overlay--absolute': props.absolute || props.contained,
           'v-overlay--active': isActive.value,
@@ -3164,7 +2954,7 @@ const VOverlay = genericComponent()({
         "onAfterEnter": onAfterEnter,
         "onAfterLeave": onAfterLeave
       }, {
-        default: () => [_withDirectives$3(_createElementVNode$7("div", _mergeProps$6({
+        default: () => [_withDirectives$3(_createElementVNode$8("div", _mergeProps$6({
           "ref": contentEl,
           "class": ['v-overlay__content', props.contentClass],
           "style": [dimensionStyles.value, contentStyles.value]
@@ -3192,7 +2982,7 @@ const VOverlay = genericComponent()({
 });
 
 const {createVNode:_createVNode$8,mergeProps:_mergeProps$5} = await importShared('vue');
-const {computed: computed$5,inject,mergeProps: mergeProps$1,nextTick: nextTick$3,onBeforeUnmount,onDeactivated,provide,ref: ref$6,shallowRef: shallowRef$4,toRef: toRef$6,useId: useId$4,watch: watch$6} = await importShared('vue');
+const {computed: computed$5,inject,mergeProps: mergeProps$1,nextTick: nextTick$3,onBeforeUnmount,onDeactivated,provide,ref: ref$6,shallowRef: shallowRef$4,toRef: toRef$6,useId: useId$4,watch: watch$5} = await importShared('vue');
 const makeVMenuProps = propsFactory({
   // TODO
   // disableKeys: Boolean,
@@ -3285,7 +3075,7 @@ const VMenu = genericComponent()({
         }
       }
     }
-    watch$6(isActive, val => {
+    watch$5(isActive, val => {
       if (val) {
         parent?.register();
         if (IN_BROWSER && !props.disableInitialFocus) {
@@ -3392,7 +3182,7 @@ const VMenu = genericComponent()({
   }
 });
 
-const {vShow:_vShow$1,normalizeClass:_normalizeClass$5,normalizeStyle:_normalizeStyle$4,createElementVNode:_createElementVNode$6,withDirectives:_withDirectives$2,createVNode:_createVNode$7} = await importShared('vue');
+const {vShow:_vShow$1,normalizeClass:_normalizeClass$5,normalizeStyle:_normalizeStyle$4,createElementVNode:_createElementVNode$7,withDirectives:_withDirectives$2,createVNode:_createVNode$7} = await importShared('vue');
 const {toRef: toRef$5} = await importShared('vue');
 const makeVCounterProps = propsFactory({
   active: Boolean,
@@ -3423,7 +3213,7 @@ const VCounter = genericComponent()({
     useRender(() => _createVNode$7(MaybeTransition, {
       "transition": props.transition
     }, {
-      default: () => [_withDirectives$2(_createElementVNode$6("div", {
+      default: () => [_withDirectives$2(_createElementVNode$7("div", {
         "class": _normalizeClass$5(['v-counter', {
           'text-error': props.max && !props.disabled && parseFloat(props.value) > parseFloat(props.max)
         }, props.class]),
@@ -3460,8 +3250,8 @@ const VFieldLabel = genericComponent()({
   }
 });
 
-const {createElementVNode:_createElementVNode$5,createVNode:_createVNode$5,normalizeClass:_normalizeClass$3,normalizeStyle:_normalizeStyle$2,vShow:_vShow,withDirectives:_withDirectives$1,Fragment:_Fragment$5,mergeProps:_mergeProps$4} = await importShared('vue');
-const {computed: computed$4,ref: ref$5,toRef: toRef$4,useId: useId$3,watch: watch$5} = await importShared('vue');
+const {createElementVNode:_createElementVNode$6,createVNode:_createVNode$5,normalizeClass:_normalizeClass$3,normalizeStyle:_normalizeStyle$2,vShow:_vShow,withDirectives:_withDirectives$1,Fragment:_Fragment$5,mergeProps:_mergeProps$4} = await importShared('vue');
+const {computed: computed$4,ref: ref$5,toRef: toRef$4,useId: useId$3,watch: watch$4} = await importShared('vue');
 const allowedVariants = ['underlined', 'outlined', 'filled', 'solo', 'solo-inverted', 'solo-filled', 'plain'];
 const makeVFieldProps = propsFactory({
   appendInnerIcon: IconValue,
@@ -3570,7 +3360,7 @@ const VField = genericComponent()({
       textColorClasses,
       textColorStyles
     } = useTextColor(color);
-    watch$5(isActive, val => {
+    watch$4(isActive, val => {
       if (hasFloatingLabel.value && !PREFERS_REDUCED_MOTION()) {
         const el = labelRef.value.$el;
         const targetEl = floatingLabelRef.value.$el;
@@ -3631,7 +3421,7 @@ const VField = genericComponent()({
           for: id.value
         }
       }) : props.label;
-      return _createElementVNode$5("div", _mergeProps$4({
+      return _createElementVNode$6("div", _mergeProps$4({
         "class": ['v-field', {
           'v-field--active': isActive.value,
           'v-field--appended': hasAppend,
@@ -3651,7 +3441,7 @@ const VField = genericComponent()({
         }, themeClasses.value, backgroundColorClasses.value, focusClasses.value, loaderClasses.value, roundedClasses.value, rtlClasses.value, props.class],
         "style": [backgroundColorStyles.value, props.style],
         "onClick": onClick
-      }, attrs), [_createElementVNode$5("div", {
+      }, attrs), [_createElementVNode$6("div", {
         "class": "v-field__overlay"
       }, null), _createVNode$5(LoaderSlot, {
         "name": "v-field",
@@ -3659,14 +3449,14 @@ const VField = genericComponent()({
         "color": props.error ? 'error' : typeof props.loading === 'string' ? props.loading : props.color
       }, {
         default: slots.loader
-      }), hasPrepend && _createElementVNode$5("div", {
+      }), hasPrepend && _createElementVNode$6("div", {
         "key": "prepend",
         "class": "v-field__prepend-inner"
       }, [props.prependInnerIcon && _createVNode$5(InputIcon, {
         "key": "prepend-icon",
         "name": "prependInner",
         "color": iconColor.value
-      }, null), slots['prepend-inner']?.(slotProps.value)]), _createElementVNode$5("div", {
+      }, null), slots['prepend-inner']?.(slotProps.value)]), _createElementVNode$6("div", {
         "class": "v-field__field",
         "data-no-activator": ""
       }, [['filled', 'solo', 'solo-inverted', 'solo-filled'].includes(props.variant) && hasFloatingLabel.value && _createVNode$5(VFieldLabel, {
@@ -3694,14 +3484,14 @@ const VField = genericComponent()({
         },
         focus,
         blur
-      }) ?? _createElementVNode$5("div", {
+      }) ?? _createElementVNode$6("div", {
         "id": id.value,
         "class": "v-field__input",
         "aria-describedby": messagesId.value
       }, null)]), hasClear && _createVNode$5(VExpandXTransition, {
         "key": "clear"
       }, {
-        default: () => [_withDirectives$1(_createElementVNode$5("div", {
+        default: () => [_withDirectives$1(_createElementVNode$6("div", {
           "class": "v-field__clearable",
           "onMousedown": e => {
             e.preventDefault();
@@ -3729,19 +3519,19 @@ const VField = genericComponent()({
             "tabindex": -1
           }, null)]
         })]), [[_vShow, props.dirty]])]
-      }), hasAppend && _createElementVNode$5("div", {
+      }), hasAppend && _createElementVNode$6("div", {
         "key": "append",
         "class": "v-field__append-inner"
       }, [slots['append-inner']?.(slotProps.value), props.appendInnerIcon && _createVNode$5(InputIcon, {
         "key": "append-icon",
         "name": "appendInner",
         "color": iconColor.value
-      }, null)]), _createElementVNode$5("div", {
+      }, null)]), _createElementVNode$6("div", {
         "class": _normalizeClass$3(['v-field__outline', textColorClasses.value]),
         "style": _normalizeStyle$2(textColorStyles.value)
-      }, [isOutlined && _createElementVNode$5(_Fragment$5, null, [_createElementVNode$5("div", {
+      }, [isOutlined && _createElementVNode$6(_Fragment$5, null, [_createElementVNode$6("div", {
         "class": "v-field__outline__start"
-      }, null), hasFloatingLabel.value && _createElementVNode$5("div", {
+      }, null), hasFloatingLabel.value && _createElementVNode$6("div", {
         "class": "v-field__outline__notch"
       }, [_createVNode$5(VFieldLabel, {
         "ref": floatingLabelRef,
@@ -3750,7 +3540,7 @@ const VField = genericComponent()({
         "aria-hidden": !isActive.value
       }, {
         default: () => [label()]
-      })]), _createElementVNode$5("div", {
+      })]), _createElementVNode$6("div", {
         "class": "v-field__outline__end"
       }, null)]), isPlainOrUnderlined.value && hasFloatingLabel.value && _createVNode$5(VFieldLabel, {
         "ref": floatingLabelRef,
@@ -3803,7 +3593,7 @@ function useAutofocus(props) {
   };
 }
 
-const {mergeProps:_mergeProps$3,createElementVNode:_createElementVNode$4,withDirectives:_withDirectives,Fragment:_Fragment$4,normalizeClass:_normalizeClass$2,createVNode:_createVNode$4} = await importShared('vue');
+const {mergeProps:_mergeProps$3,createElementVNode:_createElementVNode$5,withDirectives:_withDirectives,Fragment:_Fragment$4,normalizeClass:_normalizeClass$2,createVNode:_createVNode$4} = await importShared('vue');
 const {cloneVNode,computed: computed$3,nextTick: nextTick$2,ref: ref$4} = await importShared('vue');
 const activeTypes = ['color', 'file', 'time', 'date', 'datetime-local', 'week', 'month'];
 const makeVTextFieldProps = propsFactory({
@@ -3974,7 +3764,7 @@ const VTextField = genericComponent()({
                 },
                 controlRef
               } = _ref3;
-              const inputNode = _withDirectives(_createElementVNode$4("input", _mergeProps$3({
+              const inputNode = _withDirectives(_createElementVNode$5("input", _mergeProps$3({
                 "ref": val => inputRef.value = controlRef.value = val,
                 "value": model.value,
                 "onInput": onInput,
@@ -3994,24 +3784,24 @@ const VTextField = genericComponent()({
               }, null, {
                 once: true
               }]]);
-              return _createElementVNode$4(_Fragment$4, null, [props.prefix && _createElementVNode$4("span", {
+              return _createElementVNode$5(_Fragment$4, null, [props.prefix && _createElementVNode$5("span", {
                 "class": "v-text-field__prefix"
-              }, [_createElementVNode$4("span", {
+              }, [_createElementVNode$5("span", {
                 "class": "v-text-field__prefix__text"
-              }, [props.prefix])]), slots.default ? _createElementVNode$4("div", {
+              }, [props.prefix])]), slots.default ? _createElementVNode$5("div", {
                 "class": _normalizeClass$2(fieldClass),
                 "data-no-activator": ""
               }, [slots.default(), inputNode]) : cloneVNode(inputNode, {
                 class: fieldClass
-              }), props.suffix && _createElementVNode$4("span", {
+              }), props.suffix && _createElementVNode$5("span", {
                 "class": "v-text-field__suffix"
-              }, [_createElementVNode$4("span", {
+              }, [_createElementVNode$5("span", {
                 "class": "v-text-field__suffix__text"
               }, [props.suffix])])]);
             }
           });
         },
-        details: hasDetails ? slotProps => _createElementVNode$4(_Fragment$4, null, [slots.details?.(slotProps), hasCounter && _createElementVNode$4(_Fragment$4, null, [_createElementVNode$4("span", null, null), _createVNode$4(VCounter, {
+        details: hasDetails ? slotProps => _createElementVNode$5(_Fragment$4, null, [slots.details?.(slotProps), hasCounter && _createElementVNode$5(_Fragment$4, null, [_createElementVNode$5("span", null, null), _createVNode$4(VCounter, {
           "active": props.persistentCounter || isFocused.value,
           "value": counterValue.value,
           "max": max.value,
@@ -4023,8 +3813,8 @@ const VTextField = genericComponent()({
   }
 });
 
-const {Fragment:_Fragment$3,createElementVNode:_createElementVNode$3,mergeProps:_mergeProps$2} = await importShared('vue');
-const {watch: watch$4} = await importShared('vue');
+const {Fragment:_Fragment$3,createElementVNode:_createElementVNode$4,mergeProps:_mergeProps$2} = await importShared('vue');
+const {watch: watch$3} = await importShared('vue');
 const makeVVirtualScrollItemProps = propsFactory({
   renderless: Boolean,
   ...makeComponentProps()
@@ -4046,12 +3836,12 @@ const VVirtualScrollItem = genericComponent()({
       resizeRef,
       contentRect
     } = useResizeObserver(undefined, 'border');
-    watch$4(() => contentRect.value?.height, height => {
+    watch$3(() => contentRect.value?.height, height => {
       if (height != null) emit('update:height', height);
     });
-    useRender(() => props.renderless ? _createElementVNode$3(_Fragment$3, null, [slots.default?.({
+    useRender(() => props.renderless ? _createElementVNode$4(_Fragment$3, null, [slots.default?.({
       itemRef: resizeRef
-    })]) : _createElementVNode$3("div", _mergeProps$2({
+    })]) : _createElementVNode$4("div", _mergeProps$2({
       "ref": resizeRef,
       "class": ['v-virtual-scroll__item', props.class],
       "style": props.style
@@ -4059,7 +3849,7 @@ const VVirtualScrollItem = genericComponent()({
   }
 });
 
-const {computed: computed$2,nextTick: nextTick$1,onScopeDispose: onScopeDispose$1,ref: ref$3,shallowRef: shallowRef$2,watch: watch$3,watchEffect} = await importShared('vue');
+const {computed: computed$2,nextTick: nextTick$1,onScopeDispose: onScopeDispose$1,ref: ref$3,shallowRef: shallowRef$2,watch: watch$2,watchEffect} = await importShared('vue');
 const UP = -1;
 const DOWN = 1;
 
@@ -4133,7 +3923,7 @@ function useVirtual(props, items) {
     }
     updateTime.value = Math.max(updateTime.value, performance.now() - start);
   }, updateTime);
-  const unwatch = watch$3(hasInitialRender, v => {
+  const unwatch = watch$2(hasInitialRender, v => {
     if (!v) return;
     // First render is complete, update offsets and visible
     // items in case our assumed item height was incorrect
@@ -4177,7 +3967,7 @@ function useVirtual(props, items) {
   let lastScrollTop = 0;
   let scrollVelocity = 0;
   let lastScrollTime = 0;
-  watch$3(viewportHeight, (val, oldVal) => {
+  watch$2(viewportHeight, (val, oldVal) => {
     if (oldVal) {
       calculateVisibleItems();
       if (val < oldVal) {
@@ -4266,7 +4056,7 @@ function useVirtual(props, items) {
       };
     });
   });
-  watch$3(items, () => {
+  watch$2(items, () => {
     sizes = Array.from({
       length: items.value.length
     });
@@ -4319,7 +4109,7 @@ function binaryClosest(arr, val) {
   return target;
 }
 
-const {createVNode:_createVNode$3,Fragment:_Fragment$2,createElementVNode:_createElementVNode$2,normalizeClass:_normalizeClass$1,normalizeStyle:_normalizeStyle$1} = await importShared('vue');
+const {createVNode:_createVNode$3,Fragment:_Fragment$2,createElementVNode:_createElementVNode$3,normalizeClass:_normalizeClass$1,normalizeStyle:_normalizeStyle$1} = await importShared('vue');
 const {onMounted,onScopeDispose,toRef: toRef$2} = await importShared('vue');
 const makeVVirtualScrollProps = propsFactory({
   items: {
@@ -4388,24 +4178,24 @@ const VVirtualScroll = genericComponent()({
           ...slotProps
         })
       }));
-      return props.renderless ? _createElementVNode$2(_Fragment$2, null, [_createElementVNode$2("div", {
+      return props.renderless ? _createElementVNode$3(_Fragment$2, null, [_createElementVNode$3("div", {
         "ref": markerRef,
         "class": "v-virtual-scroll__spacer",
         "style": {
           paddingTop: convertToUnit(paddingTop.value)
         }
-      }, null), children, _createElementVNode$2("div", {
+      }, null), children, _createElementVNode$3("div", {
         "class": "v-virtual-scroll__spacer",
         "style": {
           paddingBottom: convertToUnit(paddingBottom.value)
         }
-      }, null)]) : _createElementVNode$2("div", {
+      }, null)]) : _createElementVNode$3("div", {
         "ref": containerRef,
         "class": _normalizeClass$1(['v-virtual-scroll', props.class]),
         "onScrollPassive": handleScroll,
         "onScrollend": handleScrollend,
         "style": _normalizeStyle$1([dimensionStyles.value, props.style])
-      }, [_createElementVNode$2("div", {
+      }, [_createElementVNode$3("div", {
         "ref": markerRef,
         "class": "v-virtual-scroll__container",
         "style": {
@@ -4422,7 +4212,7 @@ const VVirtualScroll = genericComponent()({
 });
 
 // Utilities
-const {shallowRef: shallowRef$1,watch: watch$2} = await importShared('vue');
+const {shallowRef: shallowRef$1,watch: watch$1} = await importShared('vue');
 
 
 // Types
@@ -4445,7 +4235,7 @@ function useScrolling(listRef, textFieldRef) {
     await new Promise(resolve => requestAnimationFrame(resolve));
     await new Promise(resolve => {
       if (isScrolling.value) {
-        const stop = watch$2(isScrolling, () => {
+        const stop = watch$1(isScrolling, () => {
           stop();
           resolve();
         });
@@ -4521,8 +4311,8 @@ function useMenuActivator(props, isOpen) {
   };
 }
 
-const {Fragment:_Fragment$1,createVNode:_createVNode$2,mergeProps:_mergeProps$1,createElementVNode:_createElementVNode$1,createTextVNode:_createTextVNode$1} = await importShared('vue');
-const {computed,mergeProps,nextTick,ref: ref$2,shallowRef,watch: watch$1} = await importShared('vue');
+const {Fragment:_Fragment$1,createVNode:_createVNode$2,mergeProps:_mergeProps$1,createElementVNode:_createElementVNode$2,createTextVNode:_createTextVNode$1} = await importShared('vue');
+const {computed,mergeProps,nextTick,ref: ref$2,shallowRef,watch} = await importShared('vue');
 const makeSelectProps = propsFactory({
   chips: Boolean,
   closableChips: Boolean,
@@ -4765,7 +4555,7 @@ const VSelect = genericComponent()({
         vTextFieldRef.value.value = '';
       }
     }
-    watch$1(menu, () => {
+    watch(menu, () => {
       if (!props.hideSelected && menu.value && model.value.length) {
         const index = displayItems.value.findIndex(item => model.value.some(s => (props.valueComparator || deepEqual)(s.value, item.value)));
         IN_BROWSER && !props.noAutoScroll && window.requestAnimationFrame(() => {
@@ -4773,7 +4563,7 @@ const VSelect = genericComponent()({
         });
       }
     });
-    watch$1(items, (newVal, oldVal) => {
+    watch(items, (newVal, oldVal) => {
       if (menu.value) return;
       if (isFocused.value && props.hideNoData && !oldVal.length && newVal.length) {
         menu.value = true;
@@ -4815,7 +4605,7 @@ const VSelect = genericComponent()({
         "title": ariaLabel.value
       }), {
         ...slots,
-        default: () => _createElementVNode$1(_Fragment$1, null, [_createVNode$2(VMenu, _mergeProps$1({
+        default: () => _createElementVNode$2(_Fragment$1, null, [_createVNode$2(VMenu, _mergeProps$1({
           "id": menuId.value,
           "ref": vMenuRef,
           "modelValue": menu.value,
@@ -4892,7 +4682,7 @@ const VSelect = genericComponent()({
                     let {
                       isSelected
                     } = _ref3;
-                    return _createElementVNode$1(_Fragment$1, null, [props.multiple && !props.hideSelected ? _createVNode$2(VCheckboxBtn, {
+                    return _createElementVNode$2(_Fragment$1, null, [props.multiple && !props.hideSelected ? _createVNode$2(VCheckboxBtn, {
                       "key": item.value,
                       "modelValue": isSelected,
                       "ripple": false,
@@ -4939,7 +4729,7 @@ const VSelect = genericComponent()({
             index
           })) : undefined;
           if (hasSlot && !slotContent) return undefined;
-          return _createElementVNode$1("div", {
+          return _createElementVNode$2("div", {
             "key": item.value,
             "class": "v-select__selection"
           }, [hasChips ? !slots.chip ? _createVNode$2(VChip, _mergeProps$1({
@@ -4959,9 +4749,9 @@ const VSelect = genericComponent()({
             }
           }, {
             default: () => [slotContent]
-          }) : slotContent ?? _createElementVNode$1("span", {
+          }) : slotContent ?? _createElementVNode$2("span", {
             "class": "v-select__selection-text"
-          }, [item.title, props.multiple && index < model.value.length - 1 && _createElementVNode$1("span", {
+          }, [item.title, props.multiple && index < model.value.length - 1 && _createElementVNode$2("span", {
             "class": "v-select__selection-comma"
           }, [_createTextVNode$1(",")])])]);
         })]),
@@ -4969,7 +4759,7 @@ const VSelect = genericComponent()({
           for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
             args[_key] = arguments[_key];
           }
-          return _createElementVNode$1(_Fragment$1, null, [slots['append-inner']?.(...args), props.menuIcon ? _createVNode$2(VIcon, {
+          return _createElementVNode$2(_Fragment$1, null, [slots['append-inner']?.(...args), props.menuIcon ? _createVNode$2(VIcon, {
             "class": "v-select__menu-icon",
             "color": vTextFieldRef.value?.fieldIconColor,
             "icon": props.menuIcon
@@ -4985,7 +4775,7 @@ const VSelect = genericComponent()({
   }
 });
 
-const {createElementVNode:_createElementVNode,normalizeClass:_normalizeClass,normalizeStyle:_normalizeStyle,Fragment:_Fragment,createVNode:_createVNode$1,mergeProps:_mergeProps} = await importShared('vue');
+const {createElementVNode:_createElementVNode$1,normalizeClass:_normalizeClass,normalizeStyle:_normalizeStyle,Fragment:_Fragment,createVNode:_createVNode$1,mergeProps:_mergeProps} = await importShared('vue');
 const {ref: ref$1,toRef,useId} = await importShared('vue');
 const makeVSwitchProps = propsFactory({
   indeterminate: Boolean,
@@ -5093,14 +4883,14 @@ const VSwitch = genericComponent()({
                 backgroundColorClasses,
                 backgroundColorStyles
               } = _ref3;
-              return _createElementVNode("div", {
+              return _createElementVNode$1("div", {
                 "class": _normalizeClass(['v-switch__track', !isForcedColorsModeActive ? backgroundColorClasses.value : undefined]),
                 "style": _normalizeStyle(backgroundColorStyles.value),
                 "onClick": onTrackClick
-              }, [slots['track-true'] && _createElementVNode("div", {
+              }, [slots['track-true'] && _createElementVNode$1("div", {
                 "key": "prepend",
                 "class": "v-switch__track-true"
-              }, [slots['track-true'](slotProps)]), slots['track-false'] && _createElementVNode("div", {
+              }, [slots['track-true'](slotProps)]), slots['track-false'] && _createElementVNode$1("div", {
                 "key": "append",
                 "class": "v-switch__track-false"
               }, [slots['track-false'](slotProps)])]);
@@ -5112,7 +4902,7 @@ const VSwitch = genericComponent()({
                 backgroundColorClasses,
                 backgroundColorStyles
               } = _ref4;
-              return _createElementVNode(_Fragment, null, [inputNode, _createElementVNode("div", {
+              return _createElementVNode$1(_Fragment, null, [inputNode, _createElementVNode$1("div", {
                 "class": _normalizeClass(['v-switch__thumb', {
                   'v-switch__thumb--filled': icon || props.loading
                 }, props.inset || isForcedColorsModeActive ? undefined : backgroundColorClasses.value]),
@@ -5157,10 +4947,24 @@ const VSwitch = genericComponent()({
   }
 });
 
-const {createVNode:_createVNode,withCtx:_withCtx,createTextVNode:_createTextVNode,openBlock:_openBlock,createBlock:_createBlock} = await importShared('vue');
+const {createVNode:_createVNode,createElementVNode:_createElementVNode,withCtx:_withCtx,createTextVNode:_createTextVNode,openBlock:_openBlock,createElementBlock:_createElementBlock} = await importShared('vue');
 
 
-const {ref,watch} = await importShared('vue');
+const _hoisted_1 = { class: "plugin-config" };
+const _hoisted_2 = { class: "setting-item d-flex align-center py-2" };
+const _hoisted_3 = { class: "setting-content flex-grow-1" };
+const _hoisted_4 = { class: "d-flex justify-space-between align-center" };
+const _hoisted_5 = { class: "setting-item d-flex align-center py-2" };
+const _hoisted_6 = { class: "setting-content flex-grow-1" };
+const _hoisted_7 = { class: "d-flex justify-space-between align-center" };
+const _hoisted_8 = { class: "setting-item d-flex align-center py-2" };
+const _hoisted_9 = { class: "setting-content flex-grow-1" };
+const _hoisted_10 = { class: "d-flex justify-space-between align-center" };
+const _hoisted_11 = { class: "setting-item d-flex align-center py-2" };
+const _hoisted_12 = { class: "setting-content flex-grow-1" };
+const _hoisted_13 = { class: "d-flex justify-space-between align-center" };
+
+const {ref,reactive} = await importShared('vue');
 
 
 
@@ -5180,7 +4984,12 @@ const _sfc_main = {
 
 const props = __props;
 
-const localConfig = ref({
+const form = ref(null);
+const isFormValid = ref(true);
+const testing = ref(false);
+const saving = ref(false);
+
+const localConfig = reactive({
   enable: false,
   notify: false,
   danmu_server_url: '',
@@ -5195,6 +5004,10 @@ const localConfig = ref({
   ...props.initialConfig
 });
 
+const initialConfigBackup = reactive({
+  ...props.initialConfig
+});
+
 const searchTypeItems = [
   { title: 'TMDB ID', value: 'tmdb' },
   { title: 'TVDB ID', value: 'tvdb' },
@@ -5204,26 +5017,21 @@ const searchTypeItems = [
   { title: '关键词', value: 'keyword' }
 ];
 
-const testing = ref(false);
-const saving = ref(false);
-
-const saveConfig = async () => {
-  try {
-    const response = await props.api.post('config', localConfig.value);
-    if (response.success) {
-      console.log('配置保存成功');
-    }
-  } catch (error) {
-    console.error('保存配置失败:', error);
-  }
-};
-
 const saveConfigManually = async () => {
+  if (!form.value) return
+  const validation = await form.value.validate();
+  if (!validation.valid) {
+    alert('请检查表单中的错误');
+    return
+  }
+
   saving.value = true;
   try {
-    const response = await props.api.post('config', localConfig.value);
+    const response = await props.api.post('config', localConfig);
     if (response.success) {
       alert('配置保存成功');
+      // 更新备份
+      Object.assign(initialConfigBackup, localConfig);
     } else {
       alert('配置保存失败: ' + (response.message || '未知错误'));
     }
@@ -5236,7 +5044,7 @@ const saveConfigManually = async () => {
 };
 
 const testConnection = async () => {
-  if (!localConfig.value.danmu_server_url || !localConfig.value.external_api_key) {
+  if (!localConfig.danmu_server_url || !localConfig.external_api_key) {
     alert('请先填写弹幕库服务器地址和API密钥');
     return
   }
@@ -5257,322 +5065,528 @@ const testConnection = async () => {
   }
 };
 
+const resetConfig = () => {
+  Object.assign(localConfig, initialConfigBackup);
+  if (form.value) form.value.resetValidation();
+  alert('配置已重置');
+};
+
 return (_ctx, _cache) => {
-                                                           
-                                                     
-                                                     
-                                                             
+                                                       
                                                                    
                                                            
-                                                         
                                                      
+                                                     
+                                                                 
                                                        
+                                                                   
+                                                           
+                                                       
+                                                             
+                                                     
+                                                           
+                                                                       
 
-  return (_openBlock(), _createBlock(VForm, null, {
-    default: _withCtx(() => [
-      _createVNode(VRow, null, {
-        default: _withCtx(() => [
-          _createVNode(VCol, {
-            cols: "12",
-            md: "4"
-          }, {
-            default: _withCtx(() => [
-              _createVNode(VSwitch, {
-                modelValue: localConfig.value.enable,
-                "onUpdate:modelValue": [
-                  _cache[0] || (_cache[0] = $event => ((localConfig.value.enable) = $event)),
-                  saveConfig
-                ],
-                label: "启用插件",
-                color: "primary"
-              }, null, 8, ["modelValue"])
-            ]),
-            _: 1
-          }),
-          _createVNode(VCol, {
-            cols: "12",
-            md: "4"
-          }, {
-            default: _withCtx(() => [
-              _createVNode(VSwitch, {
-                modelValue: localConfig.value.notify,
-                "onUpdate:modelValue": [
-                  _cache[1] || (_cache[1] = $event => ((localConfig.value.notify) = $event)),
-                  saveConfig
-                ],
-                label: "发送通知",
-                color: "primary"
-              }, null, 8, ["modelValue"])
-            ]),
-            _: 1
-          }),
-          _createVNode(VCol, {
-            cols: "12",
-            md: "4"
-          }, {
-            default: _withCtx(() => [
-              _createVNode(VSwitch, {
-                modelValue: localConfig.value.only_anime,
-                "onUpdate:modelValue": [
-                  _cache[2] || (_cache[2] = $event => ((localConfig.value.only_anime) = $event)),
-                  saveConfig
-                ],
-                label: "仅处理动漫",
-                color: "primary"
-              }, null, 8, ["modelValue"])
-            ]),
-            _: 1
-          })
-        ]),
-        _: 1
-      }),
-      _createVNode(VRow, null, {
-        default: _withCtx(() => [
-          _createVNode(VCol, { cols: "12" }, {
-            default: _withCtx(() => [
-              _createVNode(VDivider)
-            ]),
-            _: 1
-          })
-        ]),
-        _: 1
-      }),
-      _createVNode(VRow, null, {
-        default: _withCtx(() => [
-          _createVNode(VCol, {
-            cols: "12",
-            md: "6"
-          }, {
-            default: _withCtx(() => [
-              _createVNode(VTextField, {
-                modelValue: localConfig.value.danmu_server_url,
-                "onUpdate:modelValue": _cache[3] || (_cache[3] = $event => ((localConfig.value.danmu_server_url) = $event)),
-                label: "弹幕库服务器地址",
-                placeholder: "http://localhost:3000",
-                hint: "弹幕库服务器的完整URL地址",
-                onBlur: saveConfig
-              }, null, 8, ["modelValue"])
-            ]),
-            _: 1
-          }),
-          _createVNode(VCol, {
-            cols: "12",
-            md: "6"
-          }, {
-            default: _withCtx(() => [
-              _createVNode(VTextField, {
-                modelValue: localConfig.value.external_api_key,
-                "onUpdate:modelValue": _cache[4] || (_cache[4] = $event => ((localConfig.value.external_api_key) = $event)),
-                label: "外部控制API密钥",
-                placeholder: "请输入API Key",
-                type: "password",
-                hint: "在弹幕库设置中获取外部控制API密钥",
-                onBlur: saveConfig
-              }, null, 8, ["modelValue"])
-            ]),
-            _: 1
-          })
-        ]),
-        _: 1
-      }),
-      _createVNode(VRow, null, {
-        default: _withCtx(() => [
-          _createVNode(VCol, { cols: "12" }, {
-            default: _withCtx(() => [
-              _createVNode(VDivider)
-            ]),
-            _: 1
-          })
-        ]),
-        _: 1
-      }),
-      _createVNode(VRow, null, {
-        default: _withCtx(() => [
-          _createVNode(VCol, {
-            cols: "12",
-            md: "4"
-          }, {
-            default: _withCtx(() => [
-              _createVNode(VTextField, {
-                modelValue: localConfig.value.cron,
-                "onUpdate:modelValue": _cache[5] || (_cache[5] = $event => ((localConfig.value.cron) = $event)),
-                label: "定时任务Cron表达式",
-                placeholder: "*/5 * * * *",
-                hint: "定时处理队列的Cron表达式,默认每5分钟",
-                onBlur: saveConfig
-              }, null, 8, ["modelValue"])
-            ]),
-            _: 1
-          }),
-          _createVNode(VCol, {
-            cols: "12",
-            md: "4"
-          }, {
-            default: _withCtx(() => [
-              _createVNode(VTextField, {
-                modelValue: localConfig.value.delay_seconds,
-                "onUpdate:modelValue": _cache[6] || (_cache[6] = $event => ((localConfig.value.delay_seconds) = $event)),
-                modelModifiers: { number: true },
-                label: "延时导入(秒)",
-                type: "number",
-                placeholder: "0",
-                hint: "媒体下载完成后延时多少秒再导入,默认0秒",
-                onBlur: saveConfig
-              }, null, 8, ["modelValue"])
-            ]),
-            _: 1
-          }),
-          _createVNode(VCol, {
-            cols: "12",
-            md: "4"
-          }, {
-            default: _withCtx(() => [
-              _createVNode(VTextField, {
-                modelValue: localConfig.value.max_queue_size,
-                "onUpdate:modelValue": _cache[7] || (_cache[7] = $event => ((localConfig.value.max_queue_size) = $event)),
-                modelModifiers: { number: true },
-                label: "最大队列长度",
-                type: "number",
-                placeholder: "100",
-                hint: "任务队列最大长度,超过将拒绝新任务",
-                onBlur: saveConfig
-              }, null, 8, ["modelValue"])
-            ]),
-            _: 1
-          })
-        ]),
-        _: 1
-      }),
-      _createVNode(VRow, null, {
-        default: _withCtx(() => [
-          _createVNode(VCol, { cols: "12" }, {
-            default: _withCtx(() => [
-              _createVNode(VDivider)
-            ]),
-            _: 1
-          })
-        ]),
-        _: 1
-      }),
-      _createVNode(VRow, null, {
-        default: _withCtx(() => [
-          _createVNode(VCol, {
-            cols: "12",
-            md: "4"
-          }, {
-            default: _withCtx(() => [
-              _createVNode(VSelect, {
-                modelValue: localConfig.value.search_type,
-                "onUpdate:modelValue": [
-                  _cache[8] || (_cache[8] = $event => ((localConfig.value.search_type) = $event)),
-                  saveConfig
-                ],
-                label: "搜索类型",
-                items: searchTypeItems,
-                hint: "推送到弹幕库时使用的搜索类型",
-                "menu-props": { zIndex: 9999 }
-              }, null, 8, ["modelValue"])
-            ]),
-            _: 1
-          }),
-          _createVNode(VCol, {
-            cols: "12",
-            md: "4"
-          }, {
-            default: _withCtx(() => [
-              _createVNode(VSwitch, {
-                modelValue: localConfig.value.auto_retry,
-                "onUpdate:modelValue": [
-                  _cache[9] || (_cache[9] = $event => ((localConfig.value.auto_retry) = $event)),
-                  saveConfig
-                ],
-                label: "失败自动重试",
-                color: "primary"
-              }, null, 8, ["modelValue"])
-            ]),
-            _: 1
-          }),
-          _createVNode(VCol, {
-            cols: "12",
-            md: "4"
-          }, {
-            default: _withCtx(() => [
-              _createVNode(VTextField, {
-                modelValue: localConfig.value.retry_count,
-                "onUpdate:modelValue": _cache[10] || (_cache[10] = $event => ((localConfig.value.retry_count) = $event)),
-                modelModifiers: { number: true },
-                label: "重试次数",
-                type: "number",
-                placeholder: "3",
-                hint: "失败后最多重试次数",
-                disabled: !localConfig.value.auto_retry,
-                onBlur: saveConfig
-              }, null, 8, ["modelValue", "disabled"])
-            ]),
-            _: 1
-          })
-        ]),
-        _: 1
-      }),
-      _createVNode(VRow, null, {
-        default: _withCtx(() => [
-          _createVNode(VCol, { cols: "12" }, {
-            default: _withCtx(() => [
-              _createVNode(VAlert, {
-                type: "info",
-                variant: "tonal"
-              }, {
-                default: _withCtx(() => [...(_cache[11] || (_cache[11] = [
-                  _createTextVNode(" 插件会在媒体下载完成后自动将任务添加到队列,由定时任务处理。支持延时导入、失败重试等功能。 ", -1)
-                ]))]),
-                _: 1
-              })
-            ]),
-            _: 1
-          })
-        ]),
-        _: 1
-      }),
-      _createVNode(VRow, { class: "mt-4" }, {
-        default: _withCtx(() => [
-          _createVNode(VCol, {
-            cols: "12",
-            class: "d-flex justify-end"
-          }, {
-            default: _withCtx(() => [
-              _createVNode(VBtn, {
-                variant: "outlined",
-                class: "mr-2",
-                onClick: testConnection,
-                loading: testing.value
-              }, {
-                default: _withCtx(() => [...(_cache[12] || (_cache[12] = [
-                  _createTextVNode(" 测试连接 ", -1)
-                ]))]),
-                _: 1
-              }, 8, ["loading"]),
-              _createVNode(VBtn, {
-                color: "primary",
-                onClick: saveConfigManually,
-                loading: saving.value
-              }, {
-                default: _withCtx(() => [...(_cache[13] || (_cache[13] = [
-                  _createTextVNode(" 保存配置 ", -1)
-                ]))]),
-                _: 1
-              }, 8, ["loading"])
-            ]),
-            _: 1
-          })
-        ]),
-        _: 1
-      })
-    ]),
-    _: 1
-  }))
+  return (_openBlock(), _createElementBlock("div", _hoisted_1, [
+    _createVNode(VCard, {
+      flat: "",
+      class: "rounded border"
+    }, {
+      default: _withCtx(() => [
+        _createVNode(VCardTitle, { class: "text-caption d-flex align-center px-3 py-2 bg-primary-lighten-5" }, {
+          default: _withCtx(() => [
+            _createVNode(VIcon, {
+              icon: "mdi-cog",
+              class: "mr-2",
+              color: "primary",
+              size: "small"
+            }),
+            _cache[12] || (_cache[12] = _createElementVNode("span", null, "弹幕库自动导入配置", -1))
+          ]),
+          _: 1
+        }),
+        _createVNode(VCardText, { class: "px-3 py-2" }, {
+          default: _withCtx(() => [
+            _createVNode(VForm, {
+              ref_key: "form",
+              ref: form,
+              modelValue: isFormValid.value,
+              "onUpdate:modelValue": _cache[11] || (_cache[11] = $event => ((isFormValid).value = $event))
+            }, {
+              default: _withCtx(() => [
+                _createVNode(VCard, {
+                  flat: "",
+                  class: "rounded mb-3 border config-card"
+                }, {
+                  default: _withCtx(() => [
+                    _createVNode(VCardTitle, { class: "text-caption d-flex align-center px-3 py-2 bg-primary-lighten-5" }, {
+                      default: _withCtx(() => [
+                        _createVNode(VIcon, {
+                          icon: "mdi-tune",
+                          class: "mr-2",
+                          color: "primary",
+                          size: "small"
+                        }),
+                        _cache[13] || (_cache[13] = _createElementVNode("span", null, "基本设置", -1))
+                      ]),
+                      _: 1
+                    }),
+                    _createVNode(VCardText, { class: "px-3 py-2" }, {
+                      default: _withCtx(() => [
+                        _createVNode(VRow, null, {
+                          default: _withCtx(() => [
+                            _createVNode(VCol, {
+                              cols: "12",
+                              md: "4"
+                            }, {
+                              default: _withCtx(() => [
+                                _createElementVNode("div", _hoisted_2, [
+                                  _createVNode(VIcon, {
+                                    icon: "mdi-power",
+                                    size: "small",
+                                    color: localConfig.enable ? 'success' : 'grey',
+                                    class: "mr-3"
+                                  }, null, 8, ["color"]),
+                                  _createElementVNode("div", _hoisted_3, [
+                                    _createElementVNode("div", _hoisted_4, [
+                                      _cache[14] || (_cache[14] = _createElementVNode("div", null, [
+                                        _createElementVNode("div", { class: "text-subtitle-2" }, "启用插件"),
+                                        _createElementVNode("div", { class: "text-caption text-grey" }, "是否启用弹幕自动导入")
+                                      ], -1)),
+                                      _createVNode(VSwitch, {
+                                        modelValue: localConfig.enable,
+                                        "onUpdate:modelValue": _cache[0] || (_cache[0] = $event => ((localConfig.enable) = $event)),
+                                        color: "primary",
+                                        inset: "",
+                                        density: "compact",
+                                        "hide-details": "",
+                                        class: "small-switch"
+                                      }, null, 8, ["modelValue"])
+                                    ])
+                                  ])
+                                ])
+                              ]),
+                              _: 1
+                            }),
+                            _createVNode(VCol, {
+                              cols: "12",
+                              md: "4"
+                            }, {
+                              default: _withCtx(() => [
+                                _createElementVNode("div", _hoisted_5, [
+                                  _createVNode(VIcon, {
+                                    icon: "mdi-bell",
+                                    size: "small",
+                                    color: localConfig.notify ? 'info' : 'grey',
+                                    class: "mr-3"
+                                  }, null, 8, ["color"]),
+                                  _createElementVNode("div", _hoisted_6, [
+                                    _createElementVNode("div", _hoisted_7, [
+                                      _cache[15] || (_cache[15] = _createElementVNode("div", null, [
+                                        _createElementVNode("div", { class: "text-subtitle-2" }, "启用通知"),
+                                        _createElementVNode("div", { class: "text-caption text-grey" }, "导入完成后发送通知")
+                                      ], -1)),
+                                      _createVNode(VSwitch, {
+                                        modelValue: localConfig.notify,
+                                        "onUpdate:modelValue": _cache[1] || (_cache[1] = $event => ((localConfig.notify) = $event)),
+                                        color: "info",
+                                        inset: "",
+                                        density: "compact",
+                                        "hide-details": "",
+                                        class: "small-switch"
+                                      }, null, 8, ["modelValue"])
+                                    ])
+                                  ])
+                                ])
+                              ]),
+                              _: 1
+                            }),
+                            _createVNode(VCol, {
+                              cols: "12",
+                              md: "4"
+                            }, {
+                              default: _withCtx(() => [
+                                _createElementVNode("div", _hoisted_8, [
+                                  _createVNode(VIcon, {
+                                    icon: "mdi-animation",
+                                    size: "small",
+                                    color: localConfig.only_anime ? 'primary' : 'grey',
+                                    class: "mr-3"
+                                  }, null, 8, ["color"]),
+                                  _createElementVNode("div", _hoisted_9, [
+                                    _createElementVNode("div", _hoisted_10, [
+                                      _cache[16] || (_cache[16] = _createElementVNode("div", null, [
+                                        _createElementVNode("div", { class: "text-subtitle-2" }, "仅处理动漫"),
+                                        _createElementVNode("div", { class: "text-caption text-grey" }, "只处理动漫类型媒体")
+                                      ], -1)),
+                                      _createVNode(VSwitch, {
+                                        modelValue: localConfig.only_anime,
+                                        "onUpdate:modelValue": _cache[2] || (_cache[2] = $event => ((localConfig.only_anime) = $event)),
+                                        color: "primary",
+                                        inset: "",
+                                        density: "compact",
+                                        "hide-details": "",
+                                        class: "small-switch"
+                                      }, null, 8, ["modelValue"])
+                                    ])
+                                  ])
+                                ])
+                              ]),
+                              _: 1
+                            })
+                          ]),
+                          _: 1
+                        })
+                      ]),
+                      _: 1
+                    })
+                  ]),
+                  _: 1
+                }),
+                _createVNode(VCard, {
+                  flat: "",
+                  class: "rounded mb-3 border config-card"
+                }, {
+                  default: _withCtx(() => [
+                    _createVNode(VCardTitle, { class: "text-caption d-flex align-center px-3 py-2 bg-primary-lighten-5" }, {
+                      default: _withCtx(() => [
+                        _createVNode(VIcon, {
+                          icon: "mdi-server",
+                          class: "mr-2",
+                          color: "primary",
+                          size: "small"
+                        }),
+                        _cache[17] || (_cache[17] = _createElementVNode("span", null, "服务器设置", -1))
+                      ]),
+                      _: 1
+                    }),
+                    _createVNode(VCardText, { class: "px-3 py-2" }, {
+                      default: _withCtx(() => [
+                        _createVNode(VRow, null, {
+                          default: _withCtx(() => [
+                            _createVNode(VCol, {
+                              cols: "12",
+                              md: "6"
+                            }, {
+                              default: _withCtx(() => [
+                                _createVNode(VTextField, {
+                                  modelValue: localConfig.danmu_server_url,
+                                  "onUpdate:modelValue": _cache[3] || (_cache[3] = $event => ((localConfig.danmu_server_url) = $event)),
+                                  label: "弹幕库服务器地址",
+                                  placeholder: "http://localhost:3000",
+                                  hint: "弹幕库服务器的完整URL地址",
+                                  "persistent-hint": "",
+                                  variant: "outlined",
+                                  density: "compact",
+                                  class: "text-caption"
+                                }, null, 8, ["modelValue"])
+                              ]),
+                              _: 1
+                            }),
+                            _createVNode(VCol, {
+                              cols: "12",
+                              md: "6"
+                            }, {
+                              default: _withCtx(() => [
+                                _createVNode(VTextField, {
+                                  modelValue: localConfig.external_api_key,
+                                  "onUpdate:modelValue": _cache[4] || (_cache[4] = $event => ((localConfig.external_api_key) = $event)),
+                                  label: "外部控制API密钥",
+                                  placeholder: "请输入API Key",
+                                  type: "password",
+                                  hint: "在弹幕库设置中获取外部控制API密钥",
+                                  "persistent-hint": "",
+                                  variant: "outlined",
+                                  density: "compact",
+                                  class: "text-caption"
+                                }, null, 8, ["modelValue"])
+                              ]),
+                              _: 1
+                            })
+                          ]),
+                          _: 1
+                        })
+                      ]),
+                      _: 1
+                    })
+                  ]),
+                  _: 1
+                }),
+                _createVNode(VCard, {
+                  flat: "",
+                  class: "rounded mb-3 border config-card"
+                }, {
+                  default: _withCtx(() => [
+                    _createVNode(VCardTitle, { class: "text-caption d-flex align-center px-3 py-2 bg-primary-lighten-5" }, {
+                      default: _withCtx(() => [
+                        _createVNode(VIcon, {
+                          icon: "mdi-clock-time-five",
+                          class: "mr-2",
+                          color: "primary",
+                          size: "small"
+                        }),
+                        _cache[18] || (_cache[18] = _createElementVNode("span", null, "任务设置", -1))
+                      ]),
+                      _: 1
+                    }),
+                    _createVNode(VCardText, { class: "px-3 py-2" }, {
+                      default: _withCtx(() => [
+                        _createVNode(VRow, null, {
+                          default: _withCtx(() => [
+                            _createVNode(VCol, {
+                              cols: "12",
+                              md: "4"
+                            }, {
+                              default: _withCtx(() => [
+                                _createVNode(VTextField, {
+                                  modelValue: localConfig.cron,
+                                  "onUpdate:modelValue": _cache[5] || (_cache[5] = $event => ((localConfig.cron) = $event)),
+                                  label: "定时任务Cron表达式",
+                                  placeholder: "*/5 * * * *",
+                                  hint: "定时处理队列的Cron表达式",
+                                  "persistent-hint": "",
+                                  variant: "outlined",
+                                  density: "compact",
+                                  class: "text-caption"
+                                }, null, 8, ["modelValue"])
+                              ]),
+                              _: 1
+                            }),
+                            _createVNode(VCol, {
+                              cols: "12",
+                              md: "4"
+                            }, {
+                              default: _withCtx(() => [
+                                _createVNode(VTextField, {
+                                  modelValue: localConfig.delay_seconds,
+                                  "onUpdate:modelValue": _cache[6] || (_cache[6] = $event => ((localConfig.delay_seconds) = $event)),
+                                  modelModifiers: { number: true },
+                                  label: "延时导入(秒)",
+                                  type: "number",
+                                  placeholder: "0",
+                                  hint: "媒体下载完成后延时秒数",
+                                  "persistent-hint": "",
+                                  variant: "outlined",
+                                  density: "compact",
+                                  class: "text-caption"
+                                }, null, 8, ["modelValue"])
+                              ]),
+                              _: 1
+                            }),
+                            _createVNode(VCol, {
+                              cols: "12",
+                              md: "4"
+                            }, {
+                              default: _withCtx(() => [
+                                _createVNode(VTextField, {
+                                  modelValue: localConfig.max_queue_size,
+                                  "onUpdate:modelValue": _cache[7] || (_cache[7] = $event => ((localConfig.max_queue_size) = $event)),
+                                  modelModifiers: { number: true },
+                                  label: "最大队列长度",
+                                  type: "number",
+                                  placeholder: "100",
+                                  hint: "任务队列最大长度",
+                                  "persistent-hint": "",
+                                  variant: "outlined",
+                                  density: "compact",
+                                  class: "text-caption"
+                                }, null, 8, ["modelValue"])
+                              ]),
+                              _: 1
+                            })
+                          ]),
+                          _: 1
+                        })
+                      ]),
+                      _: 1
+                    })
+                  ]),
+                  _: 1
+                }),
+                _createVNode(VCard, {
+                  flat: "",
+                  class: "rounded mb-3 border config-card"
+                }, {
+                  default: _withCtx(() => [
+                    _createVNode(VCardTitle, { class: "text-caption d-flex align-center px-3 py-2 bg-primary-lighten-5" }, {
+                      default: _withCtx(() => [
+                        _createVNode(VIcon, {
+                          icon: "mdi-filter-settings",
+                          class: "mr-2",
+                          color: "primary",
+                          size: "small"
+                        }),
+                        _cache[19] || (_cache[19] = _createElementVNode("span", null, "高级设置", -1))
+                      ]),
+                      _: 1
+                    }),
+                    _createVNode(VCardText, { class: "px-3 py-2" }, {
+                      default: _withCtx(() => [
+                        _createVNode(VRow, null, {
+                          default: _withCtx(() => [
+                            _createVNode(VCol, {
+                              cols: "12",
+                              md: "4"
+                            }, {
+                              default: _withCtx(() => [
+                                _createVNode(VSelect, {
+                                  modelValue: localConfig.search_type,
+                                  "onUpdate:modelValue": _cache[8] || (_cache[8] = $event => ((localConfig.search_type) = $event)),
+                                  label: "搜索类型",
+                                  items: searchTypeItems,
+                                  hint: "推送到弹幕库时使用的搜索类型",
+                                  "persistent-hint": "",
+                                  variant: "outlined",
+                                  density: "compact",
+                                  class: "text-caption",
+                                  "menu-props": { zIndex: 9999 }
+                                }, null, 8, ["modelValue"])
+                              ]),
+                              _: 1
+                            }),
+                            _createVNode(VCol, {
+                              cols: "12",
+                              md: "4"
+                            }, {
+                              default: _withCtx(() => [
+                                _createElementVNode("div", _hoisted_11, [
+                                  _createVNode(VIcon, {
+                                    icon: "mdi-refresh",
+                                    size: "small",
+                                    color: localConfig.auto_retry ? 'warning' : 'grey',
+                                    class: "mr-3"
+                                  }, null, 8, ["color"]),
+                                  _createElementVNode("div", _hoisted_12, [
+                                    _createElementVNode("div", _hoisted_13, [
+                                      _cache[20] || (_cache[20] = _createElementVNode("div", null, [
+                                        _createElementVNode("div", { class: "text-subtitle-2" }, "失败自动重试"),
+                                        _createElementVNode("div", { class: "text-caption text-grey" }, "导入失败后自动重试")
+                                      ], -1)),
+                                      _createVNode(VSwitch, {
+                                        modelValue: localConfig.auto_retry,
+                                        "onUpdate:modelValue": _cache[9] || (_cache[9] = $event => ((localConfig.auto_retry) = $event)),
+                                        color: "warning",
+                                        inset: "",
+                                        density: "compact",
+                                        "hide-details": "",
+                                        class: "small-switch"
+                                      }, null, 8, ["modelValue"])
+                                    ])
+                                  ])
+                                ])
+                              ]),
+                              _: 1
+                            }),
+                            _createVNode(VCol, {
+                              cols: "12",
+                              md: "4"
+                            }, {
+                              default: _withCtx(() => [
+                                _createVNode(VTextField, {
+                                  modelValue: localConfig.retry_count,
+                                  "onUpdate:modelValue": _cache[10] || (_cache[10] = $event => ((localConfig.retry_count) = $event)),
+                                  modelModifiers: { number: true },
+                                  label: "重试次数",
+                                  type: "number",
+                                  placeholder: "3",
+                                  hint: "失败后最多重试次数",
+                                  "persistent-hint": "",
+                                  disabled: !localConfig.auto_retry,
+                                  variant: "outlined",
+                                  density: "compact",
+                                  class: "text-caption"
+                                }, null, 8, ["modelValue", "disabled"])
+                              ]),
+                              _: 1
+                            })
+                          ]),
+                          _: 1
+                        })
+                      ]),
+                      _: 1
+                    })
+                  ]),
+                  _: 1
+                }),
+                _createVNode(VCard, {
+                  flat: "",
+                  class: "rounded mb-3 border config-card"
+                }, {
+                  default: _withCtx(() => [
+                    _createVNode(VCardText, { class: "d-flex align-center px-3 py-2" }, {
+                      default: _withCtx(() => [
+                        _createVNode(VIcon, {
+                          icon: "mdi-information",
+                          color: "info",
+                          class: "mr-2",
+                          size: "small"
+                        }),
+                        _cache[21] || (_cache[21] = _createElementVNode("span", { class: "text-caption" }, " 插件会在媒体下载完成后自动将任务添加到队列,由定时任务处理。支持延时导入、失败重试等功能。 ", -1))
+                      ]),
+                      _: 1
+                    })
+                  ]),
+                  _: 1
+                })
+              ]),
+              _: 1
+            }, 8, ["modelValue"])
+          ]),
+          _: 1
+        }),
+        _createVNode(VDivider),
+        _createVNode(VCardActions, { class: "px-2 py-1" }, {
+          default: _withCtx(() => [
+            _createVNode(VBtn, {
+              color: "info",
+              variant: "text",
+              "prepend-icon": "mdi-test-tube",
+              size: "small",
+              onClick: testConnection,
+              loading: testing.value
+            }, {
+              default: _withCtx(() => [...(_cache[22] || (_cache[22] = [
+                _createTextVNode(" 测试连接 ", -1)
+              ]))]),
+              _: 1
+            }, 8, ["loading"]),
+            _createVNode(VSpacer),
+            _createVNode(VBtn, {
+              color: "secondary",
+              variant: "text",
+              "prepend-icon": "mdi-restore",
+              size: "small",
+              onClick: resetConfig
+            }, {
+              default: _withCtx(() => [...(_cache[23] || (_cache[23] = [
+                _createTextVNode(" 重置 ", -1)
+              ]))]),
+              _: 1
+            }),
+            _createVNode(VBtn, {
+              color: "primary",
+              variant: "text",
+              "prepend-icon": "mdi-content-save",
+              size: "small",
+              onClick: saveConfigManually,
+              loading: saving.value
+            }, {
+              default: _withCtx(() => [...(_cache[24] || (_cache[24] = [
+                _createTextVNode(" 保存配置 ", -1)
+              ]))]),
+              _: 1
+            }, 8, ["loading"])
+          ]),
+          _: 1
+        })
+      ]),
+      _: 1
+    })
+  ]))
 }
 }
 
 };
+const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-16bdd17d"]]);
 
-export { _sfc_main as default };
+export { Config as default };
