@@ -356,7 +356,7 @@ function satisfy(version, range) {
 const currentImports = {};
 
 // eslint-disable-next-line no-undef
-const moduleMap = {'vue':{get:()=>()=>__federation_import(new URL('__federation_shared_vue-uKUkTJ-n.js', import.meta.url).href),import:true},'vuetify':{get:()=>()=>__federation_import(new URL('__federation_shared_vuetify-KIupVUiU.js', import.meta.url).href),import:true}};
+const moduleMap = {'vue':{get:()=>()=>__federation_import(new URL('__federation_shared_vue-uKUkTJ-n.js', import.meta.url).href),import:true},'vuetify':{get:()=>()=>__federation_import(new URL('__federation_shared_vuetify-D4JIeQKL.js', import.meta.url).href),import:true}};
 const moduleCache = Object.create(null);
 async function importShared(name, shareScope = 'default') {
   return moduleCache[name]

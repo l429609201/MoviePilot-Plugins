@@ -23,9 +23,9 @@ class DanmakuAutoImport(_PluginBase):
     # 插件描述
     plugin_desc = "媒体下载完成后自动推送至弹幕库下载弹幕,支持任务队列和定时处理"
     # 插件图标
-    plugin_icon = "danmaku.png"
+    plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.0.1"
+    plugin_version = "2.0.2"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -504,20 +504,55 @@ class DanmakuAutoImport(_PluginBase):
         """API端点: 获取待处理任务列表"""
         with self._lock:
             tasks = []
-            for task in self._pending_tasks[:20]:  # 最多返回20个
+            for task in self._pending_tasks[:50]:  # 最多返回50个
                 mediainfo = task.get('mediainfo')
                 if not mediainfo:
                     continue
 
+                # 构建季集信息
+                episode_info = ''
+                if hasattr(mediainfo, 'season') and mediainfo.season:
+                    episode_info = f"S{mediainfo.season:02d}"
+                    if hasattr(mediainfo, 'episode') and mediainfo.episode:
+                        episode_info += f"E{mediainfo.episode:02d}"
+                elif hasattr(mediainfo, 'episode') and mediainfo.episode:
+                    episode_info = f"E{mediainfo.episode:02d}"
+                else:
+                    episode_info = '-'
+
                 tasks.append({
+                    "task_id": task.get('task_id'),
                     "title": mediainfo.title or '未知标题',
-                    "subtitle": f"类型: {mediainfo.type.value if hasattr(mediainfo.type, 'value') else mediainfo.type} | TMDB ID: {mediainfo.tmdb_id or '无'}",
+                    "media_type": mediainfo.type.value if hasattr(mediainfo.type, 'value') else str(mediainfo.type),
+                    "episode_info": episode_info,
                     "status": task.get('status', 'pending'),
                     "add_time": task.get('add_time', '').strftime('%Y-%m-%d %H:%M:%S') if task.get('add_time') else '未知',
-                    "retry_count": task.get('retry_count', 0)
+                    "retry_count": task.get('retry_count', 0),
+                    "tmdb_id": mediainfo.tmdb_id or '无'
                 })
 
             return tasks
+
+    def _delete_task(self, payload: dict) -> Dict[str, Any]:
+        """API端点: 删除指定任务"""
+        task_id = payload.get('task_id')
+        if not task_id:
+            return {"success": False, "message": "未指定任务ID"}
+
+        with self._lock:
+            # 从待处理队列中查找并删除
+            for i, task in enumerate(self._pending_tasks):
+                if task.get('task_id') == task_id:
+                    # 检查任务状态
+                    if task.get('status') == 'processing':
+                        return {"success": False, "message": "任务正在处理中,无法删除"}
+
+                    # 删除任务
+                    deleted_task = self._pending_tasks.pop(i)
+                    logger.info(f"手动删除任务: {deleted_task.get('mediainfo', {}).get('title', '未知')} (ID: {task_id})")
+                    return {"success": True, "message": "任务已删除"}
+
+            return {"success": False, "message": "未找到指定任务"}
 
     def get_form(self) -> Tuple[Optional[List[dict]], Dict[str, Any]]:
         """
@@ -555,6 +590,13 @@ class DanmakuAutoImport(_PluginBase):
                 "methods": ["GET"],
                 "auth": "bear",
                 "summary": "获取待处理任务列表"
+            },
+            {
+                "path": "/delete_task",
+                "endpoint": self._delete_task,
+                "methods": ["POST"],
+                "auth": "bear",
+                "summary": "删除指定任务"
             }
         ]
 
