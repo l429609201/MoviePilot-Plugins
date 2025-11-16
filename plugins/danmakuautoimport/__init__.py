@@ -131,7 +131,12 @@ class DanmakuAutoImport(_PluginBase):
     @eventmanager.register(EventType.TransferComplete)
     def on_transfer_complete(self, event: Event):
         """监听媒体转移完成事件"""
+        logger.info(f"弹幕自动导入: ========== on_transfer_complete被调用 ==========")
+        logger.info(f"弹幕自动导入: _enabled={self._enabled}, _danmu_server_url={'已配置' if self._danmu_server_url else '未配置'}, "
+                   f"_external_api_key={'已配置' if self._external_api_key else '未配置'}")
+
         if not self._enabled:
+            logger.warning(f"弹幕自动导入: 插件未启用,跳过处理")
             return
 
         # 调试: 打印事件对象信息
