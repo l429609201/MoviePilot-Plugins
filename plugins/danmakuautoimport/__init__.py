@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.1.9"
+    plugin_version = "2.3.0"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -465,19 +465,16 @@ class DanmakuAutoImport(_PluginBase):
             # 暂时返回空列表,后续可以添加历史记录功能
 
             return {
-                "success": True,
-                "data": {
-                    "enabled": self._enabled,
-                    "pending": len(self._pending_tasks),
-                    "processing": len(self._processing_tasks),
-                    "max_queue_size": self._max_queue_size,
-                    "cron": self._cron,
-                    "next_run_time": next_run_time,
-                    "last_run_results": last_run_results
-                }
+                "enabled": self._enabled,
+                "pending": len(self._pending_tasks),
+                "processing": len(self._processing_tasks),
+                "max_queue_size": self._max_queue_size,
+                "cron": self._cron,
+                "next_run_time": next_run_time,
+                "last_run_results": last_run_results
             }
 
-    def _get_pending_tasks(self) -> Dict[str, Any]:
+    def _get_pending_tasks(self) -> List[Dict[str, Any]]:
         """API端点: 获取待处理任务列表"""
         try:
             with self._lock:
@@ -522,10 +519,10 @@ class DanmakuAutoImport(_PluginBase):
                         logger.error(f"弹幕自动导入: 处理任务数据时出错: {e}", exc_info=True)
                         continue
 
-                return {"success": True, "data": tasks}
+                return tasks
         except Exception as e:
             logger.error(f"弹幕自动导入: 获取待处理任务列表失败: {e}", exc_info=True)
-            return {"success": False, "message": f"获取任务列表失败: {str(e)}", "data": []}
+            return []
 
     def _delete_task(self, payload: dict = None) -> Dict[str, Any]:
         """API端点: 删除指定任务"""
