@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.3.7"
+    plugin_version = "2.3.9"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -64,7 +64,12 @@ class DanmakuAutoImport(_PluginBase):
             self._danmu_server_url = config.get("danmu_server_url", "").rstrip("/")
             self._external_api_key = config.get("external_api_key", "")
             self._cron = config.get("cron", "*/5 * * * *")
-            self._delay_seconds = int(config.get("delay_seconds", 0))
+            # 支持delay_hours(小时)和delay_seconds(秒),优先使用delay_hours
+            delay_hours = config.get("delay_hours")
+            if delay_hours is not None:
+                self._delay_seconds = int(delay_hours) * 3600
+            else:
+                self._delay_seconds = int(config.get("delay_seconds", 0))
             self._max_queue_size = int(config.get("max_queue_size", 100))
             self._process_batch_size = int(config.get("process_batch_size", 1))
             self._only_anime = config.get("only_anime", False)
@@ -383,7 +388,7 @@ class DanmakuAutoImport(_PluginBase):
             "danmu_server_url": self._danmu_server_url,
             "external_api_key": self._external_api_key,
             "cron": self._cron,
-            "delay_seconds": self._delay_seconds,
+            "delay_hours": self._delay_seconds // 3600,  # 转换为小时
             "max_queue_size": self._max_queue_size,
             "process_batch_size": self._process_batch_size,
             "only_anime": self._only_anime,
@@ -408,7 +413,12 @@ class DanmakuAutoImport(_PluginBase):
             self._danmu_server_url = config_payload.get('danmu_server_url', self._danmu_server_url)
             self._external_api_key = config_payload.get('external_api_key', self._external_api_key)
             self._cron = config_payload.get('cron', self._cron)
-            self._delay_seconds = int(config_payload.get('delay_seconds', self._delay_seconds))
+            # 支持delay_hours(小时)和delay_seconds(秒),优先使用delay_hours
+            delay_hours = config_payload.get('delay_hours')
+            if delay_hours is not None:
+                self._delay_seconds = int(delay_hours) * 3600
+            else:
+                self._delay_seconds = int(config_payload.get('delay_seconds', self._delay_seconds))
             self._max_queue_size = int(config_payload.get('max_queue_size', self._max_queue_size))
             self._process_batch_size = int(config_payload.get('process_batch_size', self._process_batch_size))
             self._only_anime = config_payload.get('only_anime', self._only_anime)
@@ -423,7 +433,7 @@ class DanmakuAutoImport(_PluginBase):
                 "danmu_server_url": self._danmu_server_url,
                 "external_api_key": self._external_api_key,
                 "cron": self._cron,
-                "delay_seconds": self._delay_seconds,
+                "delay_hours": self._delay_seconds // 3600,  # 转换为小时保存
                 "max_queue_size": self._max_queue_size,
                 "process_batch_size": self._process_batch_size,
                 "only_anime": self._only_anime,

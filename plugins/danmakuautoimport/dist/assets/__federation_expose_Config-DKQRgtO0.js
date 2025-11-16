@@ -1985,13 +1985,13 @@ return (_ctx, _cache) => {
                             }, {
                               default: _withCtx(() => [
                                 _createVNode(VTextField, {
-                                  modelValue: localConfig.delay_seconds,
-                                  "onUpdate:modelValue": _cache[6] || (_cache[6] = $event => ((localConfig.delay_seconds) = $event)),
+                                  modelValue: localConfig.delay_hours,
+                                  "onUpdate:modelValue": _cache[6] || (_cache[6] = $event => ((localConfig.delay_hours) = $event)),
                                   modelModifiers: { number: true },
-                                  label: "延时导入(秒)",
+                                  label: "延时导入(小时)",
                                   type: "number",
                                   placeholder: "0",
-                                  hint: "媒体下载完成后延时秒数",
+                                  hint: "媒体下载完成后延时小时数",
                                   "persistent-hint": "",
                                   variant: "outlined",
                                   density: "compact",
@@ -2226,6 +2226,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-d7b42a15"]]);
+const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-b7c9a9ec"]]);
 
 export { Config as default };

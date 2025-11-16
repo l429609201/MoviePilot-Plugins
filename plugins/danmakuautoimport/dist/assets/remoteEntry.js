@@ -2,11 +2,11 @@ const currentImports = {};
       const exportSet = new Set(['Module', '__esModule', 'default', '_export_sfc']);
       let moduleMap = {
 "./Config":()=>{
-      dynamicLoadingCss(["style-BmM_gpvy.css"], false, './Config');
-      return __federation_import('./__federation_expose_Config-DGhCPsfx.js').then(module =>Object.keys(module).every(item => exportSet.has(item)) ? () => module.default : () => module)},
+      dynamicLoadingCss(["style-DHRJPPt9.css"], false, './Config');
+      return __federation_import('./__federation_expose_Config-DKQRgtO0.js').then(module =>Object.keys(module).every(item => exportSet.has(item)) ? () => module.default : () => module)},
 "./Page":()=>{
-      dynamicLoadingCss(["style-BmM_gpvy.css"], false, './Page');
-      return __federation_import('./__federation_expose_Page-CWYgDf__.js').then(module =>Object.keys(module).every(item => exportSet.has(item)) ? () => module.default : () => module)},};
+      dynamicLoadingCss(["style-DHRJPPt9.css"], false, './Page');
+      return __federation_import('./__federation_expose_Page-5wxpi2lp.js').then(module =>Object.keys(module).every(item => exportSet.has(item)) ? () => module.default : () => module)},};
       const seen = {};
       const dynamicLoadingCss = (cssFilePaths, dontAppendStylesToHead, exposeItemName) => {
         const metaUrl = import.meta.url;

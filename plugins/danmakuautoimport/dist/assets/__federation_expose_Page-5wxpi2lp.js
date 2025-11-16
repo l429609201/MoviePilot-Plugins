@@ -419,9 +419,10 @@ const _hoisted_20 = {
 const _hoisted_21 = { class: "text-center" };
 const _hoisted_22 = { class: "text-caption" };
 const _hoisted_23 = { class: "text-caption" };
-const _hoisted_24 = { class: "text-center" };
-const _hoisted_25 = { class: "text-right" };
-const _hoisted_26 = { class: "d-flex justify-end" };
+const _hoisted_24 = { class: "text-caption" };
+const _hoisted_25 = { class: "text-center" };
+const _hoisted_26 = { class: "text-right" };
+const _hoisted_27 = { class: "d-flex justify-end" };
 
 const {ref,computed,watch,onMounted,onUnmounted} = await importShared('vue');
 
@@ -972,24 +973,6 @@ return (_ctx, _cache) => {
                       class: "pa-3"
                     }, {
                       default: _withCtx(() => [
-                        _createVNode(VCard, {
-                          flat: "",
-                          class: "rounded mb-3 border",
-                          variant: "outlined"
-                        }, {
-                          default: _withCtx(() => [
-                            _createVNode(VCardText, { class: "pa-3 text-center" }, {
-                              default: _withCtx(() => [
-                                _cache[10] || (_cache[10] = _createElementVNode("div", { class: "text-caption text-grey mb-1" }, "流控重置倒计时", -1)),
-                                _createElementVNode("div", {
-                                  class: _normalizeClass(["text-h6 font-weight-bold", countdown.value <= 60 ? 'text-error' : 'text-primary'])
-                                }, _toDisplayString(formatCountdown(countdown.value)), 3)
-                              ]),
-                              _: 1
-                            })
-                          ]),
-                          _: 1
-                        }),
                         _createVNode(VRow, { dense: "" }, {
                           default: _withCtx(() => [
                             _createVNode(VCol, {
@@ -997,6 +980,35 @@ return (_ctx, _cache) => {
                               md: "6"
                             }, {
                               default: _withCtx(() => [
+                                _createVNode(VCard, {
+                                  flat: "",
+                                  class: "rounded mb-2 border",
+                                  variant: "outlined"
+                                }, {
+                                  default: _withCtx(() => [
+                                    _createVNode(VCardTitle, { class: "text-caption d-flex align-center px-3 py-2 bg-grey-lighten-4" }, {
+                                      default: _withCtx(() => [
+                                        _createVNode(VIcon, {
+                                          icon: "mdi-timer-outline",
+                                          color: "primary",
+                                          size: "small",
+                                          class: "mr-2"
+                                        }),
+                                        _cache[10] || (_cache[10] = _createElementVNode("span", null, "流控重置倒计时", -1))
+                                      ]),
+                                      _: 1
+                                    }),
+                                    _createVNode(VCardText, { class: "pa-3 text-center" }, {
+                                      default: _withCtx(() => [
+                                        _createElementVNode("div", {
+                                          class: _normalizeClass(["text-h6 font-weight-bold", countdown.value <= 60 ? 'text-error' : 'text-primary'])
+                                        }, _toDisplayString(formatCountdown(countdown.value)), 3)
+                                      ]),
+                                      _: 1
+                                    })
+                                  ]),
+                                  _: 1
+                                }),
                                 _createVNode(VCard, {
                                   flat: "",
                                   class: "rounded mb-2 border",
@@ -1302,11 +1314,15 @@ return (_ctx, _cache) => {
                                     onClick: toggleSelectAll
                                   }, null, 8, ["modelValue"])
                                 ]),
-                                _cache[26] || (_cache[26] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "类型", -1)),
+                                _cache[26] || (_cache[26] = _createElementVNode("th", {
+                                  class: "text-body-2 font-weight-bold text-center",
+                                  style: {"width":"60px"}
+                                }, "类型", -1)),
                                 _cache[27] || (_cache[27] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "标题", -1)),
                                 _cache[28] || (_cache[28] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "剧集信息", -1)),
-                                _cache[29] || (_cache[29] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-center" }, "状态", -1)),
-                                _cache[30] || (_cache[30] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-right" }, "操作", -1))
+                                _cache[29] || (_cache[29] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "添加时间", -1)),
+                                _cache[30] || (_cache[30] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-center" }, "状态", -1)),
+                                _cache[31] || (_cache[31] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-right" }, "操作", -1))
                               ])
                             ]),
                             _createElementVNode("tbody", null, [
@@ -1325,20 +1341,16 @@ return (_ctx, _cache) => {
                                     }, null, 8, ["modelValue", "value", "disabled"])
                                   ]),
                                   _createElementVNode("td", _hoisted_21, [
-                                    _createVNode(VChip, {
-                                      size: "small",
+                                    _createVNode(VIcon, {
+                                      icon: task.media_type === 'tv' ? 'mdi-television-classic' : 'mdi-filmstrip',
                                       color: task.media_type === 'tv' ? 'primary' : 'secondary',
-                                      variant: "flat"
-                                    }, {
-                                      default: _withCtx(() => [
-                                        _createTextVNode(_toDisplayString(task.media_type === 'tv' ? '电视剧' : '电影'), 1)
-                                      ]),
-                                      _: 2
-                                    }, 1032, ["color"])
+                                      size: "small"
+                                    }, null, 8, ["icon", "color"])
                                   ]),
                                   _createElementVNode("td", _hoisted_22, _toDisplayString(task.title), 1),
                                   _createElementVNode("td", _hoisted_23, _toDisplayString(task.episode_info || '-'), 1),
-                                  _createElementVNode("td", _hoisted_24, [
+                                  _createElementVNode("td", _hoisted_24, _toDisplayString(task.add_time || '-'), 1),
+                                  _createElementVNode("td", _hoisted_25, [
                                     _createVNode(VChip, {
                                       size: "small",
                                       color: getStatusColor(task.status),
@@ -1350,8 +1362,8 @@ return (_ctx, _cache) => {
                                       _: 2
                                     }, 1032, ["color"])
                                   ]),
-                                  _createElementVNode("td", _hoisted_25, [
-                                    _createElementVNode("div", _hoisted_26, [
+                                  _createElementVNode("td", _hoisted_26, [
+                                    _createElementVNode("div", _hoisted_27, [
                                       _createVNode(VBtn, {
                                         density: "comfortable",
                                         icon: "",
@@ -1370,7 +1382,7 @@ return (_ctx, _cache) => {
                                             activator: "parent",
                                             location: "top"
                                           }, {
-                                            default: _withCtx(() => [...(_cache[31] || (_cache[31] = [
+                                            default: _withCtx(() => [...(_cache[32] || (_cache[32] = [
                                               _createTextVNode("删除此任务", -1)
                                             ]))]),
                                             _: 1
@@ -1400,7 +1412,7 @@ return (_ctx, _cache) => {
                             size: "small",
                             class: "mb-1"
                           }),
-                          _cache[32] || (_cache[32] = _createElementVNode("div", { class: "text-caption" }, "没有匹配的任务", -1))
+                          _cache[33] || (_cache[33] = _createElementVNode("div", { class: "text-caption" }, "没有匹配的任务", -1))
                         ]),
                         _: 1
                       }))
@@ -1414,7 +1426,7 @@ return (_ctx, _cache) => {
                             size: "small",
                             class: "mb-1"
                           }),
-                          _cache[33] || (_cache[33] = _createElementVNode("div", { class: "text-caption" }, "暂无待处理任务", -1))
+                          _cache[34] || (_cache[34] = _createElementVNode("div", { class: "text-caption" }, "暂无待处理任务", -1))
                         ]),
                         _: 1
                       }))
@@ -1434,7 +1446,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[34] || (_cache[34] = [
+              default: _withCtx(() => [...(_cache[35] || (_cache[35] = [
                 _createTextVNode(" 配置 ", -1)
               ]))]),
               _: 1
@@ -1448,7 +1460,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[35] || (_cache[35] = [
+              default: _withCtx(() => [...(_cache[36] || (_cache[36] = [
                 _createTextVNode(" 刷新状态 ", -1)
               ]))]),
               _: 1
@@ -1460,7 +1472,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[36] || (_cache[36] = [
+              default: _withCtx(() => [...(_cache[37] || (_cache[37] = [
                 _createTextVNode(" 清空队列 ", -1)
               ]))]),
               _: 1
@@ -1472,7 +1484,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[37] || (_cache[37] = [
+              default: _withCtx(() => [...(_cache[38] || (_cache[38] = [
                 _createTextVNode(" 关闭 ", -1)
               ]))]),
               _: 1
@@ -1488,6 +1500,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-c8bc741a"]]);
+const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-7447ffde"]]);
 
 export { Page as default };
