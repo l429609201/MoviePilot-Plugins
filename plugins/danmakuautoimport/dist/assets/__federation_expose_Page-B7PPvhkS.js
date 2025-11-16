@@ -1,6 +1,6 @@
-import { importShared } from './__federation_fn_import-oc7trqad.js';
-import { w as useDimension, u as useRender, x as makeTagProps, y as makeDimensionProps, a as makeComponentProps, z as createSimpleFunctional, A as useResizeObserver, B as VBtn, C as makeVariantProps, D as makeSizeProps, E as makeRoundedProps, F as makeElevationProps, G as makeDensityProps, H as makeBorderProps, t as VSelect, I as deepEqual, J as makeLoaderProps, b as useLoader, K as useBackgroundColor, L as LoaderSlot, M as VChip, k as VIcon, N as VCheckboxBtn, O as useDensity, P as VDivider, q as VRow, r as VCol, n as VCard, p as VCardText, o as VCardTitle, v as VAlert } from './VSelect-Cj1toXI0.js';
-import { y as isOn, z as callEvent, t as genericComponent, v as propsFactory, r as useRtl, w as useProxiedModel, u as useLocale, A as provideTheme, o as useDisplay, B as provideDefaults, a as createRange, C as makeThemeProps, E as IconValue, F as keyValues, H as getCurrentInstance, J as clamp, K as defineFunctionalComponent, M as convertToUnit, N as consoleError, O as wrapInArray, P as isPrimitive, Q as getObjectValueByPath, R as isEmpty, U as makeDisplayProps, V as EventProp, W as pick, X as getPropertyFromItem } from './theme-BAWxfzBN.js';
+import { importShared } from './__federation_fn_import-wqwguQEL.js';
+import { t as useDimension, u as useRender, v as makeTagProps, w as makeDimensionProps, a as makeComponentProps, x as createSimpleFunctional, y as VAvatar, k as VIcon, i as VDefaultsProvider, z as makeDensityProps, R as Ripple, A as useBorder, B as useVariant, C as useDensity, D as useElevation, b as useLoader, E as useLocation, F as usePosition, G as useRounded, H as useLink, I as makeVariantProps, J as makeRouterProps, K as makeRoundedProps, M as makePositionProps, N as makeLocationProps, O as makeLoaderProps, P as makeElevationProps, Q as makeBorderProps, S as genOverlays, T as VImg, L as LoaderSlot, U as useResizeObserver, W as VBtn, X as makeSizeProps, r as VSelect, Y as deepEqual, Z as useBackgroundColor, _ as VChip, $ as VCheckboxBtn, p as VDivider, n as VRow, o as VCol, s as VAlert } from './VSelect-Bo-n5bcY.js';
+import { y as isOn, z as callEvent, t as genericComponent, v as propsFactory, r as useRtl, A as provideDefaults, B as IconValue, C as provideTheme, E as makeThemeProps, w as useProxiedModel, u as useLocale, o as useDisplay, a as createRange, F as keyValues, H as getCurrentInstance, J as clamp, K as defineFunctionalComponent, M as convertToUnit, N as consoleError, O as wrapInArray, P as isPrimitive, Q as getObjectValueByPath, R as isEmpty, U as makeDisplayProps, V as EventProp, W as pick, X as getPropertyFromItem } from './theme-DmDQdtA-.js';
 
 // Utilities
 function getPrefixedEventHandlers(attrs, suffix, getData) {
@@ -10,7 +10,7 @@ function getPrefixedEventHandlers(attrs, suffix, getData) {
   }, {});
 }
 
-const {normalizeClass:_normalizeClass$6,normalizeStyle:_normalizeStyle$3,createVNode:_createVNode$a} = await importShared('vue');
+const {normalizeClass:_normalizeClass$a,normalizeStyle:_normalizeStyle$7,createVNode:_createVNode$f} = await importShared('vue');
 const makeVContainerProps = propsFactory({
   fluid: {
     type: Boolean,
@@ -33,11 +33,11 @@ const VContainer = genericComponent()({
     const {
       dimensionStyles
     } = useDimension(props);
-    useRender(() => _createVNode$a(props.tag, {
-      "class": _normalizeClass$6(['v-container', {
+    useRender(() => _createVNode$f(props.tag, {
+      "class": _normalizeClass$a(['v-container', {
         'v-container--fluid': props.fluid
       }, rtlClasses.value, props.class]),
-      "style": _normalizeStyle$3([dimensionStyles.value, props.style])
+      "style": _normalizeStyle$7([dimensionStyles.value, props.style])
     }, slots));
     return {};
   }
@@ -53,6 +53,352 @@ const _export_sfc = (sfc, props) => {
   }
   return target;
 };
+
+const {normalizeClass:_normalizeClass$9,normalizeStyle:_normalizeStyle$6,createVNode:_createVNode$e} = await importShared('vue');
+const makeVCardActionsProps = propsFactory({
+  ...makeComponentProps(),
+  ...makeTagProps()
+}, 'VCardActions');
+const VCardActions = genericComponent()({
+  name: 'VCardActions',
+  props: makeVCardActionsProps(),
+  setup(props, _ref) {
+    let {
+      slots
+    } = _ref;
+    provideDefaults({
+      VBtn: {
+        slim: true,
+        variant: 'text'
+      }
+    });
+    useRender(() => _createVNode$e(props.tag, {
+      "class": _normalizeClass$9(['v-card-actions', props.class]),
+      "style": _normalizeStyle$6(props.style)
+    }, slots));
+    return {};
+  }
+});
+
+const {normalizeClass:_normalizeClass$8,normalizeStyle:_normalizeStyle$5,createVNode:_createVNode$d} = await importShared('vue');
+const makeVCardSubtitleProps = propsFactory({
+  opacity: [Number, String],
+  ...makeComponentProps(),
+  ...makeTagProps()
+}, 'VCardSubtitle');
+const VCardSubtitle = genericComponent()({
+  name: 'VCardSubtitle',
+  props: makeVCardSubtitleProps(),
+  setup(props, _ref) {
+    let {
+      slots
+    } = _ref;
+    useRender(() => _createVNode$d(props.tag, {
+      "class": _normalizeClass$8(['v-card-subtitle', props.class]),
+      "style": _normalizeStyle$5([{
+        '--v-card-subtitle-opacity': props.opacity
+      }, props.style])
+    }, slots));
+    return {};
+  }
+});
+
+// Utilities
+const VCardTitle = createSimpleFunctional('v-card-title');
+
+const {Fragment:_Fragment$5,createVNode:_createVNode$c,createElementVNode:_createElementVNode$b,normalizeClass:_normalizeClass$7,normalizeStyle:_normalizeStyle$4} = await importShared('vue');
+const {toDisplayString: toDisplayString$1} = await importShared('vue');
+const makeCardItemProps = propsFactory({
+  appendAvatar: String,
+  appendIcon: IconValue,
+  prependAvatar: String,
+  prependIcon: IconValue,
+  subtitle: {
+    type: [String, Number, Boolean],
+    default: undefined
+  },
+  title: {
+    type: [String, Number, Boolean],
+    default: undefined
+  },
+  ...makeComponentProps(),
+  ...makeDensityProps(),
+  ...makeTagProps()
+}, 'VCardItem');
+const VCardItem = genericComponent()({
+  name: 'VCardItem',
+  props: makeCardItemProps(),
+  setup(props, _ref) {
+    let {
+      slots
+    } = _ref;
+    useRender(() => {
+      const hasPrependMedia = !!(props.prependAvatar || props.prependIcon);
+      const hasPrepend = !!(hasPrependMedia || slots.prepend);
+      const hasAppendMedia = !!(props.appendAvatar || props.appendIcon);
+      const hasAppend = !!(hasAppendMedia || slots.append);
+      const hasTitle = !!(props.title != null || slots.title);
+      const hasSubtitle = !!(props.subtitle != null || slots.subtitle);
+      return _createVNode$c(props.tag, {
+        "class": _normalizeClass$7(['v-card-item', props.class]),
+        "style": _normalizeStyle$4(props.style)
+      }, {
+        default: () => [hasPrepend && _createElementVNode$b("div", {
+          "key": "prepend",
+          "class": "v-card-item__prepend"
+        }, [!slots.prepend ? _createElementVNode$b(_Fragment$5, null, [props.prependAvatar && _createVNode$c(VAvatar, {
+          "key": "prepend-avatar",
+          "density": props.density,
+          "image": props.prependAvatar
+        }, null), props.prependIcon && _createVNode$c(VIcon, {
+          "key": "prepend-icon",
+          "density": props.density,
+          "icon": props.prependIcon
+        }, null)]) : _createVNode$c(VDefaultsProvider, {
+          "key": "prepend-defaults",
+          "disabled": !hasPrependMedia,
+          "defaults": {
+            VAvatar: {
+              density: props.density,
+              image: props.prependAvatar
+            },
+            VIcon: {
+              density: props.density,
+              icon: props.prependIcon
+            }
+          }
+        }, slots.prepend)]), _createElementVNode$b("div", {
+          "class": "v-card-item__content"
+        }, [hasTitle && _createVNode$c(VCardTitle, {
+          "key": "title"
+        }, {
+          default: () => [slots.title?.() ?? toDisplayString$1(props.title)]
+        }), hasSubtitle && _createVNode$c(VCardSubtitle, {
+          "key": "subtitle"
+        }, {
+          default: () => [slots.subtitle?.() ?? toDisplayString$1(props.subtitle)]
+        }), slots.default?.()]), hasAppend && _createElementVNode$b("div", {
+          "key": "append",
+          "class": "v-card-item__append"
+        }, [!slots.append ? _createElementVNode$b(_Fragment$5, null, [props.appendIcon && _createVNode$c(VIcon, {
+          "key": "append-icon",
+          "density": props.density,
+          "icon": props.appendIcon
+        }, null), props.appendAvatar && _createVNode$c(VAvatar, {
+          "key": "append-avatar",
+          "density": props.density,
+          "image": props.appendAvatar
+        }, null)]) : _createVNode$c(VDefaultsProvider, {
+          "key": "append-defaults",
+          "disabled": !hasAppendMedia,
+          "defaults": {
+            VAvatar: {
+              density: props.density,
+              image: props.appendAvatar
+            },
+            VIcon: {
+              density: props.density,
+              icon: props.appendIcon
+            }
+          }
+        }, slots.append)])]
+      });
+    });
+    return {};
+  }
+});
+
+const {normalizeClass:_normalizeClass$6,normalizeStyle:_normalizeStyle$3,createVNode:_createVNode$b} = await importShared('vue');
+const makeVCardTextProps = propsFactory({
+  opacity: [Number, String],
+  ...makeComponentProps(),
+  ...makeTagProps()
+}, 'VCardText');
+const VCardText = genericComponent()({
+  name: 'VCardText',
+  props: makeVCardTextProps(),
+  setup(props, _ref) {
+    let {
+      slots
+    } = _ref;
+    useRender(() => _createVNode$b(props.tag, {
+      "class": _normalizeClass$6(['v-card-text', props.class]),
+      "style": _normalizeStyle$3([{
+        '--v-card-text-opacity': props.opacity
+      }, props.style])
+    }, slots));
+    return {};
+  }
+});
+
+const {createVNode:_createVNode$a,createElementVNode:_createElementVNode$a,mergeProps:_mergeProps$6,withDirectives:_withDirectives} = await importShared('vue');
+const {shallowRef: shallowRef$3,watch: watch$2} = await importShared('vue');
+const makeVCardProps = propsFactory({
+  appendAvatar: String,
+  appendIcon: IconValue,
+  disabled: Boolean,
+  flat: Boolean,
+  hover: Boolean,
+  image: String,
+  link: {
+    type: Boolean,
+    default: undefined
+  },
+  prependAvatar: String,
+  prependIcon: IconValue,
+  ripple: {
+    type: [Boolean, Object],
+    default: true
+  },
+  subtitle: {
+    type: [String, Number, Boolean],
+    default: undefined
+  },
+  text: {
+    type: [String, Number, Boolean],
+    default: undefined
+  },
+  title: {
+    type: [String, Number, Boolean],
+    default: undefined
+  },
+  ...makeBorderProps(),
+  ...makeComponentProps(),
+  ...makeDensityProps(),
+  ...makeDimensionProps(),
+  ...makeElevationProps(),
+  ...makeLoaderProps(),
+  ...makeLocationProps(),
+  ...makePositionProps(),
+  ...makeRoundedProps(),
+  ...makeRouterProps(),
+  ...makeTagProps(),
+  ...makeThemeProps(),
+  ...makeVariantProps({
+    variant: 'elevated'
+  })
+}, 'VCard');
+const VCard = genericComponent()({
+  name: 'VCard',
+  directives: {
+    vRipple: Ripple
+  },
+  props: makeVCardProps(),
+  setup(props, _ref) {
+    let {
+      attrs,
+      slots
+    } = _ref;
+    const {
+      themeClasses
+    } = provideTheme(props);
+    const {
+      borderClasses
+    } = useBorder(props);
+    const {
+      colorClasses,
+      colorStyles,
+      variantClasses
+    } = useVariant(props);
+    const {
+      densityClasses
+    } = useDensity(props);
+    const {
+      dimensionStyles
+    } = useDimension(props);
+    const {
+      elevationClasses
+    } = useElevation(props);
+    const {
+      loaderClasses
+    } = useLoader(props);
+    const {
+      locationStyles
+    } = useLocation(props);
+    const {
+      positionClasses
+    } = usePosition(props);
+    const {
+      roundedClasses
+    } = useRounded(props);
+    const link = useLink(props, attrs);
+    const loadingColor = shallowRef$3(undefined);
+    watch$2(() => props.loading, (val, old) => {
+      loadingColor.value = !val && typeof old === 'string' ? old : typeof val === 'boolean' ? undefined : val;
+    }, {
+      immediate: true
+    });
+    useRender(() => {
+      const isLink = props.link !== false && link.isLink.value;
+      const isClickable = !props.disabled && props.link !== false && (props.link || link.isClickable.value);
+      const Tag = isLink ? 'a' : props.tag;
+      const hasTitle = !!(slots.title || props.title != null);
+      const hasSubtitle = !!(slots.subtitle || props.subtitle != null);
+      const hasHeader = hasTitle || hasSubtitle;
+      const hasAppend = !!(slots.append || props.appendAvatar || props.appendIcon);
+      const hasPrepend = !!(slots.prepend || props.prependAvatar || props.prependIcon);
+      const hasImage = !!(slots.image || props.image);
+      const hasCardItem = hasHeader || hasPrepend || hasAppend;
+      const hasText = !!(slots.text || props.text != null);
+      return _withDirectives(_createVNode$a(Tag, _mergeProps$6(link.linkProps, {
+        "class": ['v-card', {
+          'v-card--disabled': props.disabled,
+          'v-card--flat': props.flat,
+          'v-card--hover': props.hover && !(props.disabled || props.flat),
+          'v-card--link': isClickable
+        }, themeClasses.value, borderClasses.value, colorClasses.value, densityClasses.value, elevationClasses.value, loaderClasses.value, positionClasses.value, roundedClasses.value, variantClasses.value, props.class],
+        "style": [colorStyles.value, dimensionStyles.value, locationStyles.value, props.style],
+        "onClick": isClickable && link.navigate,
+        "tabindex": props.disabled ? -1 : undefined
+      }), {
+        default: () => [hasImage && _createElementVNode$a("div", {
+          "key": "image",
+          "class": "v-card__image"
+        }, [!slots.image ? _createVNode$a(VImg, {
+          "key": "image-img",
+          "cover": true,
+          "src": props.image
+        }, null) : _createVNode$a(VDefaultsProvider, {
+          "key": "image-defaults",
+          "disabled": !props.image,
+          "defaults": {
+            VImg: {
+              cover: true,
+              src: props.image
+            }
+          }
+        }, slots.image)]), _createVNode$a(LoaderSlot, {
+          "name": "v-card",
+          "active": !!props.loading,
+          "color": loadingColor.value
+        }, {
+          default: slots.loader
+        }), hasCardItem && _createVNode$a(VCardItem, {
+          "key": "item",
+          "prependAvatar": props.prependAvatar,
+          "prependIcon": props.prependIcon,
+          "title": props.title,
+          "subtitle": props.subtitle,
+          "appendAvatar": props.appendAvatar,
+          "appendIcon": props.appendIcon
+        }, {
+          default: slots.item,
+          prepend: slots.prepend,
+          title: slots.title,
+          subtitle: slots.subtitle,
+          append: slots.append
+        }), hasText && _createVNode$a(VCardText, {
+          "key": "text"
+        }, {
+          default: () => [slots.text?.() ?? props.text]
+        }), slots.default?.(), slots.actions && _createVNode$a(VCardActions, null, {
+          default: slots.actions
+        }), genOverlays(isClickable, 'v-card')]
+      }), [[Ripple, isClickable && props.ripple]]);
+    });
+    return {};
+  }
+});
 
 // Utilities
 const {onBeforeUpdate,ref: ref$3} = await importShared('vue');
@@ -2629,17 +2975,13 @@ const VDataTable = genericComponent()({
   }
 });
 
-const {createTextVNode:_createTextVNode,withCtx:_withCtx,createVNode:_createVNode,toDisplayString:_toDisplayString,createElementVNode:_createElementVNode,openBlock:_openBlock,createBlock:_createBlock,createCommentVNode:_createCommentVNode} = await importShared('vue');
+const {toDisplayString:_toDisplayString,createElementVNode:_createElementVNode,withCtx:_withCtx,createVNode:_createVNode,createTextVNode:_createTextVNode,openBlock:_openBlock,createBlock:_createBlock,createCommentVNode:_createCommentVNode} = await importShared('vue');
 
 
-const _hoisted_1 = { class: "d-flex align-center" };
-const _hoisted_2 = { class: "text-h4" };
-const _hoisted_3 = { class: "d-flex align-center" };
+const _hoisted_1 = { class: "text-h4 text-primary" };
+const _hoisted_2 = { class: "text-h4 text-info" };
+const _hoisted_3 = { class: "text-subtitle-1" };
 const _hoisted_4 = { class: "text-h4" };
-const _hoisted_5 = { class: "d-flex align-center" };
-const _hoisted_6 = { class: "text-subtitle-1" };
-const _hoisted_7 = { class: "d-flex align-center" };
-const _hoisted_8 = { class: "text-h4" };
 
 const {ref,onMounted,onUnmounted} = await importShared('vue');
 
@@ -2687,15 +3029,7 @@ const getStatusColor = (status) => {
   return colors[status] || 'grey'
 };
 
-const getStatusIcon = (status) => {
-  const icons = {
-    'pending': 'mdi-clock-outline',
-    'processing': 'mdi-loading mdi-spin',
-    'success': 'mdi-check-circle',
-    'failed': 'mdi-alert-circle'
-  };
-  return icons[status] || 'mdi-help-circle'
-};
+
 
 const getStatusText = (status) => {
   const texts = {
@@ -2772,12 +3106,12 @@ onUnmounted(() => {
 });
 
 return (_ctx, _cache) => {
-                                                       
                                                                  
                                                        
                                                      
                                                      
                                                            
+                                                       
                                                      
                                                                    
                                                              
@@ -2795,28 +3129,12 @@ return (_ctx, _cache) => {
             md: "3"
           }, {
             default: _withCtx(() => [
-              _createVNode(VCard, {
-                color: "primary",
-                variant: "tonal"
-              }, {
+              _createVNode(VCard, null, {
                 default: _withCtx(() => [
-                  _createVNode(VCardText, null, {
+                  _createVNode(VCardText, { class: "text-center" }, {
                     default: _withCtx(() => [
-                      _createElementVNode("div", _hoisted_1, [
-                        _createVNode(VIcon, {
-                          size: "40",
-                          class: "mr-3"
-                        }, {
-                          default: _withCtx(() => [...(_cache[0] || (_cache[0] = [
-                            _createTextVNode("mdi-clock-outline", -1)
-                          ]))]),
-                          _: 1
-                        }),
-                        _createElementVNode("div", null, [
-                          _createElementVNode("div", _hoisted_2, _toDisplayString(stats.value.pending), 1),
-                          _cache[1] || (_cache[1] = _createElementVNode("div", { class: "text-caption" }, "待处理任务", -1))
-                        ])
-                      ])
+                      _createElementVNode("div", _hoisted_1, _toDisplayString(stats.value.pending), 1),
+                      _cache[0] || (_cache[0] = _createElementVNode("div", { class: "text-caption text-grey" }, "待处理任务", -1))
                     ]),
                     _: 1
                   })
@@ -2831,28 +3149,12 @@ return (_ctx, _cache) => {
             md: "3"
           }, {
             default: _withCtx(() => [
-              _createVNode(VCard, {
-                color: "info",
-                variant: "tonal"
-              }, {
+              _createVNode(VCard, null, {
                 default: _withCtx(() => [
-                  _createVNode(VCardText, null, {
+                  _createVNode(VCardText, { class: "text-center" }, {
                     default: _withCtx(() => [
-                      _createElementVNode("div", _hoisted_3, [
-                        _createVNode(VIcon, {
-                          size: "40",
-                          class: "mr-3"
-                        }, {
-                          default: _withCtx(() => [...(_cache[2] || (_cache[2] = [
-                            _createTextVNode("mdi-loading", -1)
-                          ]))]),
-                          _: 1
-                        }),
-                        _createElementVNode("div", null, [
-                          _createElementVNode("div", _hoisted_4, _toDisplayString(stats.value.processing), 1),
-                          _cache[3] || (_cache[3] = _createElementVNode("div", { class: "text-caption" }, "处理中", -1))
-                        ])
-                      ])
+                      _createElementVNode("div", _hoisted_2, _toDisplayString(stats.value.processing), 1),
+                      _cache[1] || (_cache[1] = _createElementVNode("div", { class: "text-caption text-grey" }, "处理中", -1))
                     ]),
                     _: 1
                   })
@@ -2867,25 +3169,12 @@ return (_ctx, _cache) => {
             md: "3"
           }, {
             default: _withCtx(() => [
-              _createVNode(VCard, { variant: "tonal" }, {
+              _createVNode(VCard, null, {
                 default: _withCtx(() => [
-                  _createVNode(VCardText, null, {
+                  _createVNode(VCardText, { class: "text-center" }, {
                     default: _withCtx(() => [
-                      _createElementVNode("div", _hoisted_5, [
-                        _createVNode(VIcon, {
-                          size: "40",
-                          class: "mr-3"
-                        }, {
-                          default: _withCtx(() => [...(_cache[4] || (_cache[4] = [
-                            _createTextVNode("mdi-timer-outline", -1)
-                          ]))]),
-                          _: 1
-                        }),
-                        _createElementVNode("div", null, [
-                          _createElementVNode("div", _hoisted_6, _toDisplayString(stats.value.cron || '未设置'), 1),
-                          _cache[5] || (_cache[5] = _createElementVNode("div", { class: "text-caption" }, "定时任务", -1))
-                        ])
-                      ])
+                      _createElementVNode("div", _hoisted_3, _toDisplayString(stats.value.cron || '未设置'), 1),
+                      _cache[2] || (_cache[2] = _createElementVNode("div", { class: "text-caption text-grey" }, "定时任务", -1))
                     ]),
                     _: 1
                   })
@@ -2900,25 +3189,12 @@ return (_ctx, _cache) => {
             md: "3"
           }, {
             default: _withCtx(() => [
-              _createVNode(VCard, { variant: "tonal" }, {
+              _createVNode(VCard, null, {
                 default: _withCtx(() => [
-                  _createVNode(VCardText, null, {
+                  _createVNode(VCardText, { class: "text-center" }, {
                     default: _withCtx(() => [
-                      _createElementVNode("div", _hoisted_7, [
-                        _createVNode(VIcon, {
-                          size: "40",
-                          class: "mr-3"
-                        }, {
-                          default: _withCtx(() => [...(_cache[6] || (_cache[6] = [
-                            _createTextVNode("mdi-format-list-numbered", -1)
-                          ]))]),
-                          _: 1
-                        }),
-                        _createElementVNode("div", null, [
-                          _createElementVNode("div", _hoisted_8, _toDisplayString(stats.value.max_queue_size), 1),
-                          _cache[7] || (_cache[7] = _createElementVNode("div", { class: "text-caption" }, "队列上限", -1))
-                        ])
-                      ])
+                      _createElementVNode("div", _hoisted_4, _toDisplayString(stats.value.max_queue_size), 1),
+                      _cache[3] || (_cache[3] = _createElementVNode("div", { class: "text-caption text-grey" }, "队列上限", -1))
                     ]),
                     _: 1
                   })
@@ -2931,7 +3207,7 @@ return (_ctx, _cache) => {
         ]),
         _: 1
       }),
-      _createVNode(VRow, null, {
+      _createVNode(VRow, { class: "mt-4" }, {
         default: _withCtx(() => [
           _createVNode(VCol, { cols: "12" }, {
             default: _withCtx(() => [
@@ -2939,13 +3215,7 @@ return (_ctx, _cache) => {
                 default: _withCtx(() => [
                   _createVNode(VCardTitle, { class: "d-flex align-center" }, {
                     default: _withCtx(() => [
-                      _createVNode(VIcon, { class: "mr-2" }, {
-                        default: _withCtx(() => [...(_cache[8] || (_cache[8] = [
-                          _createTextVNode("mdi-format-list-bulleted", -1)
-                        ]))]),
-                        _: 1
-                      }),
-                      _cache[11] || (_cache[11] = _createTextVNode(" 待处理任务列表 ", -1)),
+                      _cache[6] || (_cache[6] = _createTextVNode(" 待处理任务列表 ", -1)),
                       _createVNode(VSpacer),
                       _createVNode(VBtn, {
                         color: "primary",
@@ -2955,12 +3225,12 @@ return (_ctx, _cache) => {
                       }, {
                         default: _withCtx(() => [
                           _createVNode(VIcon, null, {
-                            default: _withCtx(() => [...(_cache[9] || (_cache[9] = [
+                            default: _withCtx(() => [...(_cache[4] || (_cache[4] = [
                               _createTextVNode("mdi-refresh", -1)
                             ]))]),
                             _: 1
                           }),
-                          _cache[10] || (_cache[10] = _createTextVNode(" 刷新 ", -1))
+                          _cache[5] || (_cache[5] = _createTextVNode(" 刷新 ", -1))
                         ]),
                         _: 1
                       }, 8, ["loading"])
@@ -2981,20 +3251,10 @@ return (_ctx, _cache) => {
                             "item.status": _withCtx(({ item }) => [
                               _createVNode(VChip, {
                                 color: getStatusColor(item.status),
-                                size: "small",
-                                variant: "flat"
+                                size: "small"
                               }, {
                                 default: _withCtx(() => [
-                                  _createVNode(VIcon, {
-                                    start: "",
-                                    size: "small"
-                                  }, {
-                                    default: _withCtx(() => [
-                                      _createTextVNode(_toDisplayString(getStatusIcon(item.status)), 1)
-                                    ]),
-                                    _: 2
-                                  }, 1024),
-                                  _createTextVNode(" " + _toDisplayString(getStatusText(item.status)), 1)
+                                  _createTextVNode(_toDisplayString(getStatusText(item.status)), 1)
                                 ]),
                                 _: 2
                               }, 1032, ["color"])
@@ -3028,15 +3288,9 @@ return (_ctx, _cache) => {
                             variant: "tonal",
                             class: "ma-4"
                           }, {
-                            default: _withCtx(() => [
-                              _createVNode(VIcon, { class: "mr-2" }, {
-                                default: _withCtx(() => [...(_cache[12] || (_cache[12] = [
-                                  _createTextVNode("mdi-information", -1)
-                                ]))]),
-                                _: 1
-                              }),
-                              _cache[13] || (_cache[13] = _createTextVNode(" 暂无待处理任务 ", -1))
-                            ]),
+                            default: _withCtx(() => [...(_cache[7] || (_cache[7] = [
+                              _createTextVNode(" 暂无待处理任务 ", -1)
+                            ]))]),
                             _: 1
                           }))
                     ]),
@@ -3058,6 +3312,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-74d17ea8"]]);
+const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-eef7785a"]]);
 
 export { Page as default };
