@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.1.6"
+    plugin_version = "2.1.7"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -435,9 +435,9 @@ class DanmakuAutoImport(_PluginBase):
             # 保存配置
             self.update_config(config_to_save)
 
-            # 重新初始化插件
+            # 重新初始化插件 - 使用刚保存的配置而不是从数据库读取
             self.stop_service()
-            self.init_plugin(self.get_config())
+            self.init_plugin(config_to_save)
 
             logger.info(f"弹幕自动导入: 配置已保存并重新初始化")
 
