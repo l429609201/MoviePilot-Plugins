@@ -3445,19 +3445,19 @@ html.v-overlay-scroll-blocked {
 .v-overlay--scroll-blocked {
   padding-inline-end: var(--v-scrollbar-offset);
 }
-.plugin-config[data-v-9c17176c] {
+.plugin-config[data-v-5fb73a39] {
   width: 100%;
 }
-.config-card[data-v-9c17176c] {
+.config-card[data-v-5fb73a39] {
   background-color: transparent;
 }
-.setting-item[data-v-9c17176c] {
+.setting-item[data-v-5fb73a39] {
   min-height: 48px;
 }
-.setting-content[data-v-9c17176c] {
+.setting-content[data-v-5fb73a39] {
   width: 100%;
 }
-.small-switch[data-v-9c17176c] {
+.small-switch[data-v-5fb73a39] {
   flex: 0 0 auto;
 }
 .v-select--chips.v-input--density-compact .v-field--variant-solo .v-label.v-field-label--floating,
@@ -4717,10 +4717,10 @@ textarea.v-field__input::placeholder {
     border-width: 0;
   }
 }
-.plugin-page[data-v-dd280ab2] {
+.plugin-page[data-v-4c756da5] {
   width: 100%;
 }
-.config-card[data-v-dd280ab2] {
+.config-card[data-v-4c756da5] {
   background-color: transparent;
 }
 .v-table {

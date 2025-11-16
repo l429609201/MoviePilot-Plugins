@@ -221,19 +221,19 @@ const refreshTasks = async () => {
   loading.value = true;
   try {
     // 调用插件API获取队列统计
-    const statsResponse = await props.api.get('queue_stats');
+    const statsResponse = await props.api.get('plugin/DanmakuAutoImport/queue_stats');
     if (statsResponse.success && statsResponse.data) {
       Object.assign(stats.value, statsResponse.data);
     }
 
     // 调用插件API获取待处理任务
-    const tasksResponse = await props.api.get('pending_tasks');
+    const tasksResponse = await props.api.get('plugin/DanmakuAutoImport/pending_tasks');
     if (tasksResponse.success && tasksResponse.data) {
       tasks.value = tasksResponse.data;
     }
 
     // 调用插件API获取流控状态
-    const rateLimitResponse = await props.api.get('rate_limit_status');
+    const rateLimitResponse = await props.api.get('plugin/DanmakuAutoImport/rate_limit_status');
     if (rateLimitResponse.success && rateLimitResponse.data) {
       rateLimitData.value = rateLimitResponse.data;
     } else {
@@ -252,7 +252,7 @@ const deleteTask = async (task) => {
   }
 
   try {
-    const response = await props.api.post('delete_task', { task_id: task.task_id });
+    const response = await props.api.post('plugin/DanmakuAutoImport/delete_task', { task_id: task.task_id });
     if (response.success) {
       // 刷新任务列表
       await refreshTasks();
@@ -275,7 +275,7 @@ const clearAllTasks = async () => {
     // 删除所有待处理任务
     for (const task of tasks.value) {
       if (task.status !== 'processing') {
-        await props.api.post('delete_task', { task_id: task.task_id });
+        await props.api.post('plugin/DanmakuAutoImport/delete_task', { task_id: task.task_id });
       }
     }
     // 刷新任务列表
@@ -796,6 +796,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-dd280ab2"]]);
+const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-4c756da5"]]);
 
 export { Page as default };

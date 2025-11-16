@@ -3239,7 +3239,7 @@ const saveConfigManually = async () => {
 
   saving.value = true;
   try {
-    const response = await props.api.post('config', localConfig);
+    const response = await props.api.post('plugin/DanmakuAutoImport/config', localConfig);
     if (response.success) {
       alert('配置保存成功');
       // 更新备份
@@ -3263,7 +3263,7 @@ const testConnection = async () => {
 
   testing.value = true;
   try {
-    const response = await props.api.get('rate_limit_status');
+    const response = await props.api.get('plugin/DanmakuAutoImport/rate_limit_status');
     if (response.success) {
       alert('连接测试成功!\n弹幕库服务器连接正常');
     } else {
@@ -3799,6 +3799,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-9c17176c"]]);
+const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-5fb73a39"]]);
 
 export { Config as default };
