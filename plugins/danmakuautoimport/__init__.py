@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.1.8"
+    plugin_version = "2.1.9"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -477,38 +477,55 @@ class DanmakuAutoImport(_PluginBase):
                 }
             }
 
-    def _get_pending_tasks(self) -> List[Dict[str, Any]]:
+    def _get_pending_tasks(self) -> Dict[str, Any]:
         """API端点: 获取待处理任务列表"""
-        with self._lock:
-            tasks = []
-            for task in self._pending_tasks[:50]:  # 最多返回50个
-                mediainfo = task.get('mediainfo')
-                if not mediainfo:
-                    continue
+        try:
+            with self._lock:
+                tasks = []
+                for task in self._pending_tasks[:50]:  # 最多返回50个
+                    try:
+                        mediainfo = task.get('mediainfo')
+                        if not mediainfo:
+                            continue
 
-                # 构建季集信息
-                episode_info = ''
-                if hasattr(mediainfo, 'season') and mediainfo.season:
-                    episode_info = f"S{mediainfo.season:02d}"
-                    if hasattr(mediainfo, 'episode') and mediainfo.episode:
-                        episode_info += f"E{mediainfo.episode:02d}"
-                elif hasattr(mediainfo, 'episode') and mediainfo.episode:
-                    episode_info = f"E{mediainfo.episode:02d}"
-                else:
-                    episode_info = '-'
+                        # 构建季集信息
+                        episode_info = ''
+                        if hasattr(mediainfo, 'season') and mediainfo.season:
+                            episode_info = f"S{mediainfo.season:02d}"
+                            if hasattr(mediainfo, 'episode') and mediainfo.episode:
+                                episode_info += f"E{mediainfo.episode:02d}"
+                        elif hasattr(mediainfo, 'episode') and mediainfo.episode:
+                            episode_info = f"E{mediainfo.episode:02d}"
+                        else:
+                            episode_info = '-'
 
-                tasks.append({
-                    "task_id": task.get('task_id'),
-                    "title": mediainfo.title or '未知标题',
-                    "media_type": mediainfo.type.value if hasattr(mediainfo.type, 'value') else str(mediainfo.type),
-                    "episode_info": episode_info,
-                    "status": task.get('status', 'pending'),
-                    "add_time": task.get('add_time', '').strftime('%Y-%m-%d %H:%M:%S') if task.get('add_time') else '未知',
-                    "retry_count": task.get('retry_count', 0),
-                    "tmdb_id": mediainfo.tmdb_id or '无'
-                })
+                        # 安全获取add_time
+                        add_time_str = '未知'
+                        add_time = task.get('add_time')
+                        if add_time and hasattr(add_time, 'strftime'):
+                            try:
+                                add_time_str = add_time.strftime('%Y-%m-%d %H:%M:%S')
+                            except Exception:
+                                add_time_str = str(add_time)
 
-            return {"success": True, "data": tasks}
+                        tasks.append({
+                            "task_id": task.get('task_id'),
+                            "title": mediainfo.title or '未知标题',
+                            "media_type": mediainfo.type.value if hasattr(mediainfo.type, 'value') else str(mediainfo.type),
+                            "episode_info": episode_info,
+                            "status": task.get('status', 'pending'),
+                            "add_time": add_time_str,
+                            "retry_count": task.get('retry_count', 0),
+                            "tmdb_id": mediainfo.tmdb_id or '无'
+                        })
+                    except Exception as e:
+                        logger.error(f"弹幕自动导入: 处理任务数据时出错: {e}", exc_info=True)
+                        continue
+
+                return {"success": True, "data": tasks}
+        except Exception as e:
+            logger.error(f"弹幕自动导入: 获取待处理任务列表失败: {e}", exc_info=True)
+            return {"success": False, "message": f"获取任务列表失败: {str(e)}", "data": []}
 
     def _delete_task(self, payload: dict = None) -> Dict[str, Any]:
         """API端点: 删除指定任务"""
