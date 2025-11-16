@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.1.7"
+    plugin_version = "2.1.8"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -59,7 +59,7 @@ class DanmakuAutoImport(_PluginBase):
     def init_plugin(self, config: dict = None):
         """初始化插件"""
         if config:
-            self._enabled = config.get("enabled", False)
+            self._enabled = config.get("enable", False)  # ✅ 修复字段名: enabled -> enable
             self._notify = config.get("notify", False)
             self._danmu_server_url = config.get("danmu_server_url", "").rstrip("/")
             self._external_api_key = config.get("external_api_key", "")
