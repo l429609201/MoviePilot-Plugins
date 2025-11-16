@@ -1,259 +1,8 @@
-import { importShared } from './__federation_fn_import-9Z7hiN6o.js';
-import { u as useRender, m as makeComponentProps, a as makeDensityProps, d as deepEqual, R as Ripple, V as VIcon, b as useDensity, c as useTextColor, e as useBackgroundColor, M as MaybeTransition, f as makeTransitionProps, g as VSlideYTransition, h as makeDimensionProps, i as useDimension, p as parseAnchor, j as flipSide, k as flipAlign, l as flipCorner, n as getAxis, o as useRouter, q as useBackButton, r as VDefaultsProvider, s as makeRoundedProps, t as makeLoaderProps, v as useLoader, w as useRounded, L as LoaderSlot, x as VExpandXTransition, I as Intersect, y as useResizeObserver, z as useItems, A as makeItemsProps, B as VList, C as VListItem, D as VDivider, E as VListSubheader, F as VAvatar, G as VChip, H as VScaleTransition, J as VProgressCircular, _ as _export_sfc, K as VCard, N as VCardTitle, O as VCardText, P as VRow, Q as VCol, S as VCardActions, T as VBtn, U as VSpacer } from './VList-GrR_JHJE.js';
-import { t as isOn, v as eventName, w as propsFactory, x as useProxiedModel, c as consoleWarn, y as genericComponent, P as PREFERS_REDUCED_MOTION, z as acceleratedEasing, A as deceleratedEasing, B as standardEasing, C as makeThemeProps, E as EventProp, F as IconValue, H as provideDefaults, J as filterInputAttrs, K as wrapInArray, M as matchesSelector, N as omit, u as useLocale, O as callEvent, Q as getCurrentInstanceName, R as getCurrentInstance, S as useToggleScope, U as pick, V as provideTheme, r as useRtl, I as IN_BROWSER, W as destructComputed, X as CircularBuffer, Y as consoleError, Z as convertToUnit, _ as clamp, $ as defer, a0 as templateRef, o as useDisplay, a1 as isClickInsideElement, a2 as focusableChildren, a3 as focusChild, a4 as getNextElement, a5 as debounce, a6 as getPropertyFromItem, a7 as camelizeProps, a8 as ensureValidVNode, a9 as checkPrintable, aa as SUPPORTS_MATCH_MEDIA } from './theme-BcIEhh1k.js';
+import { importShared } from './__federation_fn_import-Dd9Y27se.js';
+import { u as useRender, f as forwardRefs, m as makeComponentProps, a as animate, g as getTargetBox, n as nullifyTransforms, b as makeDensityProps, d as deepEqual, R as Ripple, V as VIcon, c as useDensity, e as useTextColor, h as useBackgroundColor, M as MaybeTransition, i as makeTransitionProps, j as VSlideYTransition, k as makeDimensionProps, l as useDimension, o as useScopeId, p as VMenuSymbol, q as VOverlay, r as VDefaultsProvider, s as makeVOverlayProps, t as makeRoundedProps, v as makeLoaderProps, w as useLoader, x as useRounded, L as LoaderSlot, y as VExpandXTransition, I as Intersect, z as useResizeObserver, A as getScrollParent, B as useItems, C as makeItemsProps, D as VList, E as VListItem, F as VDivider, G as VListSubheader, H as VAvatar, J as VChip, K as VScaleTransition, N as VProgressCircular, _ as _export_sfc, O as VCard, P as VCardTitle, Q as VCardText, S as VRow, T as VCol, U as VCardActions, W as VBtn, X as VSpacer } from './VOverlay-IPlmzrQ8.js';
+import { t as propsFactory, v as useProxiedModel, c as consoleWarn, w as genericComponent, P as PREFERS_REDUCED_MOTION, x as acceleratedEasing, y as deceleratedEasing, z as standardEasing, A as makeThemeProps, E as EventProp, B as IconValue, C as provideDefaults, F as filterInputAttrs, H as wrapInArray, J as matchesSelector, K as omit, u as useLocale, M as callEvent, N as getCurrentInstanceName, O as getCurrentInstance, Q as useToggleScope, R as pick, S as provideTheme, r as useRtl, U as isClickInsideElement, V as focusableChildren, I as IN_BROWSER, W as focusChild, X as getNextElement, Y as convertToUnit, o as useDisplay, Z as debounce, _ as clamp, $ as getPropertyFromItem, a0 as camelizeProps, a1 as ensureValidVNode, a2 as checkPrintable, a3 as SUPPORTS_MATCH_MEDIA } from './theme-DPL3T32x.js';
 
-class Box {
-  constructor(args) {
-    const pageScale = document.body.currentCSSZoom ?? 1;
-    const ignoreZoom = args.top === undefined; // detect DOMRect without breaking in jsdom
-    const factor = ignoreZoom ? 1 : 1 + (1 - pageScale) / pageScale;
-    const {
-      x,
-      y,
-      width,
-      height
-    } = args;
-    this.x = x * factor;
-    this.y = y * factor;
-    this.width = width * factor;
-    this.height = height * factor;
-  }
-  get top() {
-    return this.y;
-  }
-  get bottom() {
-    return this.y + this.height;
-  }
-  get left() {
-    return this.x;
-  }
-  get right() {
-    return this.x + this.width;
-  }
-}
-function getOverflow(a, b) {
-  return {
-    x: {
-      before: Math.max(0, b.left - a.left),
-      after: Math.max(0, a.right - b.right)
-    },
-    y: {
-      before: Math.max(0, b.top - a.top),
-      after: Math.max(0, a.bottom - b.bottom)
-    }
-  };
-}
-function getTargetBox(target) {
-  if (Array.isArray(target)) {
-    const pageScale = document.body.currentCSSZoom ?? 1;
-    const factor = 1 + (1 - pageScale) / pageScale;
-    return new Box({
-      x: target[0] * factor,
-      y: target[1] * factor,
-      width: 0 * factor,
-      height: 0 * factor
-    });
-  } else {
-    return new Box(target.getBoundingClientRect());
-  }
-}
-function getElementBox(el) {
-  if (el === document.documentElement) {
-    if (!visualViewport) {
-      return new Box({
-        x: 0,
-        y: 0,
-        width: document.documentElement.clientWidth,
-        height: document.documentElement.clientHeight
-      });
-    } else {
-      const pageScale = document.body.currentCSSZoom ?? 1;
-      return new Box({
-        x: visualViewport.scale > 1 ? 0 : visualViewport.offsetLeft,
-        y: visualViewport.scale > 1 ? 0 : visualViewport.offsetTop,
-        width: visualViewport.width * visualViewport.scale / pageScale,
-        height: visualViewport.height * visualViewport.scale / pageScale
-      });
-    }
-  } else {
-    return new Box(el.getBoundingClientRect());
-  }
-}
-
-// Utilities
-/** @see https://stackoverflow.com/a/57876601/2074736 */
-function nullifyTransforms(el) {
-  const rect = new Box(el.getBoundingClientRect());
-  const style = getComputedStyle(el);
-  const tx = style.transform;
-  if (tx) {
-    let ta, sx, sy, dx, dy;
-    if (tx.startsWith('matrix3d(')) {
-      ta = tx.slice(9, -1).split(/, /);
-      sx = Number(ta[0]);
-      sy = Number(ta[5]);
-      dx = Number(ta[12]);
-      dy = Number(ta[13]);
-    } else if (tx.startsWith('matrix(')) {
-      ta = tx.slice(7, -1).split(/, /);
-      sx = Number(ta[0]);
-      sy = Number(ta[3]);
-      dx = Number(ta[4]);
-      dy = Number(ta[5]);
-    } else {
-      return new Box(rect);
-    }
-    const to = style.transformOrigin;
-    const x = rect.x - dx - (1 - sx) * parseFloat(to);
-    const y = rect.y - dy - (1 - sy) * parseFloat(to.slice(to.indexOf(' ') + 1));
-    const w = sx ? rect.width / sx : el.offsetWidth + 1;
-    const h = sy ? rect.height / sy : el.offsetHeight + 1;
-    return new Box({
-      x,
-      y,
-      width: w,
-      height: h
-    });
-  } else {
-    return new Box(rect);
-  }
-}
-function animate(el, keyframes, options) {
-  if (typeof el.animate === 'undefined') return {
-    finished: Promise.resolve()
-  };
-  let animation;
-  try {
-    animation = el.animate(keyframes, options);
-  } catch (err) {
-    return {
-      finished: Promise.resolve()
-    };
-  }
-  if (typeof animation.finished === 'undefined') {
-    animation.finished = new Promise(resolve => {
-      animation.onfinish = () => {
-        resolve(animation);
-      };
-    });
-  }
-  return animation;
-}
-
-// Utilities
-const handlers = new WeakMap();
-function bindProps(el, props) {
-  Object.keys(props).forEach(k => {
-    if (isOn(k)) {
-      const name = eventName(k);
-      const handler = handlers.get(el);
-      if (props[k] == null) {
-        handler?.forEach(v => {
-          const [n, fn] = v;
-          if (n === name) {
-            el.removeEventListener(name, fn);
-            handler.delete(v);
-          }
-        });
-      } else if (!handler || ![...handler]?.some(v => v[0] === name && v[1] === props[k])) {
-        el.addEventListener(name, props[k]);
-        const _handler = handler || new Set();
-        _handler.add([name, props[k]]);
-        if (!handlers.has(el)) handlers.set(el, _handler);
-      }
-    } else {
-      if (props[k] == null) {
-        el.removeAttribute(k);
-      } else {
-        el.setAttribute(k, props[k]);
-      }
-    }
-  });
-}
-function unbindProps(el, props) {
-  Object.keys(props).forEach(k => {
-    if (isOn(k)) {
-      const name = eventName(k);
-      const handler = handlers.get(el);
-      handler?.forEach(v => {
-        const [n, fn] = v;
-        if (n === name) {
-          el.removeEventListener(name, fn);
-          handler.delete(v);
-        }
-      });
-    } else {
-      el.removeAttribute(k);
-    }
-  });
-}
-
-/**
- * Returns:
- *  - 'null' if the node is not attached to the DOM
- *  - the root node (HTMLDocument | ShadowRoot) otherwise
- */
-function attachedRoot(node) {
-  /* istanbul ignore next */
-  if (typeof node.getRootNode !== 'function') {
-    // Shadow DOM not supported (IE11), lets find the root of this node
-    while (node.parentNode) node = node.parentNode;
-
-    // The root parent is the document if the node is attached to the DOM
-    if (node !== document) return null;
-    return document;
-  }
-  const root = node.getRootNode();
-
-  // The composed root node is the document if the node is attached to the DOM
-  if (root !== document && root.getRootNode({
-    composed: true
-  }) !== document) return null;
-  return root;
-}
-
-function getScrollParent(el) {
-  let includeHidden = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
-  while (el) {
-    if (includeHidden ? isPotentiallyScrollable(el) : hasScrollbar(el)) return el;
-    el = el.parentElement;
-  }
-  return document.scrollingElement;
-}
-function getScrollParents(el, stopAt) {
-  const elements = [];
-  if (stopAt && el && !stopAt.contains(el)) return elements;
-  while (el) {
-    if (hasScrollbar(el)) elements.push(el);
-    if (el === stopAt) break;
-    el = el.parentElement;
-  }
-  return elements;
-}
-function hasScrollbar(el) {
-  if (!el || el.nodeType !== Node.ELEMENT_NODE) return false;
-  const style = window.getComputedStyle(el);
-  const hasVerticalScrollbar = style.overflowY === 'scroll' || style.overflowY === 'auto' && el.scrollHeight > el.clientHeight;
-  const hasHorizontalScrollbar = style.overflowX === 'scroll' || style.overflowX === 'auto' && el.scrollWidth > el.clientWidth;
-  return hasVerticalScrollbar || hasHorizontalScrollbar;
-}
-function isPotentiallyScrollable(el) {
-  if (!el || el.nodeType !== Node.ELEMENT_NODE) return false;
-  const style = window.getComputedStyle(el);
-  return ['scroll', 'auto'].includes(style.overflowY);
-}
-
-function isFixedPosition(el) {
-  while (el) {
-    if (window.getComputedStyle(el).position === 'fixed') {
-      return true;
-    }
-    el = el.offsetParent;
-  }
-  return false;
-}
-
-const {computed: computed$f,inject: inject$5,markRaw,provide: provide$3,ref: ref$d,shallowRef: shallowRef$a,toRef: toRef$f,watch: watch$b} = await importShared('vue');
+const {computed: computed$b,inject: inject$3,markRaw,provide: provide$2,ref: ref$a,shallowRef: shallowRef$7,toRef: toRef$d,watch: watch$7} = await importShared('vue');
 const FormKey = Symbol.for('vuetify:form');
 const makeFormProps = propsFactory({
   disabled: Boolean,
@@ -270,11 +19,11 @@ const makeFormProps = propsFactory({
 }, 'form');
 function createForm(props) {
   const model = useProxiedModel(props, 'modelValue');
-  const isDisabled = toRef$f(() => props.disabled);
-  const isReadonly = toRef$f(() => props.readonly);
-  const isValidating = shallowRef$a(false);
-  const items = ref$d([]);
-  const errors = ref$d([]);
+  const isDisabled = toRef$d(() => props.disabled);
+  const isReadonly = toRef$d(() => props.readonly);
+  const isValidating = shallowRef$7(false);
+  const items = ref$a([]);
+  const errors = ref$a([]);
   async function validate() {
     const results = [];
     let valid = true;
@@ -304,7 +53,7 @@ function createForm(props) {
   function resetValidation() {
     items.value.forEach(item => item.resetValidation());
   }
-  watch$b(items, () => {
+  watch$7(items, () => {
     let valid = 0;
     let invalid = 0;
     const results = [];
@@ -323,7 +72,7 @@ function createForm(props) {
     deep: true,
     flush: 'post'
   });
-  provide$3(FormKey, {
+  provide$2(FormKey, {
     register: _ref => {
       let {
         id,
@@ -361,7 +110,7 @@ function createForm(props) {
     isValidating,
     isValid: model,
     items,
-    validateOn: toRef$f(() => props.validateOn)
+    validateOn: toRef$d(() => props.validateOn)
   });
   return {
     errors,
@@ -376,113 +125,16 @@ function createForm(props) {
   };
 }
 function useForm(props) {
-  const form = inject$5(FormKey, null);
+  const form = inject$3(FormKey, null);
   return {
     ...form,
-    isReadonly: computed$f(() => !!(props?.readonly ?? form?.isReadonly.value)),
-    isDisabled: computed$f(() => !!(props?.disabled ?? form?.isDisabled.value))
+    isReadonly: computed$b(() => !!(props?.readonly ?? form?.isReadonly.value)),
+    isDisabled: computed$b(() => !!(props?.disabled ?? form?.isDisabled.value))
   };
 }
 
-// Types
-
-const Refs = Symbol('Forwarded refs');
-
-/** Omit properties starting with P */
-
-/** Omit keyof $props from T */
-
-function getDescriptor(obj, key) {
-  let currentObj = obj;
-  while (currentObj) {
-    const descriptor = Reflect.getOwnPropertyDescriptor(currentObj, key);
-    if (descriptor) return descriptor;
-    currentObj = Object.getPrototypeOf(currentObj);
-  }
-  return undefined;
-}
-function forwardRefs(target) {
-  for (var _len = arguments.length, refs = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-    refs[_key - 1] = arguments[_key];
-  }
-  target[Refs] = refs;
-  return new Proxy(target, {
-    get(target, key) {
-      if (Reflect.has(target, key)) {
-        return Reflect.get(target, key);
-      }
-
-      // Skip internal properties
-      if (typeof key === 'symbol' || key.startsWith('$') || key.startsWith('__')) return;
-      for (const ref of refs) {
-        if (ref.value && Reflect.has(ref.value, key)) {
-          const val = Reflect.get(ref.value, key);
-          return typeof val === 'function' ? val.bind(ref.value) : val;
-        }
-      }
-    },
-    has(target, key) {
-      if (Reflect.has(target, key)) {
-        return true;
-      }
-
-      // Skip internal properties
-      if (typeof key === 'symbol' || key.startsWith('$') || key.startsWith('__')) return false;
-      for (const ref of refs) {
-        if (ref.value && Reflect.has(ref.value, key)) {
-          return true;
-        }
-      }
-      return false;
-    },
-    set(target, key, value) {
-      if (Reflect.has(target, key)) {
-        return Reflect.set(target, key, value);
-      }
-
-      // Skip internal properties
-      if (typeof key === 'symbol' || key.startsWith('$') || key.startsWith('__')) return false;
-      for (const ref of refs) {
-        if (ref.value && Reflect.has(ref.value, key)) {
-          return Reflect.set(ref.value, key, value);
-        }
-      }
-      return false;
-    },
-    getOwnPropertyDescriptor(target, key) {
-      const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
-      if (descriptor) return descriptor;
-
-      // Skip internal properties
-      if (typeof key === 'symbol' || key.startsWith('$') || key.startsWith('__')) return;
-
-      // Check each ref's own properties
-      for (const ref of refs) {
-        if (!ref.value) continue;
-        const descriptor = getDescriptor(ref.value, key) ?? ('_' in ref.value ? getDescriptor(ref.value._?.setupState, key) : undefined);
-        if (descriptor) return descriptor;
-      }
-
-      // Recursive search up each ref's prototype
-      for (const ref of refs) {
-        const childRefs = ref.value && ref.value[Refs];
-        if (!childRefs) continue;
-        const queue = childRefs.slice();
-        while (queue.length) {
-          const ref = queue.shift();
-          const descriptor = getDescriptor(ref.value, key);
-          if (descriptor) return descriptor;
-          const childRefs = ref.value && ref.value[Refs];
-          if (childRefs) queue.push(...childRefs);
-        }
-      }
-      return undefined;
-    }
-  });
-}
-
-const {normalizeClass:_normalizeClass$b,normalizeStyle:_normalizeStyle$a,createElementVNode:_createElementVNode$e} = await importShared('vue');
-const {ref: ref$c} = await importShared('vue');
+const {normalizeClass:_normalizeClass$b,normalizeStyle:_normalizeStyle$a,createElementVNode:_createElementVNode$d} = await importShared('vue');
+const {ref: ref$9} = await importShared('vue');
 const makeVFormProps = propsFactory({
   ...makeComponentProps(),
   ...makeFormProps()
@@ -500,7 +152,7 @@ const VForm = genericComponent()({
       emit
     } = _ref;
     const form = createForm(props);
-    const formRef = ref$c();
+    const formRef = ref$9();
     function onReset(e) {
       e.preventDefault();
       form.reset();
@@ -524,7 +176,7 @@ const VForm = genericComponent()({
       }
       e.preventDefault();
     }
-    useRender(() => _createElementVNode$e("form", {
+    useRender(() => _createElementVNode$d("form", {
       "ref": formRef,
       "class": _normalizeClass$b(['v-form', props.class]),
       "style": _normalizeStyle$a(props.style),
@@ -537,7 +189,7 @@ const VForm = genericComponent()({
 });
 
 // Utilities
-const {Transition: Transition$1,mergeProps:_mergeProps$a,createVNode:_createVNode$f} = await importShared('vue');
+const {Transition,mergeProps:_mergeProps$9,createVNode:_createVNode$e} = await importShared('vue');
 const makeVDialogTransitionProps = propsFactory({
   target: [Object, Array]
 }, 'v-dialog-transition');
@@ -651,11 +303,11 @@ const VDialogTransition = genericComponent()({
       }
     };
     return () => {
-      return props.target ? _createVNode$f(Transition$1, _mergeProps$a({
+      return props.target ? _createVNode$e(Transition, _mergeProps$9({
         "name": "dialog-transition"
       }, functions, {
         "css": false
-      }), slots) : _createVNode$f(Transition$1, {
+      }), slots) : _createVNode$e(Transition, {
         "name": "dialog-transition"
       }, slots);
     };
@@ -702,7 +354,7 @@ function getDimensions(target, el) {
   };
 }
 
-const {normalizeClass:_normalizeClass$a,normalizeStyle:_normalizeStyle$9,createElementVNode:_createElementVNode$d} = await importShared('vue');
+const {normalizeClass:_normalizeClass$a,normalizeStyle:_normalizeStyle$9,createElementVNode:_createElementVNode$c} = await importShared('vue');
 const makeVLabelProps = propsFactory({
   text: String,
   onClick: EventProp(),
@@ -716,7 +368,7 @@ const VLabel = genericComponent()({
     let {
       slots
     } = _ref;
-    useRender(() => _createElementVNode$d("label", {
+    useRender(() => _createElementVNode$c("label", {
       "class": _normalizeClass$a(['v-label', {
         'v-label--clickable': !!props.onClick
       }, props.class]),
@@ -727,8 +379,8 @@ const VLabel = genericComponent()({
   }
 });
 
-const {normalizeClass:_normalizeClass$9,normalizeStyle:_normalizeStyle$8,createElementVNode:_createElementVNode$c} = await importShared('vue');
-const {onScopeDispose: onScopeDispose$6,provide: provide$2,toRef: toRef$e,useId: useId$8} = await importShared('vue');
+const {normalizeClass:_normalizeClass$9,normalizeStyle:_normalizeStyle$8,createElementVNode:_createElementVNode$b} = await importShared('vue');
+const {onScopeDispose: onScopeDispose$2,provide: provide$1,toRef: toRef$c,useId: useId$8} = await importShared('vue');
 const VSelectionControlGroupSymbol = Symbol.for('vuetify:selection-control-group');
 const makeSelectionControlGroupProps = propsFactory({
   color: String,
@@ -782,40 +434,40 @@ genericComponent()({
     } = _ref;
     const modelValue = useProxiedModel(props, 'modelValue');
     const uid = useId$8();
-    const id = toRef$e(() => props.id || `v-selection-control-group-${uid}`);
-    const name = toRef$e(() => props.name || id.value);
+    const id = toRef$c(() => props.id || `v-selection-control-group-${uid}`);
+    const name = toRef$c(() => props.name || id.value);
     const updateHandlers = new Set();
-    provide$2(VSelectionControlGroupSymbol, {
+    provide$1(VSelectionControlGroupSymbol, {
       modelValue,
       forceUpdate: () => {
         updateHandlers.forEach(fn => fn());
       },
       onForceUpdate: cb => {
         updateHandlers.add(cb);
-        onScopeDispose$6(() => {
+        onScopeDispose$2(() => {
           updateHandlers.delete(cb);
         });
       }
     });
     provideDefaults({
       [props.defaultsTarget]: {
-        color: toRef$e(() => props.color),
-        disabled: toRef$e(() => props.disabled),
-        density: toRef$e(() => props.density),
-        error: toRef$e(() => props.error),
-        inline: toRef$e(() => props.inline),
+        color: toRef$c(() => props.color),
+        disabled: toRef$c(() => props.disabled),
+        density: toRef$c(() => props.density),
+        error: toRef$c(() => props.error),
+        inline: toRef$c(() => props.inline),
         modelValue,
-        multiple: toRef$e(() => !!props.multiple || props.multiple == null && Array.isArray(modelValue.value)),
+        multiple: toRef$c(() => !!props.multiple || props.multiple == null && Array.isArray(modelValue.value)),
         name,
-        falseIcon: toRef$e(() => props.falseIcon),
-        trueIcon: toRef$e(() => props.trueIcon),
-        readonly: toRef$e(() => props.readonly),
-        ripple: toRef$e(() => props.ripple),
-        type: toRef$e(() => props.type),
-        valueComparator: toRef$e(() => props.valueComparator)
+        falseIcon: toRef$c(() => props.falseIcon),
+        trueIcon: toRef$c(() => props.trueIcon),
+        readonly: toRef$c(() => props.readonly),
+        ripple: toRef$c(() => props.ripple),
+        type: toRef$c(() => props.type),
+        valueComparator: toRef$c(() => props.valueComparator)
       }
     });
-    useRender(() => _createElementVNode$c("div", {
+    useRender(() => _createElementVNode$b("div", {
       "class": _normalizeClass$9(['v-selection-control-group', {
         'v-selection-control-group--inline': props.inline
       }, props.class]),
@@ -826,8 +478,8 @@ genericComponent()({
   }
 });
 
-const {mergeProps:_mergeProps$9,createElementVNode:_createElementVNode$b,Fragment:_Fragment$7,createVNode:_createVNode$e,normalizeClass:_normalizeClass$8,withDirectives:_withDirectives$4,normalizeStyle:_normalizeStyle$7} = await importShared('vue');
-const {computed: computed$e,inject: inject$4,nextTick: nextTick$7,ref: ref$b,shallowRef: shallowRef$9,toRef: toRef$d,useId: useId$7} = await importShared('vue');
+const {mergeProps:_mergeProps$8,createElementVNode:_createElementVNode$a,Fragment:_Fragment$6,createVNode:_createVNode$d,normalizeClass:_normalizeClass$8,withDirectives:_withDirectives$3,normalizeStyle:_normalizeStyle$7} = await importShared('vue');
+const {computed: computed$a,inject: inject$2,nextTick: nextTick$5,ref: ref$8,shallowRef: shallowRef$6,toRef: toRef$b,useId: useId$7} = await importShared('vue');
 const makeVSelectionControlProps = propsFactory({
   label: String,
   baseColor: String,
@@ -838,15 +490,15 @@ const makeVSelectionControlProps = propsFactory({
   ...makeSelectionControlGroupProps()
 }, 'VSelectionControl');
 function useSelectionControl(props) {
-  const group = inject$4(VSelectionControlGroupSymbol, undefined);
+  const group = inject$2(VSelectionControlGroupSymbol, undefined);
   const {
     densityClasses
   } = useDensity(props);
   const modelValue = useProxiedModel(props, 'modelValue');
-  const trueValue = computed$e(() => props.trueValue !== undefined ? props.trueValue : props.value !== undefined ? props.value : true);
-  const falseValue = computed$e(() => props.falseValue !== undefined ? props.falseValue : false);
-  const isMultiple = computed$e(() => !!props.multiple || props.multiple == null && Array.isArray(modelValue.value));
-  const model = computed$e({
+  const trueValue = computed$a(() => props.trueValue !== undefined ? props.trueValue : props.value !== undefined ? props.value : true);
+  const falseValue = computed$a(() => props.falseValue !== undefined ? props.falseValue : false);
+  const isMultiple = computed$a(() => !!props.multiple || props.multiple == null && Array.isArray(modelValue.value));
+  const model = computed$a({
     get() {
       const val = group ? group.modelValue.value : modelValue.value;
       return isMultiple.value ? wrapInArray(val).some(v => props.valueComparator(v, trueValue.value)) : props.valueComparator(val, trueValue.value);
@@ -878,7 +530,7 @@ function useSelectionControl(props) {
   } = useBackgroundColor(() => {
     return model.value && !props.error && !props.disabled ? props.color : props.baseColor;
   });
-  const icon = computed$e(() => model.value ? props.trueIcon : props.falseIcon);
+  const icon = computed$a(() => model.value ? props.trueIcon : props.falseIcon);
   return {
     group,
     densityClasses,
@@ -919,11 +571,11 @@ const VSelectionControl = genericComponent()({
       trueValue
     } = useSelectionControl(props);
     const uid = useId$7();
-    const isFocused = shallowRef$9(false);
-    const isFocusVisible = shallowRef$9(false);
-    const input = ref$b();
-    const id = toRef$d(() => props.id || `input-${uid}`);
-    const isInteractive = toRef$d(() => !props.disabled && !props.readonly);
+    const isFocused = shallowRef$6(false);
+    const isFocusVisible = shallowRef$6(false);
+    const input = ref$8();
+    const id = toRef$b(() => props.id || `input-${uid}`);
+    const isInteractive = toRef$b(() => !props.disabled && !props.readonly);
     group?.onForceUpdate(() => {
       if (input.value) {
         input.value.checked = model.value;
@@ -954,7 +606,7 @@ const VSelectionControl = genericComponent()({
         return;
       }
       if (props.readonly && group) {
-        nextTick$7(() => group.forceUpdate());
+        nextTick$5(() => group.forceUpdate());
       }
       model.value = e.target.checked;
     }
@@ -966,7 +618,7 @@ const VSelectionControl = genericComponent()({
         }
       }) : props.label;
       const [rootAttrs, inputAttrs] = filterInputAttrs(attrs);
-      const inputNode = _createElementVNode$b("input", _mergeProps$9({
+      const inputNode = _createElementVNode$a("input", _mergeProps$8({
         "ref": input,
         "checked": model.value,
         "disabled": !!props.disabled,
@@ -981,7 +633,7 @@ const VSelectionControl = genericComponent()({
         "name": props.name,
         "aria-checked": props.type === 'checkbox' ? model.value : undefined
       }, inputAttrs), null);
-      return _createElementVNode$b("div", _mergeProps$9({
+      return _createElementVNode$a("div", _mergeProps$8({
         "class": ['v-selection-control', {
           'v-selection-control--dirty': model.value,
           'v-selection-control--disabled': props.disabled,
@@ -992,13 +644,13 @@ const VSelectionControl = genericComponent()({
         }, densityClasses.value, props.class]
       }, rootAttrs, {
         "style": props.style
-      }), [_createElementVNode$b("div", {
+      }), [_createElementVNode$a("div", {
         "class": _normalizeClass$8(['v-selection-control__wrapper', textColorClasses.value]),
         "style": _normalizeStyle$7(textColorStyles.value)
       }, [slots.default?.({
         backgroundColorClasses,
         backgroundColorStyles
-      }), _withDirectives$4(_createElementVNode$b("div", {
+      }), _withDirectives$3(_createElementVNode$a("div", {
         "class": _normalizeClass$8(['v-selection-control__input'])
       }, [slots.input?.({
         model,
@@ -1013,13 +665,13 @@ const VSelectionControl = genericComponent()({
           onBlur,
           id: id.value
         }
-      }) ?? _createElementVNode$b(_Fragment$7, null, [icon.value && _createVNode$e(VIcon, {
+      }) ?? _createElementVNode$a(_Fragment$6, null, [icon.value && _createVNode$d(VIcon, {
         "key": "icon",
         "icon": icon.value
       }, null), inputNode])]), [[Ripple, !props.disabled && !props.readonly && props.ripple, null, {
         center: true,
         circle: true
-      }]])]), label && _createVNode$e(VLabel, {
+      }]])]), label && _createVNode$d(VLabel, {
         "for": id.value,
         "onClick": onClickLabel
       }, {
@@ -1033,8 +685,8 @@ const VSelectionControl = genericComponent()({
   }
 });
 
-const {mergeProps:_mergeProps$8,createVNode:_createVNode$d} = await importShared('vue');
-const {toRef: toRef$c} = await importShared('vue');
+const {mergeProps:_mergeProps$7,createVNode:_createVNode$c} = await importShared('vue');
+const {toRef: toRef$a} = await importShared('vue');
 const makeVCheckboxBtnProps = propsFactory({
   indeterminate: Boolean,
   indeterminateIcon: {
@@ -1064,15 +716,15 @@ const VCheckboxBtn = genericComponent()({
         indeterminate.value = false;
       }
     }
-    const falseIcon = toRef$c(() => {
+    const falseIcon = toRef$a(() => {
       return indeterminate.value ? props.indeterminateIcon : props.falseIcon;
     });
-    const trueIcon = toRef$c(() => {
+    const trueIcon = toRef$a(() => {
       return indeterminate.value ? props.indeterminateIcon : props.trueIcon;
     });
     useRender(() => {
       const controlProps = omit(VSelectionControl.filterProps(props), ['modelValue']);
-      return _createVNode$d(VSelectionControl, _mergeProps$8(controlProps, {
+      return _createVNode$c(VSelectionControl, _mergeProps$7(controlProps, {
         "modelValue": model.value,
         "onUpdate:modelValue": [$event => model.value = $event, onChange],
         "class": ['v-checkbox-btn', props.class],
@@ -1087,7 +739,7 @@ const VCheckboxBtn = genericComponent()({
   }
 });
 
-const {mergeProps:_mergeProps$7,createVNode:_createVNode$c} = await importShared('vue');
+const {mergeProps:_mergeProps$6,createVNode:_createVNode$b} = await importShared('vue');
 function useInputIcon(props) {
   const {
     t
@@ -1113,7 +765,7 @@ function useInputIcon(props) {
       callEvent(listener, new PointerEvent('click', e));
     }
     const label = listener && localeKey ? t(`$vuetify.input.${localeKey}`, props.label ?? '') : undefined;
-    return _createVNode$c(VIcon, _mergeProps$7({
+    return _createVNode$b(VIcon, _mergeProps$6({
       "icon": props[`${name}Icon`],
       "aria-label": label,
       "onClick": listener,
@@ -1126,8 +778,8 @@ function useInputIcon(props) {
   };
 }
 
-const {createElementVNode:_createElementVNode$a,normalizeClass:_normalizeClass$7,normalizeStyle:_normalizeStyle$6,createVNode:_createVNode$b} = await importShared('vue');
-const {computed: computed$d} = await importShared('vue');
+const {createElementVNode:_createElementVNode$9,normalizeClass:_normalizeClass$7,normalizeStyle:_normalizeStyle$6,createVNode:_createVNode$a} = await importShared('vue');
+const {computed: computed$9} = await importShared('vue');
 const makeVMessagesProps = propsFactory({
   active: Boolean,
   color: String,
@@ -1151,18 +803,18 @@ const VMessages = genericComponent()({
     let {
       slots
     } = _ref;
-    const messages = computed$d(() => wrapInArray(props.messages));
+    const messages = computed$9(() => wrapInArray(props.messages));
     const {
       textColorClasses,
       textColorStyles
     } = useTextColor(() => props.color);
-    useRender(() => _createVNode$b(MaybeTransition, {
+    useRender(() => _createVNode$a(MaybeTransition, {
       "transition": props.transition,
       "tag": "div",
       "class": _normalizeClass$7(['v-messages', textColorClasses.value, props.class]),
       "style": _normalizeStyle$6([textColorStyles.value, props.style])
     }, {
-      default: () => [props.active && messages.value.map((message, i) => _createElementVNode$a("div", {
+      default: () => [props.active && messages.value.map((message, i) => _createElementVNode$9("div", {
         "class": "v-messages__message",
         "key": `${i}-${messages.value}`
       }, [slots.message ? slots.message({
@@ -1173,7 +825,7 @@ const VMessages = genericComponent()({
   }
 });
 
-const {toRef: toRef$b} = await importShared('vue');
+const {toRef: toRef$9} = await importShared('vue');
 // Composables
 const makeFocusProps = propsFactory({
   focused: Boolean,
@@ -1182,7 +834,7 @@ const makeFocusProps = propsFactory({
 function useFocus(props) {
   let name = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : getCurrentInstanceName();
   const isFocused = useProxiedModel(props, 'focused');
-  const focusClasses = toRef$b(() => {
+  const focusClasses = toRef$9(() => {
     return {
       [`${name}--focused`]: isFocused.value
     };
@@ -1202,20 +854,20 @@ function useFocus(props) {
 }
 
 // Utilities
-const {computed: computed$c,inject: inject$3,toRef: toRef$a} = await importShared('vue');
+const {computed: computed$8,inject: inject$1,toRef: toRef$8} = await importShared('vue');
 const RulesSymbol = Symbol.for('vuetify:rules');
 function useRules(fn) {
-  const rules = inject$3(RulesSymbol, null);
+  const rules = inject$1(RulesSymbol, null);
   if (!fn) {
     if (!rules) {
       throw new Error('Could not find Vuetify rules injection');
     }
     return rules.aliases;
   }
-  return rules?.resolve(fn) ?? toRef$a(fn);
+  return rules?.resolve(fn) ?? toRef$8(fn);
 }
 
-const {computed: computed$b,nextTick: nextTick$6,onBeforeMount,onBeforeUnmount: onBeforeUnmount$2,onMounted: onMounted$2,ref: ref$a,shallowRef: shallowRef$8,unref,useId: useId$6,watch: watch$a} = await importShared('vue');
+const {computed: computed$7,nextTick: nextTick$4,onBeforeMount,onBeforeUnmount: onBeforeUnmount$1,onMounted: onMounted$1,ref: ref$7,shallowRef: shallowRef$5,unref,useId: useId$6,watch: watch$6} = await importShared('vue');
 const makeValidationProps = propsFactory({
   disabled: {
     type: Boolean,
@@ -1249,16 +901,16 @@ function useValidation(props) {
   let name = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : getCurrentInstanceName();
   let id = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : useId$6();
   const model = useProxiedModel(props, 'modelValue');
-  const validationModel = computed$b(() => props.validationValue === undefined ? model.value : props.validationValue);
+  const validationModel = computed$7(() => props.validationValue === undefined ? model.value : props.validationValue);
   const form = useForm(props);
   const rules = useRules(() => props.rules);
-  const internalErrorMessages = ref$a([]);
-  const isPristine = shallowRef$8(true);
-  const isDirty = computed$b(() => !!(wrapInArray(model.value === '' ? null : model.value).length || wrapInArray(validationModel.value === '' ? null : validationModel.value).length));
-  const errorMessages = computed$b(() => {
+  const internalErrorMessages = ref$7([]);
+  const isPristine = shallowRef$5(true);
+  const isDirty = computed$7(() => !!(wrapInArray(model.value === '' ? null : model.value).length || wrapInArray(validationModel.value === '' ? null : validationModel.value).length));
+  const errorMessages = computed$7(() => {
     return props.errorMessages?.length ? wrapInArray(props.errorMessages).concat(internalErrorMessages.value).slice(0, Math.max(0, Number(props.maxErrors))) : internalErrorMessages.value;
   });
-  const validateOn = computed$b(() => {
+  const validateOn = computed$7(() => {
     let value = (props.validateOn ?? form.validateOn?.value) || 'input';
     if (value === 'lazy') value = 'input lazy';
     if (value === 'eager') value = 'input eager';
@@ -1271,7 +923,7 @@ function useValidation(props) {
       eager: set.has('eager')
     };
   });
-  const isValid = computed$b(() => {
+  const isValid = computed$7(() => {
     if (props.error || props.errorMessages?.length) return false;
     if (!props.rules.length) return true;
     if (isPristine.value) {
@@ -1280,8 +932,8 @@ function useValidation(props) {
       return !internalErrorMessages.value.length;
     }
   });
-  const isValidating = shallowRef$8(false);
-  const validationClasses = computed$b(() => {
+  const isValidating = shallowRef$5(false);
+  const validationClasses = computed$7(() => {
     return {
       [`${name}--error`]: isValid.value === false,
       [`${name}--dirty`]: isDirty.value,
@@ -1290,7 +942,7 @@ function useValidation(props) {
     };
   });
   const vm = getCurrentInstance('validation');
-  const uid = computed$b(() => props.name ?? unref(id));
+  const uid = computed$7(() => props.name ?? unref(id));
   onBeforeMount(() => {
     form.register?.({
       id: uid.value,
@@ -1300,21 +952,21 @@ function useValidation(props) {
       resetValidation
     });
   });
-  onBeforeUnmount$2(() => {
+  onBeforeUnmount$1(() => {
     form.unregister?.(uid.value);
   });
-  onMounted$2(async () => {
+  onMounted$1(async () => {
     if (!validateOn.value.lazy) {
       await validate(!validateOn.value.eager);
     }
     form.update?.(uid.value, isValid.value, errorMessages.value);
   });
   useToggleScope(() => validateOn.value.input || validateOn.value.invalidInput && isValid.value === false, () => {
-    watch$a(validationModel, () => {
+    watch$6(validationModel, () => {
       if (validationModel.value != null) {
         validate();
       } else if (props.focused) {
-        const unwatch = watch$a(() => props.focused, val => {
+        const unwatch = watch$6(() => props.focused, val => {
           if (!val) validate();
           unwatch();
         });
@@ -1322,16 +974,16 @@ function useValidation(props) {
     });
   });
   useToggleScope(() => validateOn.value.blur, () => {
-    watch$a(() => props.focused, val => {
+    watch$6(() => props.focused, val => {
       if (!val) validate();
     });
   });
-  watch$a([isValid, errorMessages], () => {
+  watch$6([isValid, errorMessages], () => {
     form.update?.(uid.value, isValid.value, errorMessages.value);
   });
   async function reset() {
     model.value = null;
-    await nextTick$6();
+    await nextTick$4();
     await resetValidation();
   }
   async function resetValidation() {
@@ -1380,8 +1032,8 @@ function useValidation(props) {
   };
 }
 
-const {createVNode:_createVNode$a,createElementVNode:_createElementVNode$9,normalizeClass:_normalizeClass$6,normalizeStyle:_normalizeStyle$5} = await importShared('vue');
-const {computed: computed$a,toRef: toRef$9,useId: useId$5} = await importShared('vue');
+const {createVNode:_createVNode$9,createElementVNode:_createElementVNode$8,normalizeClass:_normalizeClass$6,normalizeStyle:_normalizeStyle$5} = await importShared('vue');
+const {computed: computed$6,toRef: toRef$7,useId: useId$5} = await importShared('vue');
 const makeVInputProps = propsFactory({
   id: String,
   appendIcon: IconValue,
@@ -1445,7 +1097,7 @@ const VInput = genericComponent()({
       InputIcon
     } = useInputIcon(props);
     const uid = useId$5();
-    const id = computed$a(() => props.id || `input-${uid}`);
+    const id = computed$6(() => props.id || `input-${uid}`);
     const {
       errorMessages,
       isDirty,
@@ -1459,7 +1111,7 @@ const VInput = genericComponent()({
       validate,
       validationClasses
     } = useValidation(props, 'v-input', id);
-    const messages = computed$a(() => {
+    const messages = computed$6(() => {
       if (props.errorMessages?.length || !isPristine.value && errorMessages.value.length) {
         return errorMessages.value;
       } else if (props.hint && (props.persistentHint || props.focused)) {
@@ -1468,10 +1120,10 @@ const VInput = genericComponent()({
         return props.messages;
       }
     });
-    const hasMessages = toRef$9(() => messages.value.length > 0);
-    const hasDetails = toRef$9(() => !props.hideDetails || props.hideDetails === 'auto' && (hasMessages.value || !!slots.details));
-    const messagesId = computed$a(() => hasDetails.value ? `${id.value}-messages` : undefined);
-    const slotProps = computed$a(() => ({
+    const hasMessages = toRef$7(() => messages.value.length > 0);
+    const hasDetails = toRef$7(() => !props.hideDetails || props.hideDetails === 'auto' && (hasMessages.value || !!slots.details));
+    const messagesId = computed$6(() => hasDetails.value ? `${id.value}-messages` : undefined);
+    const slotProps = computed$6(() => ({
       id,
       messagesId,
       isDirty,
@@ -1485,17 +1137,17 @@ const VInput = genericComponent()({
       resetValidation,
       validate
     }));
-    const color = toRef$9(() => {
+    const color = toRef$7(() => {
       return props.error || props.disabled ? undefined : props.focused ? props.color : props.baseColor;
     });
-    const iconColor = toRef$9(() => {
+    const iconColor = toRef$7(() => {
       if (!props.iconColor) return undefined;
       return props.iconColor === true ? color.value : props.iconColor;
     });
     useRender(() => {
       const hasPrepend = !!(slots.prepend || props.prependIcon);
       const hasAppend = !!(slots.append || props.appendIcon);
-      return _createElementVNode$9("div", {
+      return _createElementVNode$8("div", {
         "class": _normalizeClass$6(['v-input', `v-input--${props.direction}`, {
           'v-input--center-affix': props.centerAffix,
           'v-input--focused': props.focused,
@@ -1503,28 +1155,28 @@ const VInput = genericComponent()({
           'v-input--hide-spin-buttons': props.hideSpinButtons
         }, densityClasses.value, themeClasses.value, rtlClasses.value, validationClasses.value, props.class]),
         "style": _normalizeStyle$5([dimensionStyles.value, props.style])
-      }, [hasPrepend && _createElementVNode$9("div", {
+      }, [hasPrepend && _createElementVNode$8("div", {
         "key": "prepend",
         "class": "v-input__prepend"
-      }, [slots.prepend?.(slotProps.value), props.prependIcon && _createVNode$a(InputIcon, {
+      }, [slots.prepend?.(slotProps.value), props.prependIcon && _createVNode$9(InputIcon, {
         "key": "prepend-icon",
         "name": "prepend",
         "color": iconColor.value
-      }, null)]), slots.default && _createElementVNode$9("div", {
+      }, null)]), slots.default && _createElementVNode$8("div", {
         "class": "v-input__control"
-      }, [slots.default?.(slotProps.value)]), hasAppend && _createElementVNode$9("div", {
+      }, [slots.default?.(slotProps.value)]), hasAppend && _createElementVNode$8("div", {
         "key": "append",
         "class": "v-input__append"
-      }, [props.appendIcon && _createVNode$a(InputIcon, {
+      }, [props.appendIcon && _createVNode$9(InputIcon, {
         "key": "append-icon",
         "name": "append",
         "color": iconColor.value
-      }, null), slots.append?.(slotProps.value)]), hasDetails.value && _createElementVNode$9("div", {
+      }, null), slots.append?.(slotProps.value)]), hasDetails.value && _createElementVNode$8("div", {
         "id": messagesId.value,
         "class": "v-input__details",
         "role": "alert",
         "aria-live": "polite"
-      }, [_createVNode$a(VMessages, {
+      }, [_createVNode$9(VMessages, {
         "active": hasMessages.value,
         "messages": messages.value
       }, {
@@ -1537,1446 +1189,6 @@ const VInput = genericComponent()({
       validate,
       isValid,
       errorMessages
-    };
-  }
-});
-
-// Types
-
-/** Convert a point in local space to viewport space */
-function elementToViewport(point, offset) {
-  return {
-    x: point.x + offset.x,
-    y: point.y + offset.y
-  };
-}
-
-/** Get the difference between two points */
-function getOffset(a, b) {
-  return {
-    x: a.x - b.x,
-    y: a.y - b.y
-  };
-}
-
-/** Convert an anchor object to a point in local space */
-function anchorToPoint(anchor, box) {
-  if (anchor.side === 'top' || anchor.side === 'bottom') {
-    const {
-      side,
-      align
-    } = anchor;
-    const x = align === 'left' ? 0 : align === 'center' ? box.width / 2 : align === 'right' ? box.width : align;
-    const y = side === 'top' ? 0 : side === 'bottom' ? box.height : side;
-    return elementToViewport({
-      x,
-      y
-    }, box);
-  } else if (anchor.side === 'left' || anchor.side === 'right') {
-    const {
-      side,
-      align
-    } = anchor;
-    const x = side === 'left' ? 0 : side === 'right' ? box.width : side;
-    const y = align === 'top' ? 0 : align === 'center' ? box.height / 2 : align === 'bottom' ? box.height : align;
-    return elementToViewport({
-      x,
-      y
-    }, box);
-  }
-  return elementToViewport({
-    x: box.width / 2,
-    y: box.height / 2
-  }, box);
-}
-
-const {computed: computed$9,nextTick: nextTick$5,onScopeDispose: onScopeDispose$5,ref: ref$9,watch: watch$9} = await importShared('vue');
-const locationStrategies = {
-  static: staticLocationStrategy,
-  // specific viewport position, usually centered
-  connected: connectedLocationStrategy // connected to a certain element
-};
-const makeLocationStrategyProps = propsFactory({
-  locationStrategy: {
-    type: [String, Function],
-    default: 'static',
-    validator: val => typeof val === 'function' || val in locationStrategies
-  },
-  location: {
-    type: String,
-    default: 'bottom'
-  },
-  origin: {
-    type: String,
-    default: 'auto'
-  },
-  offset: [Number, String, Array],
-  stickToTarget: Boolean
-}, 'VOverlay-location-strategies');
-function useLocationStrategies(props, data) {
-  const contentStyles = ref$9({});
-  const updateLocation = ref$9();
-  if (IN_BROWSER) {
-    useToggleScope(() => !!(data.isActive.value && props.locationStrategy), reset => {
-      watch$9(() => props.locationStrategy, reset);
-      onScopeDispose$5(() => {
-        window.removeEventListener('resize', onResize);
-        visualViewport?.removeEventListener('resize', onVisualResize);
-        visualViewport?.removeEventListener('scroll', onVisualScroll);
-        updateLocation.value = undefined;
-      });
-      window.addEventListener('resize', onResize, {
-        passive: true
-      });
-      visualViewport?.addEventListener('resize', onVisualResize, {
-        passive: true
-      });
-      visualViewport?.addEventListener('scroll', onVisualScroll, {
-        passive: true
-      });
-      if (typeof props.locationStrategy === 'function') {
-        updateLocation.value = props.locationStrategy(data, props, contentStyles)?.updateLocation;
-      } else {
-        updateLocation.value = locationStrategies[props.locationStrategy](data, props, contentStyles)?.updateLocation;
-      }
-    });
-  }
-  function onResize(e) {
-    updateLocation.value?.(e);
-  }
-  function onVisualResize(e) {
-    updateLocation.value?.(e);
-  }
-  function onVisualScroll(e) {
-    updateLocation.value?.(e);
-  }
-  return {
-    contentStyles,
-    updateLocation
-  };
-}
-function staticLocationStrategy() {
-  // TODO
-}
-
-/** Get size of element ignoring max-width/max-height */
-function getIntrinsicSize(el, isRtl) {
-  // const scrollables = new Map<Element, [number, number]>()
-  // el.querySelectorAll('*').forEach(el => {
-  //   const x = el.scrollLeft
-  //   const y = el.scrollTop
-  //   if (x || y) {
-  //     scrollables.set(el, [x, y])
-  //   }
-  // })
-
-  // const initialMaxWidth = el.style.maxWidth
-  // const initialMaxHeight = el.style.maxHeight
-  // el.style.removeProperty('max-width')
-  // el.style.removeProperty('max-height')
-
-  /* eslint-disable-next-line sonarjs/prefer-immediate-return */
-  const contentBox = nullifyTransforms(el);
-  if (isRtl) {
-    contentBox.x += parseFloat(el.style.right || 0);
-  } else {
-    contentBox.x -= parseFloat(el.style.left || 0);
-  }
-  contentBox.y -= parseFloat(el.style.top || 0);
-
-  // el.style.maxWidth = initialMaxWidth
-  // el.style.maxHeight = initialMaxHeight
-  // scrollables.forEach((position, el) => {
-  //   el.scrollTo(...position)
-  // })
-
-  return contentBox;
-}
-function connectedLocationStrategy(data, props, contentStyles) {
-  const activatorFixed = Array.isArray(data.target.value) || isFixedPosition(data.target.value);
-  if (activatorFixed) {
-    Object.assign(contentStyles.value, {
-      position: 'fixed',
-      top: 0,
-      [data.isRtl.value ? 'right' : 'left']: 0
-    });
-  }
-  const {
-    preferredAnchor,
-    preferredOrigin
-  } = destructComputed(() => {
-    const parsedAnchor = parseAnchor(props.location, data.isRtl.value);
-    const parsedOrigin = props.origin === 'overlap' ? parsedAnchor : props.origin === 'auto' ? flipSide(parsedAnchor) : parseAnchor(props.origin, data.isRtl.value);
-
-    // Some combinations of props may produce an invalid origin
-    if (parsedAnchor.side === parsedOrigin.side && parsedAnchor.align === flipAlign(parsedOrigin).align) {
-      return {
-        preferredAnchor: flipCorner(parsedAnchor),
-        preferredOrigin: flipCorner(parsedOrigin)
-      };
-    } else {
-      return {
-        preferredAnchor: parsedAnchor,
-        preferredOrigin: parsedOrigin
-      };
-    }
-  });
-  const [minWidth, minHeight, maxWidth, maxHeight] = ['minWidth', 'minHeight', 'maxWidth', 'maxHeight'].map(key => {
-    return computed$9(() => {
-      const val = parseFloat(props[key]);
-      return isNaN(val) ? Infinity : val;
-    });
-  });
-  const offset = computed$9(() => {
-    if (Array.isArray(props.offset)) {
-      return props.offset;
-    }
-    if (typeof props.offset === 'string') {
-      const offset = props.offset.split(' ').map(parseFloat);
-      if (offset.length < 2) offset.push(0);
-      return offset;
-    }
-    return typeof props.offset === 'number' ? [props.offset, 0] : [0, 0];
-  });
-  let observe = false;
-  let lastFrame = -1;
-  const flipped = new CircularBuffer(4);
-  const observer = new ResizeObserver(() => {
-    if (!observe) return;
-
-    // Detect consecutive frames
-    requestAnimationFrame(newTime => {
-      if (newTime !== lastFrame) flipped.clear();
-      requestAnimationFrame(newNewTime => {
-        lastFrame = newNewTime;
-      });
-    });
-    if (flipped.isFull) {
-      const values = flipped.values();
-      if (deepEqual(values.at(-1), values.at(-3)) && !deepEqual(values.at(-1), values.at(-2))) {
-        // Flipping is causing a container resize loop
-        return;
-      }
-    }
-    const result = updateLocation();
-    if (result) flipped.push(result.flipped);
-  });
-  let targetBox = new Box({
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0
-  });
-  watch$9(data.target, (newTarget, oldTarget) => {
-    if (oldTarget && !Array.isArray(oldTarget)) observer.unobserve(oldTarget);
-    if (!Array.isArray(newTarget)) {
-      if (newTarget) observer.observe(newTarget);
-    } else if (!deepEqual(newTarget, oldTarget)) {
-      updateLocation();
-    }
-  }, {
-    immediate: true
-  });
-  watch$9(data.contentEl, (newContentEl, oldContentEl) => {
-    if (oldContentEl) observer.unobserve(oldContentEl);
-    if (newContentEl) observer.observe(newContentEl);
-  }, {
-    immediate: true
-  });
-  onScopeDispose$5(() => {
-    observer.disconnect();
-  });
-
-  // eslint-disable-next-line max-statements
-  function updateLocation() {
-    observe = false;
-    requestAnimationFrame(() => observe = true);
-    if (!data.target.value || !data.contentEl.value) return;
-    if (Array.isArray(data.target.value) || data.target.value.offsetParent || data.target.value.getClientRects().length) {
-      targetBox = getTargetBox(data.target.value);
-    } // Otherwise target element is hidden, use last known value
-
-    const contentBox = getIntrinsicSize(data.contentEl.value, data.isRtl.value);
-    const scrollParents = getScrollParents(data.contentEl.value);
-    const viewportMargin = props.stickToTarget ? 0 : 12; // TOOD: prop.viewportMargin
-
-    if (!scrollParents.length) {
-      scrollParents.push(document.documentElement);
-      if (!(data.contentEl.value.style.top && data.contentEl.value.style.left)) {
-        contentBox.x -= parseFloat(document.documentElement.style.getPropertyValue('--v-body-scroll-x') || 0);
-        contentBox.y -= parseFloat(document.documentElement.style.getPropertyValue('--v-body-scroll-y') || 0);
-      }
-    }
-    const viewport = scrollParents.reduce((box, el) => {
-      const scrollBox = getElementBox(el);
-      if (box) {
-        return new Box({
-          x: Math.max(box.left, scrollBox.left),
-          y: Math.max(box.top, scrollBox.top),
-          width: Math.min(box.right, scrollBox.right) - Math.max(box.left, scrollBox.left),
-          height: Math.min(box.bottom, scrollBox.bottom) - Math.max(box.top, scrollBox.top)
-        });
-      }
-      return scrollBox;
-    }, undefined);
-    if (props.stickToTarget) {
-      viewport.x += Math.min(0, targetBox.x);
-      viewport.y += Math.min(0, targetBox.y);
-      viewport.width = Math.max(viewport.width, targetBox.x + targetBox.width);
-      viewport.height = Math.max(viewport.height, targetBox.y + targetBox.height);
-    } else {
-      viewport.x += viewportMargin;
-      viewport.y += viewportMargin;
-      viewport.width -= viewportMargin * 2;
-      viewport.height -= viewportMargin * 2;
-    }
-    let placement = {
-      anchor: preferredAnchor.value,
-      origin: preferredOrigin.value
-    };
-    function checkOverflow(_placement) {
-      const box = new Box(contentBox);
-      const targetPoint = anchorToPoint(_placement.anchor, targetBox);
-      const contentPoint = anchorToPoint(_placement.origin, box);
-      let {
-        x,
-        y
-      } = getOffset(targetPoint, contentPoint);
-      switch (_placement.anchor.side) {
-        case 'top':
-          y -= offset.value[0];
-          break;
-        case 'bottom':
-          y += offset.value[0];
-          break;
-        case 'left':
-          x -= offset.value[0];
-          break;
-        case 'right':
-          x += offset.value[0];
-          break;
-      }
-      switch (_placement.anchor.align) {
-        case 'top':
-          y -= offset.value[1];
-          break;
-        case 'bottom':
-          y += offset.value[1];
-          break;
-        case 'left':
-          x -= offset.value[1];
-          break;
-        case 'right':
-          x += offset.value[1];
-          break;
-      }
-      box.x += x;
-      box.y += y;
-      box.width = Math.min(box.width, maxWidth.value);
-      box.height = Math.min(box.height, maxHeight.value);
-      const overflows = getOverflow(box, viewport);
-      return {
-        overflows,
-        x,
-        y
-      };
-    }
-    let x = 0;
-    let y = 0;
-    const available = {
-      x: 0,
-      y: 0
-    };
-    const flipped = {
-      x: false,
-      y: false
-    };
-    let resets = -1;
-    while (true) {
-      if (resets++ > 10) {
-        consoleError('Infinite loop detected in connectedLocationStrategy');
-        break;
-      }
-      const {
-        x: _x,
-        y: _y,
-        overflows
-      } = checkOverflow(placement);
-      x += _x;
-      y += _y;
-      contentBox.x += _x;
-      contentBox.y += _y;
-
-      // flip
-      {
-        const axis = getAxis(placement.anchor);
-        const hasOverflowX = overflows.x.before || overflows.x.after;
-        const hasOverflowY = overflows.y.before || overflows.y.after;
-        let reset = false;
-        ['x', 'y'].forEach(key => {
-          if (key === 'x' && hasOverflowX && !flipped.x || key === 'y' && hasOverflowY && !flipped.y) {
-            const newPlacement = {
-              anchor: {
-                ...placement.anchor
-              },
-              origin: {
-                ...placement.origin
-              }
-            };
-            const flip = key === 'x' ? axis === 'y' ? flipAlign : flipSide : axis === 'y' ? flipSide : flipAlign;
-            newPlacement.anchor = flip(newPlacement.anchor);
-            newPlacement.origin = flip(newPlacement.origin);
-            const {
-              overflows: newOverflows
-            } = checkOverflow(newPlacement);
-            if (newOverflows[key].before <= overflows[key].before && newOverflows[key].after <= overflows[key].after || newOverflows[key].before + newOverflows[key].after < (overflows[key].before + overflows[key].after) / 2) {
-              placement = newPlacement;
-              reset = flipped[key] = true;
-            }
-          }
-        });
-        if (reset) continue;
-      }
-
-      // shift
-      if (overflows.x.before) {
-        x += overflows.x.before;
-        contentBox.x += overflows.x.before;
-      }
-      if (overflows.x.after) {
-        x -= overflows.x.after;
-        contentBox.x -= overflows.x.after;
-      }
-      if (overflows.y.before) {
-        y += overflows.y.before;
-        contentBox.y += overflows.y.before;
-      }
-      if (overflows.y.after) {
-        y -= overflows.y.after;
-        contentBox.y -= overflows.y.after;
-      }
-
-      // size
-      {
-        const overflows = getOverflow(contentBox, viewport);
-        available.x = viewport.width - overflows.x.before - overflows.x.after;
-        available.y = viewport.height - overflows.y.before - overflows.y.after;
-        x += overflows.x.before;
-        contentBox.x += overflows.x.before;
-        y += overflows.y.before;
-        contentBox.y += overflows.y.before;
-      }
-      break;
-    }
-    const axis = getAxis(placement.anchor);
-    Object.assign(contentStyles.value, {
-      '--v-overlay-anchor-origin': `${placement.anchor.side} ${placement.anchor.align}`,
-      transformOrigin: `${placement.origin.side} ${placement.origin.align}`,
-      // transform: `translate(${pixelRound(x)}px, ${pixelRound(y)}px)`,
-      top: convertToUnit(pixelRound(y)),
-      left: data.isRtl.value ? undefined : convertToUnit(pixelRound(x)),
-      right: data.isRtl.value ? convertToUnit(pixelRound(-x)) : undefined,
-      minWidth: convertToUnit(axis === 'y' ? Math.min(minWidth.value, targetBox.width) : minWidth.value),
-      maxWidth: convertToUnit(pixelCeil(clamp(available.x, minWidth.value === Infinity ? 0 : minWidth.value, maxWidth.value))),
-      maxHeight: convertToUnit(pixelCeil(clamp(available.y, minHeight.value === Infinity ? 0 : minHeight.value, maxHeight.value)))
-    });
-    return {
-      available,
-      contentBox,
-      flipped
-    };
-  }
-  watch$9(() => [preferredAnchor.value, preferredOrigin.value, props.offset, props.minWidth, props.minHeight, props.maxWidth, props.maxHeight], () => updateLocation());
-  nextTick$5(() => {
-    const result = updateLocation();
-
-    // TODO: overflowing content should only require a single updateLocation call
-    // Icky hack to make sure the content is positioned consistently
-    if (!result) return;
-    const {
-      available,
-      contentBox
-    } = result;
-    if (contentBox.height > available.y) {
-      requestAnimationFrame(() => {
-        updateLocation();
-        requestAnimationFrame(() => {
-          updateLocation();
-        });
-      });
-    }
-  });
-  return {
-    updateLocation
-  };
-}
-function pixelRound(val) {
-  return Math.round(val * devicePixelRatio) / devicePixelRatio;
-}
-function pixelCeil(val) {
-  return Math.ceil(val * devicePixelRatio) / devicePixelRatio;
-}
-
-let clean = true;
-const frames = [];
-
-/**
- * Schedule a task to run in an animation frame on its own
- * This is useful for heavy tasks that may cause jank if all ran together
- */
-function requestNewFrame(cb) {
-  if (!clean || frames.length) {
-    frames.push(cb);
-    run();
-  } else {
-    clean = false;
-    cb();
-    run();
-  }
-}
-let raf = -1;
-function run() {
-  cancelAnimationFrame(raf);
-  raf = requestAnimationFrame(() => {
-    const frame = frames.shift();
-    if (frame) frame();
-    if (frames.length) run();else clean = true;
-  });
-}
-
-// Utilities
-const {effectScope: effectScope$1,onScopeDispose: onScopeDispose$4,watchEffect: watchEffect$3} = await importShared('vue');
-const scrollStrategies = {
-  none: null,
-  close: closeScrollStrategy,
-  block: blockScrollStrategy,
-  reposition: repositionScrollStrategy
-};
-const makeScrollStrategyProps = propsFactory({
-  scrollStrategy: {
-    type: [String, Function],
-    default: 'block',
-    validator: val => typeof val === 'function' || val in scrollStrategies
-  }
-}, 'VOverlay-scroll-strategies');
-function useScrollStrategies(props, data) {
-  if (!IN_BROWSER) return;
-  let scope;
-  watchEffect$3(async () => {
-    scope?.stop();
-    if (!(data.isActive.value && props.scrollStrategy)) return;
-    scope = effectScope$1();
-    await new Promise(resolve => setTimeout(resolve));
-    scope.active && scope.run(() => {
-      if (typeof props.scrollStrategy === 'function') {
-        props.scrollStrategy(data, props, scope);
-      } else {
-        scrollStrategies[props.scrollStrategy]?.(data, props, scope);
-      }
-    });
-  });
-  onScopeDispose$4(() => {
-    scope?.stop();
-  });
-}
-function closeScrollStrategy(data) {
-  function onScroll(e) {
-    data.isActive.value = false;
-  }
-  bindScroll(getTargetEl(data.target.value, data.contentEl.value), onScroll);
-}
-function blockScrollStrategy(data, props) {
-  const offsetParent = data.root.value?.offsetParent;
-  const target = getTargetEl(data.target.value, data.contentEl.value);
-  const scrollElements = [...new Set([...getScrollParents(target, props.contained ? offsetParent : undefined), ...getScrollParents(data.contentEl.value, props.contained ? offsetParent : undefined)])].filter(el => !el.classList.contains('v-overlay-scroll-blocked'));
-  const scrollbarWidth = window.innerWidth - document.documentElement.offsetWidth;
-  const scrollableParent = (el => hasScrollbar(el) && el)(offsetParent || document.documentElement);
-  if (scrollableParent) {
-    data.root.value.classList.add('v-overlay--scroll-blocked');
-  }
-  scrollElements.forEach((el, i) => {
-    el.style.setProperty('--v-body-scroll-x', convertToUnit(-el.scrollLeft));
-    el.style.setProperty('--v-body-scroll-y', convertToUnit(-el.scrollTop));
-    if (el !== document.documentElement) {
-      el.style.setProperty('--v-scrollbar-offset', convertToUnit(scrollbarWidth));
-    }
-    el.classList.add('v-overlay-scroll-blocked');
-  });
-  onScopeDispose$4(() => {
-    scrollElements.forEach((el, i) => {
-      const x = parseFloat(el.style.getPropertyValue('--v-body-scroll-x'));
-      const y = parseFloat(el.style.getPropertyValue('--v-body-scroll-y'));
-      const scrollBehavior = el.style.scrollBehavior;
-      el.style.scrollBehavior = 'auto';
-      el.style.removeProperty('--v-body-scroll-x');
-      el.style.removeProperty('--v-body-scroll-y');
-      el.style.removeProperty('--v-scrollbar-offset');
-      el.classList.remove('v-overlay-scroll-blocked');
-      el.scrollLeft = -x;
-      el.scrollTop = -y;
-      el.style.scrollBehavior = scrollBehavior;
-    });
-    if (scrollableParent) {
-      data.root.value.classList.remove('v-overlay--scroll-blocked');
-    }
-  });
-}
-function repositionScrollStrategy(data, props, scope) {
-  let slow = false;
-  let raf = -1;
-  let ric = -1;
-  function update(e) {
-    requestNewFrame(() => {
-      const start = performance.now();
-      data.updateLocation.value?.(e);
-      const time = performance.now() - start;
-      slow = time / (1000 / 60) > 2;
-    });
-  }
-  ric = (typeof requestIdleCallback === 'undefined' ? cb => cb() : requestIdleCallback)(() => {
-    scope.run(() => {
-      bindScroll(getTargetEl(data.target.value, data.contentEl.value), e => {
-        if (slow) {
-          // If the position calculation is slow,
-          // defer updates until scrolling is finished.
-          // Browsers usually fire one scroll event per frame so
-          // we just wait until we've got two frames without an event
-          cancelAnimationFrame(raf);
-          raf = requestAnimationFrame(() => {
-            raf = requestAnimationFrame(() => {
-              update(e);
-            });
-          });
-        } else {
-          update(e);
-        }
-      });
-    });
-  });
-  onScopeDispose$4(() => {
-    typeof cancelIdleCallback !== 'undefined' && cancelIdleCallback(ric);
-    cancelAnimationFrame(raf);
-  });
-}
-function getTargetEl(target, contentEl) {
-  return Array.isArray(target) ? document.elementsFromPoint(...target).find(el => !contentEl?.contains(el)) : target ?? contentEl;
-}
-function bindScroll(el, onScroll) {
-  const scrollElements = [document, ...getScrollParents(el)];
-  scrollElements.forEach(el => {
-    el.addEventListener('scroll', onScroll, {
-      passive: true
-    });
-  });
-  onScopeDispose$4(() => {
-    scrollElements.forEach(el => {
-      el.removeEventListener('scroll', onScroll);
-    });
-  });
-}
-
-// Types
-
-const VMenuSymbol = Symbol.for('vuetify:v-menu');
-
-// Utilities
-// Composables
-const makeDelayProps = propsFactory({
-  closeDelay: [Number, String],
-  openDelay: [Number, String]
-}, 'delay');
-function useDelay(props, cb) {
-  let clearDelay = () => {};
-  function runDelay(isOpening, options) {
-    clearDelay?.();
-    const delay = isOpening ? props.openDelay : props.closeDelay;
-    const normalizedDelay = Math.max(options?.minDelay ?? 0, Number(delay ?? 0));
-    return new Promise(resolve => {
-      clearDelay = defer(normalizedDelay, () => {
-        cb?.(isOpening);
-        resolve(isOpening);
-      });
-    });
-  }
-  function runOpenDelay() {
-    return runDelay(true);
-  }
-  function runCloseDelay(options) {
-    return runDelay(false, options);
-  }
-  return {
-    clearDelay,
-    runOpenDelay,
-    runCloseDelay
-  };
-}
-
-const {computed: computed$8,effectScope,inject: inject$2,mergeProps: mergeProps$3,nextTick: nextTick$4,onScopeDispose: onScopeDispose$3,ref: ref$8,watch: watch$8,watchEffect: watchEffect$2} = await importShared('vue');
-const makeActivatorProps = propsFactory({
-  target: [String, Object],
-  activator: [String, Object],
-  activatorProps: {
-    type: Object,
-    default: () => ({})
-  },
-  openOnClick: {
-    type: Boolean,
-    default: undefined
-  },
-  openOnHover: Boolean,
-  openOnFocus: {
-    type: Boolean,
-    default: undefined
-  },
-  closeOnContentClick: Boolean,
-  ...makeDelayProps()
-}, 'VOverlay-activator');
-function useActivator(props, _ref) {
-  let {
-    isActive,
-    isTop,
-    contentEl
-  } = _ref;
-  const vm = getCurrentInstance('useActivator');
-  const activatorEl = ref$8();
-  let isHovered = false;
-  let isFocused = false;
-  let firstEnter = true;
-  const openOnFocus = computed$8(() => props.openOnFocus || props.openOnFocus == null && props.openOnHover);
-  const openOnClick = computed$8(() => props.openOnClick || props.openOnClick == null && !props.openOnHover && !openOnFocus.value);
-  const {
-    runOpenDelay,
-    runCloseDelay
-  } = useDelay(props, value => {
-    if (value === (props.openOnHover && isHovered || openOnFocus.value && isFocused) && !(props.openOnHover && isActive.value && !isTop.value)) {
-      if (isActive.value !== value) {
-        firstEnter = true;
-      }
-      isActive.value = value;
-    }
-  });
-  const cursorTarget = ref$8();
-  const availableEvents = {
-    onClick: e => {
-      e.stopPropagation();
-      activatorEl.value = e.currentTarget || e.target;
-      if (!isActive.value) {
-        cursorTarget.value = [e.clientX, e.clientY];
-      }
-      isActive.value = !isActive.value;
-    },
-    onMouseenter: e => {
-      isHovered = true;
-      activatorEl.value = e.currentTarget || e.target;
-      runOpenDelay();
-    },
-    onMouseleave: e => {
-      isHovered = false;
-      runCloseDelay();
-    },
-    onFocus: e => {
-      if (matchesSelector(e.target, ':focus-visible') === false) return;
-      isFocused = true;
-      e.stopPropagation();
-      activatorEl.value = e.currentTarget || e.target;
-      runOpenDelay();
-    },
-    onBlur: e => {
-      isFocused = false;
-      e.stopPropagation();
-      runCloseDelay({
-        minDelay: 1
-      });
-    }
-  };
-  const activatorEvents = computed$8(() => {
-    const events = {};
-    if (openOnClick.value) {
-      events.onClick = availableEvents.onClick;
-    }
-    if (props.openOnHover) {
-      events.onMouseenter = availableEvents.onMouseenter;
-      events.onMouseleave = availableEvents.onMouseleave;
-    }
-    if (openOnFocus.value) {
-      events.onFocus = availableEvents.onFocus;
-      events.onBlur = availableEvents.onBlur;
-    }
-    return events;
-  });
-  const contentEvents = computed$8(() => {
-    const events = {};
-    if (props.openOnHover) {
-      events.onMouseenter = () => {
-        isHovered = true;
-        runOpenDelay();
-      };
-      events.onMouseleave = () => {
-        isHovered = false;
-        runCloseDelay();
-      };
-    }
-    if (openOnFocus.value) {
-      events.onFocusin = e => {
-        if (!e.target.matches(':focus-visible')) return;
-        isFocused = true;
-        runOpenDelay();
-      };
-      events.onFocusout = () => {
-        isFocused = false;
-        runCloseDelay({
-          minDelay: 1
-        });
-      };
-    }
-    if (props.closeOnContentClick) {
-      const menu = inject$2(VMenuSymbol, null);
-      events.onClick = () => {
-        isActive.value = false;
-        menu?.closeParents();
-      };
-    }
-    return events;
-  });
-  const scrimEvents = computed$8(() => {
-    const events = {};
-    if (props.openOnHover) {
-      events.onMouseenter = () => {
-        if (firstEnter) {
-          isHovered = true;
-          firstEnter = false;
-          runOpenDelay();
-        }
-      };
-      events.onMouseleave = () => {
-        isHovered = false;
-        runCloseDelay();
-      };
-    }
-    return events;
-  });
-  watch$8(isTop, val => {
-    if (val && (props.openOnHover && !isHovered && (!openOnFocus.value || !isFocused) || openOnFocus.value && !isFocused && (!props.openOnHover || !isHovered)) && !contentEl.value?.contains(document.activeElement)) {
-      isActive.value = false;
-    }
-  });
-  watch$8(isActive, val => {
-    if (!val) {
-      setTimeout(() => {
-        cursorTarget.value = undefined;
-      });
-    }
-  }, {
-    flush: 'post'
-  });
-  const activatorRef = templateRef();
-  watchEffect$2(() => {
-    if (!activatorRef.value) return;
-    nextTick$4(() => {
-      activatorEl.value = activatorRef.el;
-    });
-  });
-  const targetRef = templateRef();
-  const target = computed$8(() => {
-    if (props.target === 'cursor' && cursorTarget.value) return cursorTarget.value;
-    if (targetRef.value) return targetRef.el;
-    return getTarget(props.target, vm) || activatorEl.value;
-  });
-  const targetEl = computed$8(() => {
-    return Array.isArray(target.value) ? undefined : target.value;
-  });
-  let scope;
-  watch$8(() => !!props.activator, val => {
-    if (val && IN_BROWSER) {
-      scope = effectScope();
-      scope.run(() => {
-        _useActivator(props, vm, {
-          activatorEl,
-          activatorEvents
-        });
-      });
-    } else if (scope) {
-      scope.stop();
-    }
-  }, {
-    flush: 'post',
-    immediate: true
-  });
-  onScopeDispose$3(() => {
-    scope?.stop();
-  });
-  return {
-    activatorEl,
-    activatorRef,
-    target,
-    targetEl,
-    targetRef,
-    activatorEvents,
-    contentEvents,
-    scrimEvents
-  };
-}
-function _useActivator(props, vm, _ref2) {
-  let {
-    activatorEl,
-    activatorEvents
-  } = _ref2;
-  watch$8(() => props.activator, (val, oldVal) => {
-    if (oldVal && val !== oldVal) {
-      const activator = getActivator(oldVal);
-      activator && unbindActivatorProps(activator);
-    }
-    if (val) {
-      nextTick$4(() => bindActivatorProps());
-    }
-  }, {
-    immediate: true
-  });
-  watch$8(() => props.activatorProps, () => {
-    bindActivatorProps();
-  });
-  onScopeDispose$3(() => {
-    unbindActivatorProps();
-  });
-  function bindActivatorProps() {
-    let el = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : getActivator();
-    let _props = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : props.activatorProps;
-    if (!el) return;
-    bindProps(el, mergeProps$3(activatorEvents.value, _props));
-  }
-  function unbindActivatorProps() {
-    let el = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : getActivator();
-    let _props = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : props.activatorProps;
-    if (!el) return;
-    unbindProps(el, mergeProps$3(activatorEvents.value, _props));
-  }
-  function getActivator() {
-    let selector = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : props.activator;
-    const activator = getTarget(selector, vm);
-
-    // The activator should only be a valid element (Ignore comments and text nodes)
-    activatorEl.value = activator?.nodeType === Node.ELEMENT_NODE ? activator : undefined;
-    return activatorEl.value;
-  }
-}
-function getTarget(selector, vm) {
-  if (!selector) return;
-  let target;
-  if (selector === 'parent') {
-    let el = vm?.proxy?.$el?.parentNode;
-    while (el?.hasAttribute('data-no-activator')) {
-      el = el.parentNode;
-    }
-    target = el;
-  } else if (typeof selector === 'string') {
-    // Selector
-    target = document.querySelector(selector);
-  } else if ('$el' in selector) {
-    // Component (ref)
-    target = selector.$el;
-  } else {
-    // HTMLElement | Element | [x, y]
-    target = selector;
-  }
-  return target;
-}
-
-const {onMounted: onMounted$1,shallowRef: shallowRef$7} = await importShared('vue');
-function useHydration() {
-  if (!IN_BROWSER) return shallowRef$7(false);
-  const {
-    ssr
-  } = useDisplay();
-  if (ssr) {
-    const isMounted = shallowRef$7(false);
-    onMounted$1(() => {
-      isMounted.value = true;
-    });
-    return isMounted;
-  } else {
-    return shallowRef$7(true);
-  }
-}
-
-// Utilities
-const {shallowRef: shallowRef$6,toRef: toRef$8,watch: watch$7} = await importShared('vue');
-const makeLazyProps = propsFactory({
-  eager: Boolean
-}, 'lazy');
-function useLazy(props, active) {
-  const isBooted = shallowRef$6(false);
-  const hasContent = toRef$8(() => isBooted.value || props.eager || active.value);
-  watch$7(active, () => isBooted.value = true);
-  function onAfterLeave() {
-    if (!props.eager) isBooted.value = false;
-  }
-  return {
-    isBooted,
-    hasContent,
-    onAfterLeave
-  };
-}
-
-// Utilities
-function useScopeId() {
-  const vm = getCurrentInstance('useScopeId');
-  const scopeId = vm.vnode.scopeId;
-  return {
-    scopeId: scopeId ? {
-      [scopeId]: ''
-    } : undefined
-  };
-}
-
-const {inject: inject$1,onScopeDispose: onScopeDispose$2,provide: provide$1,reactive: reactive$1,readonly,shallowRef: shallowRef$5,toRaw,toRef: toRef$7,toValue: toValue$1,watchEffect: watchEffect$1} = await importShared('vue');
-const StackSymbol = Symbol.for('vuetify:stack');
-const globalStack = reactive$1([]);
-function useStack(isActive, zIndex, disableGlobalStack) {
-  const vm = getCurrentInstance('useStack');
-  const createStackEntry = !disableGlobalStack;
-  const parent = inject$1(StackSymbol, undefined);
-  const stack = reactive$1({
-    activeChildren: new Set()
-  });
-  provide$1(StackSymbol, stack);
-  const _zIndex = shallowRef$5(Number(toValue$1(zIndex)));
-  useToggleScope(isActive, () => {
-    const lastZIndex = globalStack.at(-1)?.[1];
-    _zIndex.value = lastZIndex ? lastZIndex + 10 : Number(toValue$1(zIndex));
-    if (createStackEntry) {
-      globalStack.push([vm.uid, _zIndex.value]);
-    }
-    parent?.activeChildren.add(vm.uid);
-    onScopeDispose$2(() => {
-      if (createStackEntry) {
-        const idx = toRaw(globalStack).findIndex(v => v[0] === vm.uid);
-        globalStack.splice(idx, 1);
-      }
-      parent?.activeChildren.delete(vm.uid);
-    });
-  });
-  const globalTop = shallowRef$5(true);
-  if (createStackEntry) {
-    watchEffect$1(() => {
-      const _isTop = globalStack.at(-1)?.[0] === vm.uid;
-      setTimeout(() => globalTop.value = _isTop);
-    });
-  }
-  const localTop = toRef$7(() => !stack.activeChildren.size);
-  return {
-    globalTop: readonly(globalTop),
-    localTop,
-    stackStyles: toRef$7(() => ({
-      zIndex: _zIndex.value
-    }))
-  };
-}
-
-// Utilities
-const {computed: computed$7,warn} = await importShared('vue');
-function useTeleport(target) {
-  const teleportTarget = computed$7(() => {
-    const _target = target();
-    if (_target === true || !IN_BROWSER) return undefined;
-    const targetElement = _target === false ? document.body : typeof _target === 'string' ? document.querySelector(_target) : _target;
-    if (targetElement == null) {
-      warn(`Unable to locate target ${_target}`);
-      return undefined;
-    }
-    let container = [...targetElement.children].find(el => el.matches('.v-overlay-container'));
-    if (!container) {
-      container = document.createElement('div');
-      container.className = 'v-overlay-container';
-      targetElement.appendChild(container);
-    }
-    return container;
-  });
-  return {
-    teleportTarget
-  };
-}
-
-// Utilities
-function defaultConditional() {
-  return true;
-}
-function checkEvent(e, el, binding) {
-  // The include element callbacks below can be expensive
-  // so we should avoid calling them when we're not active.
-  // Explicitly check for false to allow fallback compatibility
-  // with non-toggleable components
-  if (!e || checkIsActive(e, binding) === false) return false;
-
-  // If we're clicking inside the shadowroot, then the app root doesn't get the same
-  // level of introspection as to _what_ we're clicking. We want to check to see if
-  // our target is the shadowroot parent container, and if it is, ignore.
-  const root = attachedRoot(el);
-  if (typeof ShadowRoot !== 'undefined' && root instanceof ShadowRoot && root.host === e.target) return false;
-
-  // Check if additional elements were passed to be included in check
-  // (click must be outside all included elements, if any)
-  const elements = (typeof binding.value === 'object' && binding.value.include || (() => []))();
-  // Add the root element for the component this directive was defined on
-  elements.push(el);
-
-  // Check if it's a click outside our elements, and then if our callback returns true.
-  // Non-toggleable components should take action in their callback and return falsy.
-  // Toggleable can return true if it wants to deactivate.
-  // Note that, because we're in the capture phase, this callback will occur before
-  // the bubbling click event on any outside elements.
-  return !elements.some(el => el?.contains(e.target));
-}
-function checkIsActive(e, binding) {
-  const isActive = typeof binding.value === 'object' && binding.value.closeConditional || defaultConditional;
-  return isActive(e);
-}
-function directive(e, el, binding) {
-  const handler = typeof binding.value === 'function' ? binding.value : binding.value.handler;
-
-  // Clicks in the Shadow DOM change their target while using setTimeout, so the original target is saved here
-  e.shadowTarget = e.target;
-  el._clickOutside.lastMousedownWasOutside && checkEvent(e, el, binding) && setTimeout(() => {
-    checkIsActive(e, binding) && handler && handler(e);
-  }, 0);
-}
-function handleShadow(el, callback) {
-  const root = attachedRoot(el);
-  callback(document);
-  if (typeof ShadowRoot !== 'undefined' && root instanceof ShadowRoot) {
-    callback(root);
-  }
-}
-const ClickOutside = {
-  // [data-app] may not be found
-  // if using bind, inserted makes
-  // sure that the root element is
-  // available, iOS does not support
-  // clicks on body
-  mounted(el, binding) {
-    const onClick = e => directive(e, el, binding);
-    const onMousedown = e => {
-      el._clickOutside.lastMousedownWasOutside = checkEvent(e, el, binding);
-    };
-    handleShadow(el, app => {
-      app.addEventListener('click', onClick, true);
-      app.addEventListener('mousedown', onMousedown, true);
-    });
-    if (!el._clickOutside) {
-      el._clickOutside = {
-        lastMousedownWasOutside: false
-      };
-    }
-    el._clickOutside[binding.instance.$.uid] = {
-      onClick,
-      onMousedown
-    };
-  },
-  beforeUnmount(el, binding) {
-    if (!el._clickOutside) return;
-    handleShadow(el, app => {
-      if (!app || !el._clickOutside?.[binding.instance.$.uid]) return;
-      const {
-        onClick,
-        onMousedown
-      } = el._clickOutside[binding.instance.$.uid];
-      app.removeEventListener('click', onClick, true);
-      app.removeEventListener('mousedown', onMousedown, true);
-    });
-    delete el._clickOutside[binding.instance.$.uid];
-  }
-};
-
-const {mergeProps:_mergeProps$6,createElementVNode:_createElementVNode$8,createVNode:_createVNode$9,Fragment:_Fragment$6,vShow:_vShow$2,withDirectives:_withDirectives$3} = await importShared('vue');
-const {computed: computed$6,mergeProps: mergeProps$2,onBeforeUnmount: onBeforeUnmount$1,ref: ref$7,Teleport,Transition,watch: watch$6} = await importShared('vue');
-function Scrim(props) {
-  const {
-    modelValue,
-    color,
-    ...rest
-  } = props;
-  return _createVNode$9(Transition, {
-    "name": "fade-transition",
-    "appear": true
-  }, {
-    default: () => [props.modelValue && _createElementVNode$8("div", _mergeProps$6({
-      "class": ['v-overlay__scrim', props.color.backgroundColorClasses.value],
-      "style": props.color.backgroundColorStyles.value
-    }, rest), null)]
-  });
-}
-const makeVOverlayProps = propsFactory({
-  absolute: Boolean,
-  attach: [Boolean, String, Object],
-  closeOnBack: {
-    type: Boolean,
-    default: true
-  },
-  contained: Boolean,
-  contentClass: null,
-  contentProps: null,
-  disabled: Boolean,
-  opacity: [Number, String],
-  noClickAnimation: Boolean,
-  modelValue: Boolean,
-  persistent: Boolean,
-  scrim: {
-    type: [Boolean, String],
-    default: true
-  },
-  zIndex: {
-    type: [Number, String],
-    default: 2000
-  },
-  ...makeActivatorProps(),
-  ...makeComponentProps(),
-  ...makeDimensionProps(),
-  ...makeLazyProps(),
-  ...makeLocationStrategyProps(),
-  ...makeScrollStrategyProps(),
-  ...makeThemeProps(),
-  ...makeTransitionProps()
-}, 'VOverlay');
-const VOverlay = genericComponent()({
-  name: 'VOverlay',
-  directives: {
-    vClickOutside: ClickOutside
-  },
-  inheritAttrs: false,
-  props: {
-    _disableGlobalStack: Boolean,
-    ...makeVOverlayProps()
-  },
-  emits: {
-    'click:outside': e => true,
-    'update:modelValue': value => true,
-    keydown: e => true,
-    afterEnter: () => true,
-    afterLeave: () => true
-  },
-  setup(props, _ref) {
-    let {
-      slots,
-      attrs,
-      emit
-    } = _ref;
-    const vm = getCurrentInstance('VOverlay');
-    const root = ref$7();
-    const scrimEl = ref$7();
-    const contentEl = ref$7();
-    const model = useProxiedModel(props, 'modelValue');
-    const isActive = computed$6({
-      get: () => model.value,
-      set: v => {
-        if (!(v && props.disabled)) model.value = v;
-      }
-    });
-    const {
-      themeClasses
-    } = provideTheme(props);
-    const {
-      rtlClasses,
-      isRtl
-    } = useRtl();
-    const {
-      hasContent,
-      onAfterLeave: _onAfterLeave
-    } = useLazy(props, isActive);
-    const scrimColor = useBackgroundColor(() => {
-      return typeof props.scrim === 'string' ? props.scrim : null;
-    });
-    const {
-      globalTop,
-      localTop,
-      stackStyles
-    } = useStack(isActive, () => props.zIndex, props._disableGlobalStack);
-    const {
-      activatorEl,
-      activatorRef,
-      target,
-      targetEl,
-      targetRef,
-      activatorEvents,
-      contentEvents,
-      scrimEvents
-    } = useActivator(props, {
-      isActive,
-      isTop: localTop,
-      contentEl
-    });
-    const {
-      teleportTarget
-    } = useTeleport(() => {
-      const target = props.attach || props.contained;
-      if (target) return target;
-      const rootNode = activatorEl?.value?.getRootNode() || vm.proxy?.$el?.getRootNode();
-      if (rootNode instanceof ShadowRoot) return rootNode;
-      return false;
-    });
-    const {
-      dimensionStyles
-    } = useDimension(props);
-    const isMounted = useHydration();
-    const {
-      scopeId
-    } = useScopeId();
-    watch$6(() => props.disabled, v => {
-      if (v) isActive.value = false;
-    });
-    const {
-      contentStyles,
-      updateLocation
-    } = useLocationStrategies(props, {
-      isRtl,
-      contentEl,
-      target,
-      isActive
-    });
-    useScrollStrategies(props, {
-      root,
-      contentEl,
-      targetEl,
-      target,
-      isActive,
-      updateLocation
-    });
-    function onClickOutside(e) {
-      emit('click:outside', e);
-      if (!props.persistent) isActive.value = false;else animateClick();
-    }
-    function closeConditional(e) {
-      return isActive.value && globalTop.value && (
-      // If using scrim, only close if clicking on it rather than anything opened on top
-      !props.scrim || e.target === scrimEl.value || e instanceof MouseEvent && e.shadowTarget === scrimEl.value);
-    }
-    IN_BROWSER && watch$6(isActive, val => {
-      if (val) {
-        window.addEventListener('keydown', onKeydown);
-      } else {
-        window.removeEventListener('keydown', onKeydown);
-      }
-    }, {
-      immediate: true
-    });
-    onBeforeUnmount$1(() => {
-      if (!IN_BROWSER) return;
-      window.removeEventListener('keydown', onKeydown);
-    });
-    function onKeydown(e) {
-      if (e.key === 'Escape' && globalTop.value) {
-        if (!contentEl.value?.contains(document.activeElement)) {
-          emit('keydown', e);
-        }
-        if (!props.persistent) {
-          isActive.value = false;
-          if (contentEl.value?.contains(document.activeElement)) {
-            activatorEl.value?.focus();
-          }
-        } else animateClick();
-      }
-    }
-    function onKeydownSelf(e) {
-      if (e.key === 'Escape' && !globalTop.value) return;
-      emit('keydown', e);
-    }
-    const router = useRouter();
-    useToggleScope(() => props.closeOnBack, () => {
-      useBackButton(router, next => {
-        if (globalTop.value && isActive.value) {
-          next(false);
-          if (!props.persistent) isActive.value = false;else animateClick();
-        } else {
-          next();
-        }
-      });
-    });
-    const top = ref$7();
-    watch$6(() => isActive.value && (props.absolute || props.contained) && teleportTarget.value == null, val => {
-      if (val) {
-        const scrollParent = getScrollParent(root.value);
-        if (scrollParent && scrollParent !== document.scrollingElement) {
-          top.value = scrollParent.scrollTop;
-        }
-      }
-    });
-
-    // Add a quick "bounce" animation to the content
-    function animateClick() {
-      if (props.noClickAnimation) return;
-      contentEl.value && animate(contentEl.value, [{
-        transformOrigin: 'center'
-      }, {
-        transform: 'scale(1.03)'
-      }, {
-        transformOrigin: 'center'
-      }], {
-        duration: 150,
-        easing: standardEasing
-      });
-    }
-    function onAfterEnter() {
-      emit('afterEnter');
-    }
-    function onAfterLeave() {
-      _onAfterLeave();
-      emit('afterLeave');
-    }
-    useRender(() => _createElementVNode$8(_Fragment$6, null, [slots.activator?.({
-      isActive: isActive.value,
-      targetRef,
-      props: mergeProps$2({
-        ref: activatorRef
-      }, activatorEvents.value, props.activatorProps)
-    }), isMounted.value && hasContent.value && _createVNode$9(Teleport, {
-      "disabled": !teleportTarget.value,
-      "to": teleportTarget.value
-    }, {
-      default: () => [_createElementVNode$8("div", _mergeProps$6({
-        "class": ['v-overlay', {
-          'v-overlay--absolute': props.absolute || props.contained,
-          'v-overlay--active': isActive.value,
-          'v-overlay--contained': props.contained
-        }, themeClasses.value, rtlClasses.value, props.class],
-        "style": [stackStyles.value, {
-          '--v-overlay-opacity': props.opacity,
-          top: convertToUnit(top.value)
-        }, props.style],
-        "ref": root,
-        "onKeydown": onKeydownSelf
-      }, scopeId, attrs), [_createVNode$9(Scrim, _mergeProps$6({
-        "color": scrimColor,
-        "modelValue": isActive.value && !!props.scrim,
-        "ref": scrimEl
-      }, scrimEvents.value), null), _createVNode$9(MaybeTransition, {
-        "appear": true,
-        "persisted": true,
-        "transition": props.transition,
-        "target": target.value,
-        "onAfterEnter": onAfterEnter,
-        "onAfterLeave": onAfterLeave
-      }, {
-        default: () => [_withDirectives$3(_createElementVNode$8("div", _mergeProps$6({
-          "ref": contentEl,
-          "class": ['v-overlay__content', props.contentClass],
-          "style": [dimensionStyles.value, contentStyles.value]
-        }, contentEvents.value, props.contentProps), [slots.default?.({
-          isActive
-        })]), [[_vShow$2, isActive.value], [ClickOutside, {
-          handler: onClickOutside,
-          closeConditional,
-          include: () => [activatorEl.value]
-        }]])]
-      })])]
-    })]));
-    return {
-      activatorEl,
-      scrimEl,
-      target,
-      animateClick,
-      contentEl,
-      rootEl: root,
-      globalTop,
-      localTop,
-      updateLocation
     };
   }
 });
@@ -4980,9 +3192,12 @@ const _sfc_main = {
     default: () => ({})
   }
 },
-  setup(__props) {
+  emits: ['switch'],
+  setup(__props, { emit: __emit }) {
 
 const props = __props;
+
+const emit = __emit;
 
 const form = ref(null);
 const isFormValid = ref(true);
@@ -5093,7 +3308,7 @@ return (_ctx, _cache) => {
       class: "rounded border"
     }, {
       default: _withCtx(() => [
-        _createVNode(VCardTitle, { class: "text-caption d-flex align-center px-3 py-2 bg-primary-lighten-5" }, {
+        _createVNode(VCardTitle, { class: "text-subtitle-1 d-flex align-center px-3 py-2 bg-primary-lighten-5" }, {
           default: _withCtx(() => [
             _createVNode(VIcon, {
               icon: "mdi-cog",
@@ -5101,7 +3316,7 @@ return (_ctx, _cache) => {
               color: "primary",
               size: "small"
             }),
-            _cache[12] || (_cache[12] = _createElementVNode("span", null, "弹幕库自动导入配置", -1))
+            _cache[13] || (_cache[13] = _createElementVNode("span", null, "弹幕库自动导入配置", -1))
           ]),
           _: 1
         }),
@@ -5127,7 +3342,7 @@ return (_ctx, _cache) => {
                           color: "primary",
                           size: "small"
                         }),
-                        _cache[13] || (_cache[13] = _createElementVNode("span", null, "基本设置", -1))
+                        _cache[14] || (_cache[14] = _createElementVNode("span", null, "基本设置", -1))
                       ]),
                       _: 1
                     }),
@@ -5149,7 +3364,7 @@ return (_ctx, _cache) => {
                                   }, null, 8, ["color"]),
                                   _createElementVNode("div", _hoisted_3, [
                                     _createElementVNode("div", _hoisted_4, [
-                                      _cache[14] || (_cache[14] = _createElementVNode("div", null, [
+                                      _cache[15] || (_cache[15] = _createElementVNode("div", null, [
                                         _createElementVNode("div", { class: "text-subtitle-2" }, "启用插件"),
                                         _createElementVNode("div", { class: "text-caption text-grey" }, "是否启用弹幕自动导入")
                                       ], -1)),
@@ -5182,7 +3397,7 @@ return (_ctx, _cache) => {
                                   }, null, 8, ["color"]),
                                   _createElementVNode("div", _hoisted_6, [
                                     _createElementVNode("div", _hoisted_7, [
-                                      _cache[15] || (_cache[15] = _createElementVNode("div", null, [
+                                      _cache[16] || (_cache[16] = _createElementVNode("div", null, [
                                         _createElementVNode("div", { class: "text-subtitle-2" }, "启用通知"),
                                         _createElementVNode("div", { class: "text-caption text-grey" }, "导入完成后发送通知")
                                       ], -1)),
@@ -5215,7 +3430,7 @@ return (_ctx, _cache) => {
                                   }, null, 8, ["color"]),
                                   _createElementVNode("div", _hoisted_9, [
                                     _createElementVNode("div", _hoisted_10, [
-                                      _cache[16] || (_cache[16] = _createElementVNode("div", null, [
+                                      _cache[17] || (_cache[17] = _createElementVNode("div", null, [
                                         _createElementVNode("div", { class: "text-subtitle-2" }, "仅处理动漫"),
                                         _createElementVNode("div", { class: "text-caption text-grey" }, "只处理动漫类型媒体")
                                       ], -1)),
@@ -5256,7 +3471,7 @@ return (_ctx, _cache) => {
                           color: "primary",
                           size: "small"
                         }),
-                        _cache[17] || (_cache[17] = _createElementVNode("span", null, "服务器设置", -1))
+                        _cache[18] || (_cache[18] = _createElementVNode("span", null, "服务器设置", -1))
                       ]),
                       _: 1
                     }),
@@ -5325,7 +3540,7 @@ return (_ctx, _cache) => {
                           color: "primary",
                           size: "small"
                         }),
-                        _cache[18] || (_cache[18] = _createElementVNode("span", null, "任务设置", -1))
+                        _cache[19] || (_cache[19] = _createElementVNode("span", null, "任务设置", -1))
                       ]),
                       _: 1
                     }),
@@ -5416,7 +3631,7 @@ return (_ctx, _cache) => {
                           color: "primary",
                           size: "small"
                         }),
-                        _cache[19] || (_cache[19] = _createElementVNode("span", null, "高级设置", -1))
+                        _cache[20] || (_cache[20] = _createElementVNode("span", null, "高级设置", -1))
                       ]),
                       _: 1
                     }),
@@ -5458,7 +3673,7 @@ return (_ctx, _cache) => {
                                   }, null, 8, ["color"]),
                                   _createElementVNode("div", _hoisted_12, [
                                     _createElementVNode("div", _hoisted_13, [
-                                      _cache[20] || (_cache[20] = _createElementVNode("div", null, [
+                                      _cache[21] || (_cache[21] = _createElementVNode("div", null, [
                                         _createElementVNode("div", { class: "text-subtitle-2" }, "失败自动重试"),
                                         _createElementVNode("div", { class: "text-caption text-grey" }, "导入失败后自动重试")
                                       ], -1)),
@@ -5521,7 +3736,7 @@ return (_ctx, _cache) => {
                           class: "mr-2",
                           size: "small"
                         }),
-                        _cache[21] || (_cache[21] = _createElementVNode("span", { class: "text-caption" }, " 插件会在媒体下载完成后自动将任务添加到队列,由定时任务处理。支持延时导入、失败重试等功能。 ", -1))
+                        _cache[22] || (_cache[22] = _createElementVNode("span", { class: "text-caption" }, " 插件会在媒体下载完成后自动将任务添加到队列,由定时任务处理。支持延时导入、失败重试等功能。 ", -1))
                       ]),
                       _: 1
                     })
@@ -5538,6 +3753,19 @@ return (_ctx, _cache) => {
         _createVNode(VCardActions, { class: "px-2 py-1" }, {
           default: _withCtx(() => [
             _createVNode(VBtn, {
+              color: "primary",
+              variant: "text",
+              "prepend-icon": "mdi-chart-box",
+              size: "small",
+              onClick: _cache[12] || (_cache[12] = $event => (emit('switch')))
+            }, {
+              default: _withCtx(() => [...(_cache[23] || (_cache[23] = [
+                _createTextVNode(" 数据 ", -1)
+              ]))]),
+              _: 1
+            }),
+            _createVNode(VSpacer),
+            _createVNode(VBtn, {
               color: "info",
               variant: "text",
               "prepend-icon": "mdi-test-tube",
@@ -5545,12 +3773,11 @@ return (_ctx, _cache) => {
               onClick: testConnection,
               loading: testing.value
             }, {
-              default: _withCtx(() => [...(_cache[22] || (_cache[22] = [
+              default: _withCtx(() => [...(_cache[24] || (_cache[24] = [
                 _createTextVNode(" 测试连接 ", -1)
               ]))]),
               _: 1
             }, 8, ["loading"]),
-            _createVNode(VSpacer),
             _createVNode(VBtn, {
               color: "secondary",
               variant: "text",
@@ -5558,7 +3785,7 @@ return (_ctx, _cache) => {
               size: "small",
               onClick: resetConfig
             }, {
-              default: _withCtx(() => [...(_cache[23] || (_cache[23] = [
+              default: _withCtx(() => [...(_cache[25] || (_cache[25] = [
                 _createTextVNode(" 重置 ", -1)
               ]))]),
               _: 1
@@ -5571,7 +3798,7 @@ return (_ctx, _cache) => {
               onClick: saveConfigManually,
               loading: saving.value
             }, {
-              default: _withCtx(() => [...(_cache[24] || (_cache[24] = [
+              default: _withCtx(() => [...(_cache[26] || (_cache[26] = [
                 _createTextVNode(" 保存配置 ", -1)
               ]))]),
               _: 1
@@ -5587,6 +3814,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-16bdd17d"]]);
+const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-3b5b54f6"]]);
 
 export { Config as default };
