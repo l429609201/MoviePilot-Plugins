@@ -506,9 +506,9 @@ const refreshTasks = async () => {
 
     // 调用插件API获取流控状态
     const rateLimitResponse = await props.api.get('plugin/DanmakuAutoImport/rate_limit_status');
-    // 流控API可能返回错误对象 {success: false, message: ...} 或成功对象 {success: true, data: ...}
-    if (rateLimitResponse && rateLimitResponse.success && rateLimitResponse.data) {
-      rateLimitData.value = rateLimitResponse.data;
+    // ✅ 修复: 后端直接返回data或error对象,不再包装success字段
+    if (rateLimitResponse && !rateLimitResponse.error && rateLimitResponse.globalEnabled !== undefined) {
+      rateLimitData.value = rateLimitResponse;
     } else {
       rateLimitData.value = null;
     }
@@ -1242,6 +1242,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-3fd39691"]]);
+const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-4b6dec2a"]]);
 
 export { Page as default };

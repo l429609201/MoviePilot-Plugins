@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.3.1"
+    plugin_version = "2.3.2"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -476,13 +476,16 @@ class DanmakuAutoImport(_PluginBase):
 
     def _get_pending_tasks(self) -> List[Dict[str, Any]]:
         """API端点: 获取待处理任务列表"""
+        result = []
         try:
             with self._lock:
-                tasks = []
+                logger.info(f"弹幕自动导入: 开始获取待处理任务列表,当前队列长度: {len(self._pending_tasks)}")
+
                 for task in self._pending_tasks[:50]:  # 最多返回50个
                     try:
                         mediainfo = task.get('mediainfo')
                         if not mediainfo:
+                            logger.debug(f"弹幕自动导入: 跳过无mediainfo的任务")
                             continue
 
                         # 构建季集信息
@@ -505,10 +508,21 @@ class DanmakuAutoImport(_PluginBase):
                             except Exception:
                                 add_time_str = str(add_time)
 
-                        tasks.append({
+                        # 安全获取media_type
+                        media_type_str = '未知'
+                        try:
+                            if hasattr(mediainfo, 'type'):
+                                if hasattr(mediainfo.type, 'value'):
+                                    media_type_str = str(mediainfo.type.value)
+                                else:
+                                    media_type_str = str(mediainfo.type)
+                        except Exception as type_err:
+                            logger.warning(f"弹幕自动导入: 获取media_type失败: {type_err}")
+
+                        result.append({
                             "task_id": task.get('task_id'),
                             "title": mediainfo.title or '未知标题',
-                            "media_type": mediainfo.type.value if hasattr(mediainfo.type, 'value') else str(mediainfo.type),
+                            "media_type": media_type_str,
                             "episode_info": episode_info,
                             "status": task.get('status', 'pending'),
                             "add_time": add_time_str,
@@ -519,7 +533,8 @@ class DanmakuAutoImport(_PluginBase):
                         logger.error(f"弹幕自动导入: 处理任务数据时出错: {e}", exc_info=True)
                         continue
 
-                return tasks
+                logger.info(f"弹幕自动导入: 成功构建任务列表,共 {len(result)} 个任务")
+                return result
         except Exception as e:
             logger.error(f"弹幕自动导入: 获取待处理任务列表失败: {e}", exc_info=True)
             return []

@@ -4722,16 +4722,16 @@ textarea.v-field__input::placeholder {
 .v-checkbox .v-selection-control {
   min-height: var(--v-input-control-height);
 }
-.plugin-page[data-v-3fd39691] {
+.plugin-page[data-v-4b6dec2a] {
   width: 100%;
 }
-.config-card[data-v-3fd39691] {
+.config-card[data-v-4b6dec2a] {
   background-color: transparent;
 }
-.search-field[data-v-3fd39691] .v-field {
+.search-field[data-v-4b6dec2a] .v-field {
   font-size: 0.875rem;
 }
-.search-field[data-v-3fd39691] .v-field__input {
+.search-field[data-v-4b6dec2a] .v-field__input {
   padding: 4px 8px;
   min-height: 32px;
 }
