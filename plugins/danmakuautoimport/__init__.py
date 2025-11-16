@@ -476,11 +476,13 @@ class DanmakuAutoImport(_PluginBase):
 
     def _get_pending_tasks(self):
         """API端点: 获取待处理任务列表 (返回 List[Dict[str, Any]])"""
+        logger.info(f"弹幕自动导入: _get_pending_tasks方法被调用")
         result = []
         try:
             # ✅ 确保_pending_tasks已初始化
             if not hasattr(self, '_pending_tasks'):
                 logger.warning(f"弹幕自动导入: _pending_tasks未初始化,返回空列表")
+                logger.info(f"弹幕自动导入: 返回值类型: {type([])}, 返回值: {[]}")
                 return []
 
             with self._lock:
@@ -543,9 +545,12 @@ class DanmakuAutoImport(_PluginBase):
                 if not isinstance(result, list):
                     logger.error(f"弹幕自动导入: result不是list类型,而是{type(result)},返回空列表")
                     return []
+                logger.info(f"弹幕自动导入: 准备返回,返回值类型: {type(result)}, 返回值长度: {len(result)}")
+                logger.info(f"弹幕自动导入: 返回值内容: {result}")
                 return result
         except Exception as e:
             logger.error(f"弹幕自动导入: 获取待处理任务列表失败: {e}", exc_info=True)
+            logger.info(f"弹幕自动导入: 异常返回空列表,类型: {type([])}")
             return []
 
     def _delete_task(self, payload: dict = None) -> Dict[str, Any]:
