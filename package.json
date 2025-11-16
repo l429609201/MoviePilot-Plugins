@@ -28,12 +28,13 @@
     "name": "弹幕库自动导入",
     "description": "媒体下载完成后自动推送至弹幕库下载弹幕,支持任务队列和定时处理",
     "labels": "弹幕",
-    "version": "2.0.0",
-    "icon": "https://raw.githubusercontent.com/l429609201/misaka_danmu_server/main/public/favicon.ico",
+    "version": "2.0.1",
+    "icon": "danmaku.png",
     "author": "Misaka10876",
     "level": 2,
     "v2": true,
     "history": {
+      "v2.0.1": "优化代码结构,使用本地图标",
       "v2.0.0": "V2版本,优化Vue界面,支持任务队列、定时处理、延时导入、失败重试等功能"
     }
   }

@@ -23,9 +23,9 @@ class DanmakuAutoImport(_PluginBase):
     # 插件描述
     plugin_desc = "媒体下载完成后自动推送至弹幕库下载弹幕,支持任务队列和定时处理"
     # 插件图标
-    plugin_icon = "https://raw.githubusercontent.com/l429609201/misaka_danmu_server/main/public/favicon.ico"
+    plugin_icon = "danmaku.png"
     # 插件版本
-    plugin_version = "2.0.0"
+    plugin_version = "2.0.1"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
