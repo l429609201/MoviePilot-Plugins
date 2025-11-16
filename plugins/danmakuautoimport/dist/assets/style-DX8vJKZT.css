@@ -3445,19 +3445,19 @@ html.v-overlay-scroll-blocked {
 .v-overlay--scroll-blocked {
   padding-inline-end: var(--v-scrollbar-offset);
 }
-.plugin-config[data-v-5fb73a39] {
+.plugin-config[data-v-ec2a2e29] {
   width: 100%;
 }
-.config-card[data-v-5fb73a39] {
+.config-card[data-v-ec2a2e29] {
   background-color: transparent;
 }
-.setting-item[data-v-5fb73a39] {
+.setting-item[data-v-ec2a2e29] {
   min-height: 48px;
 }
-.setting-content[data-v-5fb73a39] {
+.setting-content[data-v-ec2a2e29] {
   width: 100%;
 }
-.small-switch[data-v-5fb73a39] {
+.small-switch[data-v-ec2a2e29] {
   flex: 0 0 auto;
 }
 .v-select--chips.v-input--density-compact .v-field--variant-solo .v-label.v-field-label--floating,

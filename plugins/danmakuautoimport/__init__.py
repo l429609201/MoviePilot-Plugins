@@ -25,7 +25,7 @@ class DanmakuAutoImport(_PluginBase):
     # 插件图标
     plugin_icon = "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/refs/heads/main/icons/danmaku.png"
     # 插件版本
-    plugin_version = "2.1.2"
+    plugin_version = "2.1.4"
     # 插件作者
     plugin_author = "Misaka10876"
     # 作者主页
@@ -542,10 +542,15 @@ class DanmakuAutoImport(_PluginBase):
 
         try:
             import requests
-            url = f"{self._danmu_server_url}/api/control/rate-limit/status"
+            # 确保URL不会有双斜杠
+            base_url = self._danmu_server_url.rstrip('/')
+            url = f"{base_url}/api/control/rate-limit/status"
             params = {"api_key": self._external_api_key}
 
+            logger.info(f"弹幕自动导入: 请求流控状态 URL={url}")
+
             response = requests.get(url, params=params, timeout=10)
+            logger.info(f"弹幕自动导入: 流控状态响应 status_code={response.status_code}, content_type={response.headers.get('content-type')}")
             response.raise_for_status()
 
             # 检查响应内容
@@ -555,6 +560,7 @@ class DanmakuAutoImport(_PluginBase):
 
             try:
                 data = response.json()
+                logger.info(f"弹幕自动导入: 流控状态获取成功")
                 return {"success": True, "data": data}
             except ValueError as json_err:
                 logger.error(f"获取流控状态失败: 响应不是有效的JSON - {response.text[:200]}")
