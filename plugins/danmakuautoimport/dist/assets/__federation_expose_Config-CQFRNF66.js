@@ -1,5 +1,5 @@
 import { importShared } from './__federation_fn_import-Tq99R_rR.js';
-import { c as createSimpleFunctional, u as useVariant, a as useDensity, b as useDimension, d as useElevation, e as useLocation, f as usePosition, g as useRounded, h as useTextColor, i as genOverlays, V as VIcon, j as VDefaultsProvider, k as VBtn, m as makeVariantProps, l as makeTagProps, n as makeRoundedProps, o as makePositionProps, p as makeLocationProps, q as makeElevationProps, r as makeDimensionProps, s as makeDensityProps, t as makeComponentProps, v as useRender, w as deepEqual, R as Ripple, x as useBackgroundColor, M as MaybeTransition, y as makeTransitionProps, z as VSlideYTransition, A as parseAnchor, B as flipSide, C as flipAlign, D as flipCorner, E as getAxis, F as useRouter, G as useBackButton, H as makeLoaderProps, I as useLoader, L as LoaderSlot, J as VExpandXTransition, K as Intersect, N as useResizeObserver, O as useItems, P as makeItemsProps, Q as VList, S as VListItem, T as VDivider, U as VListSubheader, W as VAvatar, X as VChip, Y as VScaleTransition, Z as VProgressCircular, _ as VRow, $ as VCol } from './VList-dZIrLW2m.js';
+import { c as createSimpleFunctional, u as useVariant, a as useDensity, b as useDimension, d as useElevation, e as useLocation, f as usePosition, g as useRounded, h as useTextColor, i as genOverlays, V as VIcon, j as VDefaultsProvider, k as VBtn, m as makeVariantProps, l as makeTagProps, n as makeRoundedProps, o as makePositionProps, p as makeLocationProps, q as makeElevationProps, r as makeDimensionProps, s as makeDensityProps, t as makeComponentProps, v as useRender, w as deepEqual, R as Ripple, x as useBackgroundColor, M as MaybeTransition, y as makeTransitionProps, z as VSlideYTransition, A as parseAnchor, B as flipSide, C as flipAlign, D as flipCorner, E as getAxis, F as useRouter, G as useBackButton, H as makeLoaderProps, I as useLoader, L as LoaderSlot, J as VExpandXTransition, K as Intersect, N as useResizeObserver, O as useItems, P as makeItemsProps, Q as VList, S as VListItem, T as VDivider, U as VListSubheader, W as VAvatar, X as VChip, Y as VScaleTransition, Z as VProgressCircular, _ as VRow, $ as VCol } from './VList-kfXN4ci3.js';
 import { t as isOn, v as eventName, w as propsFactory, x as genericComponent, y as useProxiedModel, z as provideTheme, u as useLocale, A as makeThemeProps, B as IconValue, c as consoleWarn, P as PREFERS_REDUCED_MOTION, C as acceleratedEasing, E as deceleratedEasing, F as standardEasing, H as EventProp, J as provideDefaults, K as filterInputAttrs, M as wrapInArray, N as matchesSelector, O as omit, Q as callEvent, R as getCurrentInstanceName, S as getCurrentInstance, U as useToggleScope, V as pick, r as useRtl, I as IN_BROWSER, W as destructComputed, X as CircularBuffer, Y as consoleError, Z as convertToUnit, _ as clamp, $ as defer, a0 as templateRef, o as useDisplay, a1 as isClickInsideElement, a2 as focusableChildren, a3 as focusChild, a4 as getNextElement, a5 as debounce, a6 as getPropertyFromItem, a7 as camelizeProps, a8 as ensureValidVNode, a9 as checkPrintable, aa as SUPPORTS_MATCH_MEDIA } from './theme-BgZDIKbD.js';
 
 class Box {
@@ -5204,6 +5204,9 @@ const searchTypeItems = [
   { title: '关键词', value: 'keyword' }
 ];
 
+const testing = ref(false);
+const saving = ref(false);
+
 const saveConfig = async () => {
   try {
     const response = await props.api.post('config', localConfig.value);
@@ -5215,6 +5218,45 @@ const saveConfig = async () => {
   }
 };
 
+const saveConfigManually = async () => {
+  saving.value = true;
+  try {
+    const response = await props.api.post('config', localConfig.value);
+    if (response.success) {
+      alert('配置保存成功');
+    } else {
+      alert('配置保存失败: ' + (response.message || '未知错误'));
+    }
+  } catch (error) {
+    console.error('保存配置失败:', error);
+    alert('保存配置失败: ' + error.message);
+  } finally {
+    saving.value = false;
+  }
+};
+
+const testConnection = async () => {
+  if (!localConfig.value.danmu_server_url || !localConfig.value.external_api_key) {
+    alert('请先填写弹幕库服务器地址和API密钥');
+    return
+  }
+
+  testing.value = true;
+  try {
+    const response = await props.api.get('rate_limit_status');
+    if (response.success) {
+      alert('连接测试成功!\n弹幕库服务器连接正常');
+    } else {
+      alert('连接测试失败: ' + (response.message || '未知错误'));
+    }
+  } catch (error) {
+    console.error('测试连接失败:', error);
+    alert('测试连接失败: ' + error.message);
+  } finally {
+    testing.value = false;
+  }
+};
+
 return (_ctx, _cache) => {
                                                            
                                                      
@@ -5223,6 +5265,7 @@ return (_ctx, _cache) => {
                                                                    
                                                            
                                                          
+                                                     
                                                        
 
   return (_openBlock(), _createBlock(VForm, null, {
@@ -5484,6 +5527,40 @@ return (_ctx, _cache) => {
                 ]))]),
                 _: 1
               })
+            ]),
+            _: 1
+          })
+        ]),
+        _: 1
+      }),
+      _createVNode(VRow, { class: "mt-4" }, {
+        default: _withCtx(() => [
+          _createVNode(VCol, {
+            cols: "12",
+            class: "d-flex justify-end"
+          }, {
+            default: _withCtx(() => [
+              _createVNode(VBtn, {
+                variant: "outlined",
+                class: "mr-2",
+                onClick: testConnection,
+                loading: testing.value
+              }, {
+                default: _withCtx(() => [...(_cache[12] || (_cache[12] = [
+                  _createTextVNode(" 测试连接 ", -1)
+                ]))]),
+                _: 1
+              }, 8, ["loading"]),
+              _createVNode(VBtn, {
+                color: "primary",
+                onClick: saveConfigManually,
+                loading: saving.value
+              }, {
+                default: _withCtx(() => [...(_cache[13] || (_cache[13] = [
+                  _createTextVNode(" 保存配置 ", -1)
+                ]))]),
+                _: 1
+              }, 8, ["loading"])
             ]),
             _: 1
           })
