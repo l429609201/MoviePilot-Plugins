@@ -1273,25 +1273,23 @@ const saveConfigManually = async () => {
   if (!form.value) return
   const validation = await form.value.validate();
   if (!validation.valid) {
-    alert('请检查表单中的错误');
+    console.error('表单验证失败');
     return
   }
 
   saving.value = true;
   try {
-    // ✅ 参考logsclean: 使用getPluginId()函数
     const pluginId = getPluginId();
     const response = await props.api.post(`plugin/${pluginId}/config`, localConfig);
     if (response.success) {
-      alert('配置保存成功');
       // 更新备份
       Object.assign(initialConfigBackup, localConfig);
+      console.log('配置保存成功');
     } else {
-      alert('配置保存失败: ' + (response.message || '未知错误'));
+      console.error('配置保存失败:', response.message);
     }
   } catch (error) {
     console.error('保存配置失败:', error);
-    alert('保存配置失败: ' + error.message);
   } finally {
     saving.value = false;
   }
@@ -1299,27 +1297,23 @@ const saveConfigManually = async () => {
 
 const testConnection = async () => {
   if (!localConfig.danmu_server_url || !localConfig.external_api_key) {
-    alert('请先填写弹幕库服务器地址和API密钥');
+    console.error('请先填写弹幕库服务器地址和API密钥');
     return
   }
 
   testing.value = true;
   try {
-    // ✅ 使用test_connection接口进行快速测试(stream=false)
     const pluginId = getPluginId();
     const response = await props.api.get(`plugin/${pluginId}/test_connection`);
-    // ✅ 后端直接返回data或error对象
     if (response.error) {
-      alert('连接测试失败: ' + (response.message || '未知错误'));
+      console.error('连接测试失败:', response.message);
     } else if (response.globalEnabled !== undefined) {
-      // 成功获取到流控数据
-      alert('连接测试成功!\n弹幕库服务器连接正常');
+      console.log('连接测试成功,弹幕库服务器连接正常');
     } else {
-      alert('连接测试失败: 响应格式异常');
+      console.error('连接测试失败: 响应格式异常');
     }
   } catch (error) {
     console.error('测试连接失败:', error);
-    alert('测试连接失败: ' + error.message);
   } finally {
     testing.value = false;
   }
@@ -1328,7 +1322,7 @@ const testConnection = async () => {
 const resetConfig = () => {
   Object.assign(localConfig, initialConfigBackup);
   if (form.value) form.value.resetValidation();
-  alert('配置已重置');
+  console.log('配置已重置');
 };
 
 return (_ctx, _cache) => {
@@ -1859,6 +1853,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-8bd95a66"]]);
+const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-2c9a7e3a"]]);
 
 export { Config as default };

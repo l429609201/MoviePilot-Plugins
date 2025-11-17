@@ -627,9 +627,11 @@ class DanmakuAutoImport(_PluginBase):
             # 查找任务
             task = None
             with self._lock:
-                for t in self._pending_tasks:
+                for i, t in enumerate(self._pending_tasks):
                     if t.get('id') == task_id:  # 使用'id'而不是'task_id'
                         task = t
+                        # 从待处理队列中移除
+                        self._pending_tasks.pop(i)
                         break
 
                 if not task:
