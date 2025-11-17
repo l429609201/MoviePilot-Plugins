@@ -901,43 +901,64 @@ class DanmakuAutoImport(_PluginBase):
 
             return {"success": False, "message": "未找到指定任务"}
 
-    def _get_rate_limit_status(self) -> Dict[str, Any]:
-        """API端点: 获取流控状态"""
+    def _get_rate_limit_status(self):
+        """API端点: 获取流控状态(SSE方式)"""
         if not self._danmu_server_url or not self._external_api_key:
-            return {"error": True, "message": "未配置弹幕库服务器地址或API密钥"}
+            # 返回错误事件
+            def error_generator():
+                yield f"data: {{'error': true, 'message': '未配置弹幕库服务器地址或API密钥'}}\n\n"
+            return error_generator()
 
-        try:
-            import requests
-            # 确保URL不会有双斜杠
-            base_url = self._danmu_server_url.rstrip('/')
-            url = f"{base_url}/api/control/rate-limit/status"
-            params = {"api_key": self._external_api_key}
-
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-
-            # 检查响应内容
-            if not response.text:
-                logger.error(f"弹幕自动导入: 获取流控状态失败 - 服务器返回空响应")
-                return {"error": True, "message": "服务器返回空响应"}
-
+        def event_stream():
+            """SSE事件流生成器"""
             try:
-                data = response.json()
-                # ✅ 直接返回data,不包装success字段,让MoviePilot框架自动包装
-                return data
-            except ValueError as json_err:
-                logger.error(f"弹幕自动导入: 获取流控状态失败 - JSON解析错误: {str(json_err)}")
-                return {"error": True, "message": f"服务器响应格式错误: {str(json_err)}"}
+                import requests
+                import json
 
-        except requests.exceptions.HTTPError as e:
-            logger.error(f"弹幕自动导入: 获取流控状态失败 - HTTP错误 {e.response.status_code if e.response else 'N/A'}")
-            return {"error": True, "message": f"HTTP错误: {str(e)}"}
-        except requests.exceptions.RequestException as e:
-            logger.error(f"弹幕自动导入: 获取流控状态失败 - 网络请求错误: {str(e)}")
-            return {"error": True, "message": f"网络请求失败: {str(e)}"}
-        except Exception as e:
-            logger.error(f"弹幕自动导入: 获取流控状态失败 - 未知错误: {str(e)}")
-            return {"error": True, "message": f"获取流控状态失败: {str(e)}"}
+                # 确保URL不会有双斜杠
+                base_url = self._danmu_server_url.rstrip('/')
+                url = f"{base_url}/api/control/rate-limit/status"
+                params = {"api_key": self._external_api_key}
+
+                logger.info(f"弹幕自动导入: 开始SSE流式获取流控状态 - {url}")
+
+                # 使用stream=True启用流式接收
+                response = requests.get(url, params=params, stream=True, timeout=30)
+                response.raise_for_status()
+
+                # 逐行读取SSE流
+                for line in response.iter_lines(decode_unicode=True):
+                    if not line:
+                        continue
+
+                    # SSE格式: "data: {...}"
+                    if line.startswith('data: '):
+                        data_str = line[6:]  # 去掉 "data: " 前缀
+                        try:
+                            # 验证JSON格式
+                            json.loads(data_str)
+                            # 转发SSE事件
+                            yield f"data: {data_str}\n\n"
+                        except json.JSONDecodeError:
+                            logger.warning(f"弹幕自动导入: SSE数据JSON解析失败: {data_str}")
+                            continue
+
+                logger.info(f"弹幕自动导入: SSE流接收完成")
+
+            except requests.exceptions.HTTPError as e:
+                error_msg = f"HTTP错误 {e.response.status_code if e.response else 'N/A'}: {str(e)}"
+                logger.error(f"弹幕自动导入: 获取流控状态失败 - {error_msg}")
+                yield f"data: {{'error': true, 'message': '{error_msg}'}}\n\n"
+            except requests.exceptions.RequestException as e:
+                error_msg = f"网络请求失败: {str(e)}"
+                logger.error(f"弹幕自动导入: 获取流控状态失败 - {error_msg}")
+                yield f"data: {{'error': true, 'message': '{error_msg}'}}\n\n"
+            except Exception as e:
+                error_msg = f"未知错误: {str(e)}"
+                logger.error(f"弹幕自动导入: 获取流控状态失败 - {error_msg}")
+                yield f"data: {{'error': true, 'message': '{error_msg}'}}\n\n"
+
+        return event_stream()
 
     def get_form(self) -> Tuple[Optional[List[dict]], Dict[str, Any]]:
         """
@@ -988,7 +1009,8 @@ class DanmakuAutoImport(_PluginBase):
                 "endpoint": self._get_rate_limit_status,
                 "methods": ["GET"],
                 "auth": "bear",
-                "summary": "获取弹幕库流控状态"
+                "summary": "获取弹幕库流控状态(SSE流式)",
+                "response_model": "text/event-stream"  # 标记为SSE响应
             },
             {
                 "path": "/consolidate",
