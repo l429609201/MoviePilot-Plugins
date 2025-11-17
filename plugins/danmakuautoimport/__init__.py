@@ -232,13 +232,19 @@ class DanmakuAutoImport(_PluginBase):
     def _consolidate_tick(self):
         """整合定时器tick - 每秒执行一次"""
         should_consolidate = False
+        buffer_count = 0
+        countdown = 0
 
         with self._lock:
+            buffer_count = len(self._buffer_tasks)
+            countdown = self._consolidate_countdown
+
             # 只有缓冲区有内容时才倒计时
             if self._buffer_tasks:
                 # 倒计时递减
                 if self._consolidate_countdown > 0:
                     self._consolidate_countdown -= 1
+                    countdown = self._consolidate_countdown
                     # 每10秒打印一次倒计时
                     if self._consolidate_countdown % 10 == 0:
                         logger.info(f"弹幕自动导入: 整合倒计时 {self._consolidate_countdown}秒 (缓冲区: {len(self._buffer_tasks)})")
@@ -247,6 +253,11 @@ class DanmakuAutoImport(_PluginBase):
                 if self._consolidate_countdown == 0:
                     should_consolidate = True
                     logger.info(f"弹幕自动导入: 倒计时结束,准备整合缓冲区 (缓冲区: {len(self._buffer_tasks)})")
+
+        # 每30秒打印一次tick状态(用于调试)
+        import time
+        if int(time.time()) % 30 == 0:
+            logger.debug(f"弹幕自动导入: tick运行中 - 缓冲区={buffer_count}, 倒计时={countdown}")
 
         # 在锁外调用整合(避免死锁)
         if should_consolidate:
@@ -444,15 +455,29 @@ class DanmakuAutoImport(_PluginBase):
             self._task_progress[task_id] = 40
 
             # 发送POST请求(参数在URL中)
+            logger.info(f"弹幕自动导入: 发送API请求 - URL={api_url}, params={params}")
             response = RequestUtils(timeout=30).post_res(url=api_url, params=params)
-            if not response or response.status_code != 202:
-                raise Exception(f"API请求失败: {response.status_code if response else 'No response'}")
+
+            if not response:
+                raise Exception(f"API请求失败: 无响应")
+
+            logger.info(f"弹幕自动导入: API响应 - status_code={response.status_code}")
+
+            if response.status_code != 202:
+                # 尝试获取响应内容
+                try:
+                    error_detail = response.text
+                    logger.error(f"弹幕自动导入: API返回错误 - status={response.status_code}, body={error_detail}")
+                except:
+                    pass
+                raise Exception(f"API请求失败: HTTP {response.status_code}")
 
             # 更新进度: 处理响应
             self._task_progress[task_id] = 70
 
             result = response.json()
             danmu_task_id = result.get("taskId")
+            logger.info(f"弹幕自动导入: 获取到任务ID - {danmu_task_id}")
 
             # 更新任务状态
             task["status"] = "success"
@@ -509,11 +534,12 @@ class DanmakuAutoImport(_PluginBase):
         message += f"🔄 处理中: {processing_count} 个任务\n"
         message += f"📦 队列容量: {self._max_queue_size}\n"
 
-        self.post_message(
-            mtype=NotificationType.SiteMessage,
-            title="弹幕导入队列",
-            text=message
-        )
+        if self._notify:
+            self.post_message(
+                mtype=NotificationType.SiteMessage,
+                title="弹幕导入队列",
+                text=message
+            )
 
     def _clear_queue(self, event_data: dict):
         """清空队列"""
@@ -523,11 +549,12 @@ class DanmakuAutoImport(_PluginBase):
 
         message = f"🗑️ 已清空弹幕导入队列\n\n清除了 {cleared_count} 个待处理任务"
 
-        self.post_message(
-            mtype=NotificationType.SiteMessage,
-            title="清空队列",
-            text=message
-        )
+        if self._notify:
+            self.post_message(
+                mtype=NotificationType.SiteMessage,
+                title="清空队列",
+                text=message
+            )
 
         logger.info(f"弹幕自动导入: 已清空队列,清除了 {cleared_count} 个任务")
 
