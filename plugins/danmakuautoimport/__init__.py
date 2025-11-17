@@ -215,15 +215,18 @@ class DanmakuAutoImport(_PluginBase):
             force: 是否强制整合(忽略时间间隔)
         """
         with self._lock:
-            if not self._buffer_tasks:
-                return
+            now = datetime.now(tz=pytz.timezone(settings.TZ))
 
             # 检查是否到达整合时间(除非强制整合)
-            now = datetime.now(tz=pytz.timezone(settings.TZ))
             if not force and self._last_consolidate_time:
                 elapsed = (now - self._last_consolidate_time).total_seconds()
                 if elapsed < self._consolidate_interval:
                     return
+
+            # 如果缓冲区为空,只更新时间戳
+            if not self._buffer_tasks:
+                self._last_consolidate_time = now
+                return
 
             logger.info(f"弹幕自动导入: 开始整合缓冲区任务 (缓冲区长度: {len(self._buffer_tasks)}, 强制: {force})")
 
@@ -365,13 +368,13 @@ class DanmakuAutoImport(_PluginBase):
 
             # 构建API请求
             api_url = f"{self._danmu_server_url}/api/control/import/auto"
-            params = {"api_key": self._external_api_key}
 
             # 更新进度: 准备请求
             self._task_progress[task_id] = 20
 
-            # 构建请求数据
-            data = {
+            # 构建请求参数(外部API使用Query参数,不是JSON body)
+            params = {
+                "api_key": self._external_api_key,
                 "searchType": self._search_type,
                 "searchTerm": str(mediainfo.tmdb_id) if self._search_type == "tmdb" else mediainfo.title,
                 "mediaType": "tv_series" if mediainfo.type == MediaType.TV else "movie"
@@ -380,15 +383,15 @@ class DanmakuAutoImport(_PluginBase):
             # 如果是剧集,添加季集信息
             if mediainfo.type == MediaType.TV and meta:
                 if hasattr(meta, "begin_season") and meta.begin_season:
-                    data["season"] = meta.begin_season
+                    params["season"] = meta.begin_season
                 if hasattr(meta, "begin_episode") and meta.begin_episode:
-                    data["episode"] = meta.begin_episode
+                    params["episode"] = meta.begin_episode
 
             # 更新进度: 发送请求
             self._task_progress[task_id] = 40
 
-            # 发送请求
-            response = RequestUtils(timeout=30).post_res(url=api_url, params=params, json=data)
+            # 发送POST请求(参数在URL中)
+            response = RequestUtils(timeout=30).post_res(url=api_url, params=params)
             if not response or response.status_code != 202:
                 raise Exception(f"API请求失败: {response.status_code if response else 'No response'}")
 
