@@ -58,8 +58,8 @@ class DanmakuAutoImport(_PluginBase):
     _pending_tasks: List[Dict[str, Any]] = []
     _processing_tasks: Dict[str, Dict[str, Any]] = {}
     _lock = Lock()
-    _last_consolidate_time = None  # 上次整合时间
     _consolidate_interval = 30  # 整合间隔(秒)
+    _consolidate_countdown = 30  # 整合倒计时(秒)
 
     def init_plugin(self, config: dict = None):
         """初始化插件"""
@@ -129,12 +129,21 @@ class DanmakuAutoImport(_PluginBase):
                 "kwargs": {}
             })
 
-        # 整合定时任务 - 每30秒执行一次
+        # 整合定时任务 - 每1秒执行一次倒计时
         services.append({
             "id": "DanmakuAutoImportConsolidate",
             "name": "弹幕自动导入整合任务",
-            "trigger": IntervalTrigger(seconds=30),
-            "func": self._consolidate_buffer,
+            "trigger": IntervalTrigger(seconds=1),
+            "func": self._consolidate_tick,
+            "kwargs": {}
+        })
+
+        # 清理成功任务定时任务 - 每天0点和12点执行
+        services.append({
+            "id": "DanmakuAutoImportCleanup",
+            "name": "弹幕自动导入清理成功任务",
+            "trigger": CronTrigger.from_crontab("0 0,12 * * *"),
+            "func": self._cleanup_success_tasks,
             "kwargs": {}
         })
 
@@ -204,6 +213,22 @@ class DanmakuAutoImport(_PluginBase):
             self._buffer_tasks.append(task)
             logger.info(f"弹幕自动导入: 已添加到缓冲区 - {mediainfo.title} (缓冲区长度: {len(self._buffer_tasks)})")
 
+    def _consolidate_tick(self):
+        """整合定时器tick - 每秒执行一次"""
+        with self._lock:
+            # 倒计时递减
+            if self._consolidate_countdown > 0:
+                self._consolidate_countdown -= 1
+
+            # 倒计时结束,执行整合
+            if self._consolidate_countdown == 0:
+                self._consolidate_countdown = self._consolidate_interval
+                # 释放锁后调用整合
+
+        # 在锁外调用整合(避免死锁)
+        if self._consolidate_countdown == self._consolidate_interval:
+            self._consolidate_buffer(force=False)
+
     def _consolidate_buffer(self, force: bool = False):
         """整合缓冲区任务
 
@@ -211,17 +236,12 @@ class DanmakuAutoImport(_PluginBase):
             force: 是否强制整合(忽略时间间隔)
         """
         with self._lock:
-            now = datetime.now(tz=pytz.timezone(settings.TZ))
+            # 如果是强制整合,重置倒计时
+            if force:
+                self._consolidate_countdown = self._consolidate_interval
 
-            # 检查是否到达整合时间(除非强制整合)
-            if not force and self._last_consolidate_time:
-                elapsed = (now - self._last_consolidate_time).total_seconds()
-                if elapsed < self._consolidate_interval:
-                    return
-
-            # 如果缓冲区为空,只更新时间戳
+            # 如果缓冲区为空,直接返回
             if not self._buffer_tasks:
-                self._last_consolidate_time = now
                 return
 
             logger.info(f"弹幕自动导入: 开始整合缓冲区任务 (缓冲区长度: {len(self._buffer_tasks)}, 强制: {force})")
@@ -263,7 +283,7 @@ class DanmakuAutoImport(_PluginBase):
                     "mediainfo": group["mediainfo"],
                     "meta": None,
                     "episodes": group["episodes"],  # 集数列表
-                    "add_time": now,
+                    "add_time": datetime.now(tz=pytz.timezone(settings.TZ)),
                     "retry_count": 0,
                     "status": "pending",
                     "error_msg": None,
@@ -281,7 +301,6 @@ class DanmakuAutoImport(_PluginBase):
 
             # 清空缓冲区
             self._buffer_tasks.clear()
-            self._last_consolidate_time = now
             logger.info(f"弹幕自动导入: 缓冲区整合完成 (待处理队列长度: {len(self._pending_tasks)})")
 
     def _add_to_queue_direct(self, buffer_task):
@@ -473,6 +492,18 @@ class DanmakuAutoImport(_PluginBase):
         )
 
         logger.info(f"弹幕自动导入: 已清空队列,清除了 {cleared_count} 个任务")
+
+    def _cleanup_success_tasks(self):
+        """清理状态为成功的任务"""
+        with self._lock:
+            # 过滤出非成功状态的任务
+            before_count = len(self._pending_tasks)
+            self._pending_tasks = [task for task in self._pending_tasks if task.get('status') != 'success']
+            after_count = len(self._pending_tasks)
+            cleaned_count = before_count - after_count
+
+        if cleaned_count > 0:
+            logger.info(f"弹幕自动导入: 定时清理成功任务,共清理 {cleaned_count} 个任务")
 
     # ========== V2 API 接口 ==========
 
@@ -738,14 +769,8 @@ class DanmakuAutoImport(_PluginBase):
                 }
 
             with self._lock:
-                # 计算缓冲区倒计时
-                consolidate_countdown = 0
-                if self._last_consolidate_time:
-                    now = datetime.now(tz=pytz.timezone(settings.TZ))
-                    elapsed = (now - self._last_consolidate_time).total_seconds()
-                    consolidate_countdown = max(0, int(self._consolidate_interval - elapsed))
-                else:
-                    consolidate_countdown = self._consolidate_interval
+                # 返回当前倒计时值
+                consolidate_countdown = max(0, self._consolidate_countdown)
 
                 result = []
 
@@ -863,7 +888,10 @@ class DanmakuAutoImport(_PluginBase):
                     if task_id in self._task_progress:
                         del self._task_progress[task_id]
 
-                    logger.info(f"手动删除任务: {deleted_task.get('mediainfo', {}).get('title', '未知')} (ID: {task_id})")
+                    # 获取任务标题
+                    mediainfo = deleted_task.get('mediainfo')
+                    title = mediainfo.title if mediainfo else '未知'
+                    logger.info(f"手动删除任务: {title} (ID: {task_id})")
                     return {"success": True, "message": "任务已删除"}
 
             return {"success": False, "message": "未找到指定任务"}

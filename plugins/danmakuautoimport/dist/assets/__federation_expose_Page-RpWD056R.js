@@ -2,7 +2,7 @@ import { importShared } from './__federation_fn_import-DglrmYpL.js';
 import { B as useFocus, u as useRender, f as forwardRefs, D as makeVInputProps, R as makeVCheckboxBtnProps, E as VInput, w as VCheckboxBtn, S as useDensity, T as makeTagProps, U as makeDensityProps, a as makeComponentProps, W as useScopeId, X as makeVOverlayProps, Y as VOverlay, _ as _export_sfc, I as VCard, J as VCardTitle, p as VIcon, K as VCardText, M as VRow, N as VCol, r as VList, s as VListItem, Z as VListItemTitle, Q as VSpacer, y as VChip, $ as VProgressLinear, t as VDivider, P as VBtn, q as VMenu, o as VTextField, a0 as VChipGroup, O as VCardActions } from './VTextField-ihn0XDxk.js';
 import { t as genericComponent, v as propsFactory, C as useProxiedModel, E as omit, O as filterInputAttrs, P as provideTheme, Q as makeThemeProps, B as convertToUnit } from './theme-DITlnZcp.js';
 
-const {mergeProps:_mergeProps$2,createVNode:_createVNode$3} = await importShared('vue');
+const {mergeProps:_mergeProps$1,createVNode:_createVNode$3} = await importShared('vue');
 const {ref: ref$2,useId: useId$1} = await importShared('vue');
 const makeVCheckboxProps = propsFactory({
   ...makeVInputProps(),
@@ -33,7 +33,7 @@ const VCheckbox = genericComponent()({
       const [rootAttrs, controlAttrs] = filterInputAttrs(attrs);
       const inputProps = VInput.filterProps(props);
       const checkboxProps = VCheckboxBtn.filterProps(props);
-      return _createVNode$3(VInput, _mergeProps$2({
+      return _createVNode$3(VInput, _mergeProps$1({
         "ref": inputRef,
         "class": ['v-checkbox', props.class]
       }, rootAttrs, inputProps, {
@@ -52,7 +52,7 @@ const VCheckbox = genericComponent()({
             isReadonly,
             isValid
           } = _ref2;
-          return _createVNode$3(VCheckboxBtn, _mergeProps$2(checkboxProps, {
+          return _createVNode$3(VCheckboxBtn, _mergeProps$1(checkboxProps, {
             "id": id.value,
             "aria-describedby": messagesId.value,
             "disabled": isDisabled.value,
@@ -125,7 +125,7 @@ const VTable = genericComponent()({
   }
 });
 
-const {mergeProps:_mergeProps$1,createVNode:_createVNode$1} = await importShared('vue');
+const {mergeProps:_mergeProps,createVNode:_createVNode$1} = await importShared('vue');
 const {computed: computed$1,mergeProps,ref: ref$1,toRef,useId} = await importShared('vue');
 const makeVTooltipProps = propsFactory({
   id: String,
@@ -178,7 +178,7 @@ const VTooltip = genericComponent()({
     }, props.activatorProps));
     useRender(() => {
       const overlayProps = VOverlay.filterProps(props);
-      return _createVNode$1(VOverlay, _mergeProps$1({
+      return _createVNode$1(VOverlay, _mergeProps({
         "ref": overlay,
         "class": ['v-tooltip', {
           'v-tooltip--interactive': props.interactive
@@ -210,7 +210,7 @@ const VTooltip = genericComponent()({
   }
 });
 
-const {createVNode:_createVNode,createElementVNode:_createElementVNode,withCtx:_withCtx,toDisplayString:_toDisplayString,createTextVNode:_createTextVNode,renderList:_renderList,Fragment:_Fragment,openBlock:_openBlock,createElementBlock:_createElementBlock,createBlock:_createBlock,createCommentVNode:_createCommentVNode,normalizeClass:_normalizeClass,mergeProps:_mergeProps} = await importShared('vue');
+const {createVNode:_createVNode,createElementVNode:_createElementVNode,withCtx:_withCtx,toDisplayString:_toDisplayString,createTextVNode:_createTextVNode,renderList:_renderList,Fragment:_Fragment,openBlock:_openBlock,createElementBlock:_createElementBlock,createBlock:_createBlock,createCommentVNode:_createCommentVNode,normalizeClass:_normalizeClass} = await importShared('vue');
 
 
 const _hoisted_1 = { class: "plugin-page" };
@@ -1296,54 +1296,53 @@ return (_ctx, _cache) => {
                     ]),
                     _createVNode(VSpacer),
                     (selectedTasks.value.length > 0)
-                      ? (_openBlock(), _createBlock(VMenu, { key: 0 }, {
-                          activator: _withCtx(({ props }) => [
-                            _createVNode(VBtn, _mergeProps(props, {
-                              size: "small",
-                              variant: "outlined",
-                              color: "primary",
-                              "prepend-icon": "mdi-menu",
-                              class: "mr-2"
-                            }), {
-                              default: _withCtx(() => [
-                                _createTextVNode(" 批量操作 (" + _toDisplayString(selectedTasks.value.length) + ") ", 1)
-                              ]),
-                              _: 1
-                            }, 16)
-                          ]),
+                      ? (_openBlock(), _createBlock(VBtn, {
+                          key: 0,
+                          size: "small",
+                          variant: "outlined",
+                          color: "primary",
+                          "prepend-icon": "mdi-menu",
+                          class: "mr-2"
+                        }, {
                           default: _withCtx(() => [
-                            _createVNode(VList, { density: "compact" }, {
+                            _createTextVNode(" 批量操作 (" + _toDisplayString(selectedTasks.value.length) + ") ", 1),
+                            _createVNode(VMenu, { activator: "parent" }, {
                               default: _withCtx(() => [
-                                _createVNode(VListItem, { onClick: batchImportTasks }, {
-                                  prepend: _withCtx(() => [
-                                    _createVNode(VIcon, {
-                                      icon: "mdi-download",
-                                      size: "small"
-                                    })
-                                  ]),
+                                _createVNode(VList, { density: "compact" }, {
                                   default: _withCtx(() => [
-                                    _createVNode(VListItemTitle, null, {
-                                      default: _withCtx(() => [...(_cache[24] || (_cache[24] = [
-                                        _createTextVNode("批量导入", -1)
-                                      ]))]),
+                                    _createVNode(VListItem, { onClick: batchImportTasks }, {
+                                      prepend: _withCtx(() => [
+                                        _createVNode(VIcon, {
+                                          icon: "mdi-download",
+                                          size: "small"
+                                        })
+                                      ]),
+                                      default: _withCtx(() => [
+                                        _createVNode(VListItemTitle, null, {
+                                          default: _withCtx(() => [...(_cache[24] || (_cache[24] = [
+                                            _createTextVNode("批量导入", -1)
+                                          ]))]),
+                                          _: 1
+                                        })
+                                      ]),
                                       _: 1
-                                    })
-                                  ]),
-                                  _: 1
-                                }),
-                                _createVNode(VListItem, { onClick: batchDeleteTasks }, {
-                                  prepend: _withCtx(() => [
-                                    _createVNode(VIcon, {
-                                      icon: "mdi-delete",
-                                      size: "small",
-                                      color: "error"
-                                    })
-                                  ]),
-                                  default: _withCtx(() => [
-                                    _createVNode(VListItemTitle, { class: "text-error" }, {
-                                      default: _withCtx(() => [...(_cache[25] || (_cache[25] = [
-                                        _createTextVNode("批量删除", -1)
-                                      ]))]),
+                                    }),
+                                    _createVNode(VListItem, { onClick: batchDeleteTasks }, {
+                                      prepend: _withCtx(() => [
+                                        _createVNode(VIcon, {
+                                          icon: "mdi-delete",
+                                          size: "small",
+                                          color: "error"
+                                        })
+                                      ]),
+                                      default: _withCtx(() => [
+                                        _createVNode(VListItemTitle, { class: "text-error" }, {
+                                          default: _withCtx(() => [...(_cache[25] || (_cache[25] = [
+                                            _createTextVNode("批量删除", -1)
+                                          ]))]),
+                                          _: 1
+                                        })
+                                      ]),
                                       _: 1
                                     })
                                   ]),
@@ -1677,6 +1676,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-f27dcf2d"]]);
+const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-fc634e0b"]]);
 
 export { Page as default };
