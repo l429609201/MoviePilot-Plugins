@@ -1224,7 +1224,7 @@ const _sfc_main = {
     default: () => ({})
   }
 },
-  emits: ['switch', 'close'],
+  emits: ['switch', 'close', 'save'],
   setup(__props, { emit: __emit }) {
 
 const props = __props;
@@ -1279,15 +1279,11 @@ const saveConfigManually = async () => {
 
   saving.value = true;
   try {
-    const pluginId = getPluginId();
-    const response = await props.api.post(`plugin/${pluginId}/config`, localConfig);
-    if (response.success) {
-      // 更新备份
-      Object.assign(initialConfigBackup, localConfig);
-      console.log('配置保存成功');
-    } else {
-      console.error('配置保存失败:', response.message);
-    }
+    // 使用emit('save')触发保存,MoviePilot框架会自动处理保存并关闭窗口
+    emit('save', JSON.parse(JSON.stringify(localConfig)));
+    // 更新备份
+    Object.assign(initialConfigBackup, localConfig);
+    console.log('配置已发送保存请求');
   } catch (error) {
     console.error('保存配置失败:', error);
   } finally {
@@ -1355,7 +1351,7 @@ return (_ctx, _cache) => {
               color: "primary",
               size: "small"
             }),
-            _cache[13] || (_cache[13] = _createElementVNode("span", null, "弹幕库自动导入配置", -1))
+            _cache[14] || (_cache[14] = _createElementVNode("span", null, "弹幕库自动导入配置", -1))
           ]),
           _: 1
         }),
@@ -1381,7 +1377,7 @@ return (_ctx, _cache) => {
                           color: "primary",
                           size: "small"
                         }),
-                        _cache[14] || (_cache[14] = _createElementVNode("span", null, "基本设置", -1))
+                        _cache[15] || (_cache[15] = _createElementVNode("span", null, "基本设置", -1))
                       ]),
                       _: 1
                     }),
@@ -1403,7 +1399,7 @@ return (_ctx, _cache) => {
                                   }, null, 8, ["color"]),
                                   _createElementVNode("div", _hoisted_3, [
                                     _createElementVNode("div", _hoisted_4, [
-                                      _cache[15] || (_cache[15] = _createElementVNode("div", null, [
+                                      _cache[16] || (_cache[16] = _createElementVNode("div", null, [
                                         _createElementVNode("div", { class: "text-subtitle-2" }, "启用插件"),
                                         _createElementVNode("div", { class: "text-caption text-grey" }, "是否启用弹幕自动导入")
                                       ], -1)),
@@ -1436,7 +1432,7 @@ return (_ctx, _cache) => {
                                   }, null, 8, ["color"]),
                                   _createElementVNode("div", _hoisted_6, [
                                     _createElementVNode("div", _hoisted_7, [
-                                      _cache[16] || (_cache[16] = _createElementVNode("div", null, [
+                                      _cache[17] || (_cache[17] = _createElementVNode("div", null, [
                                         _createElementVNode("div", { class: "text-subtitle-2" }, "启用通知"),
                                         _createElementVNode("div", { class: "text-caption text-grey" }, "导入完成后发送通知")
                                       ], -1)),
@@ -1469,7 +1465,7 @@ return (_ctx, _cache) => {
                                   }, null, 8, ["color"]),
                                   _createElementVNode("div", _hoisted_9, [
                                     _createElementVNode("div", _hoisted_10, [
-                                      _cache[17] || (_cache[17] = _createElementVNode("div", null, [
+                                      _cache[18] || (_cache[18] = _createElementVNode("div", null, [
                                         _createElementVNode("div", { class: "text-subtitle-2" }, "仅处理动漫"),
                                         _createElementVNode("div", { class: "text-caption text-grey" }, "只处理动漫类型媒体")
                                       ], -1)),
@@ -1510,7 +1506,7 @@ return (_ctx, _cache) => {
                           color: "primary",
                           size: "small"
                         }),
-                        _cache[18] || (_cache[18] = _createElementVNode("span", null, "服务器设置", -1))
+                        _cache[19] || (_cache[19] = _createElementVNode("span", null, "服务器设置", -1))
                       ]),
                       _: 1
                     }),
@@ -1579,7 +1575,7 @@ return (_ctx, _cache) => {
                           color: "primary",
                           size: "small"
                         }),
-                        _cache[19] || (_cache[19] = _createElementVNode("span", null, "任务设置", -1))
+                        _cache[20] || (_cache[20] = _createElementVNode("span", null, "任务设置", -1))
                       ]),
                       _: 1
                     }),
@@ -1670,7 +1666,7 @@ return (_ctx, _cache) => {
                           color: "primary",
                           size: "small"
                         }),
-                        _cache[20] || (_cache[20] = _createElementVNode("span", null, "高级设置", -1))
+                        _cache[21] || (_cache[21] = _createElementVNode("span", null, "高级设置", -1))
                       ]),
                       _: 1
                     }),
@@ -1712,7 +1708,7 @@ return (_ctx, _cache) => {
                                   }, null, 8, ["color"]),
                                   _createElementVNode("div", _hoisted_12, [
                                     _createElementVNode("div", _hoisted_13, [
-                                      _cache[21] || (_cache[21] = _createElementVNode("div", null, [
+                                      _cache[22] || (_cache[22] = _createElementVNode("div", null, [
                                         _createElementVNode("div", { class: "text-subtitle-2" }, "失败自动重试"),
                                         _createElementVNode("div", { class: "text-caption text-grey" }, "导入失败后自动重试")
                                       ], -1)),
@@ -1775,7 +1771,7 @@ return (_ctx, _cache) => {
                           class: "mr-2",
                           size: "small"
                         }),
-                        _cache[22] || (_cache[22] = _createElementVNode("span", { class: "text-caption" }, " 插件会在媒体下载完成后自动将任务添加到队列,由定时任务处理。支持延时导入、失败重试等功能。 ", -1))
+                        _cache[23] || (_cache[23] = _createElementVNode("span", { class: "text-caption" }, " 插件会在媒体下载完成后自动将任务添加到队列,由定时任务处理。支持延时导入、失败重试等功能。 ", -1))
                       ]),
                       _: 1
                     })
@@ -1798,7 +1794,7 @@ return (_ctx, _cache) => {
               size: "small",
               onClick: _cache[12] || (_cache[12] = $event => (emit('switch')))
             }, {
-              default: _withCtx(() => [...(_cache[23] || (_cache[23] = [
+              default: _withCtx(() => [...(_cache[24] || (_cache[24] = [
                 _createTextVNode(" 数据 ", -1)
               ]))]),
               _: 1
@@ -1812,7 +1808,7 @@ return (_ctx, _cache) => {
               onClick: testConnection,
               loading: testing.value
             }, {
-              default: _withCtx(() => [...(_cache[24] || (_cache[24] = [
+              default: _withCtx(() => [...(_cache[25] || (_cache[25] = [
                 _createTextVNode(" 测试连接 ", -1)
               ]))]),
               _: 1
@@ -1824,7 +1820,7 @@ return (_ctx, _cache) => {
               size: "small",
               onClick: resetConfig
             }, {
-              default: _withCtx(() => [...(_cache[25] || (_cache[25] = [
+              default: _withCtx(() => [...(_cache[26] || (_cache[26] = [
                 _createTextVNode(" 重置 ", -1)
               ]))]),
               _: 1
@@ -1837,11 +1833,24 @@ return (_ctx, _cache) => {
               onClick: saveConfigManually,
               loading: saving.value
             }, {
-              default: _withCtx(() => [...(_cache[26] || (_cache[26] = [
+              default: _withCtx(() => [...(_cache[27] || (_cache[27] = [
                 _createTextVNode(" 保存配置 ", -1)
               ]))]),
               _: 1
-            }, 8, ["loading"])
+            }, 8, ["loading"]),
+            _createVNode(VBtn, {
+              color: "grey",
+              variant: "text",
+              "prepend-icon": "mdi-close",
+              size: "small",
+              onClick: _cache[13] || (_cache[13] = $event => (emit('close'))),
+              disabled: saving.value
+            }, {
+              default: _withCtx(() => [...(_cache[28] || (_cache[28] = [
+                _createTextVNode(" 关闭 ", -1)
+              ]))]),
+              _: 1
+            }, 8, ["disabled"])
           ]),
           _: 1
         })
@@ -1853,6 +1862,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-2c9a7e3a"]]);
+const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-46496897"]]);
 
 export { Config as default };

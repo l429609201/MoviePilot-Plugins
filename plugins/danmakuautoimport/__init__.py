@@ -11,6 +11,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from app.core.config import settings
 from app.core.event import Event, eventmanager
+from app.core.scheduler import scheduler
 from app.log import logger
 from app.plugins import _PluginBase
 from app.schemas import MediaType, NotificationType
@@ -138,7 +139,7 @@ class DanmakuAutoImport(_PluginBase):
                 "kwargs": {}
             })
 
-        # 整合定时任务 - 每1秒执行一次倒计时
+        # 整合定时任务 - 每1秒执行一次倒计时 (只在启用时注册)
         services.append({
             "id": "DanmakuAutoImportConsolidate",
             "name": "弹幕自动导入整合任务",
@@ -147,7 +148,7 @@ class DanmakuAutoImport(_PluginBase):
             "kwargs": {}
         })
 
-        # 清理成功任务定时任务 - 每天0点和12点执行
+        # 清理成功任务定时任务 - 每天0点和12点执行 (只在启用时注册)
         services.append({
             "id": "DanmakuAutoImportCleanup",
             "name": "弹幕自动导入清理成功任务",
@@ -1186,6 +1187,21 @@ class DanmakuAutoImport(_PluginBase):
     def stop_service(self):
         """停止插件服务"""
         logger.info("弹幕自动导入: 停止服务")
+
+        # 尝试删除已注册的定时任务,以便重新注册
+        try:
+            # 删除所有定时任务
+            job_ids = ["DanmakuAutoImport", "DanmakuAutoImportConsolidate", "DanmakuAutoImportCleanup"]
+            for job_id in job_ids:
+                try:
+                    if scheduler.get_job(job_id):
+                        scheduler.remove_job(job_id)
+                        logger.info(f"弹幕自动导入: 已删除定时任务 {job_id}")
+                except Exception as e:
+                    logger.debug(f"弹幕自动导入: 删除定时任务 {job_id} 失败(可能不存在): {e}")
+        except Exception as e:
+            logger.warning(f"弹幕自动导入: 无法访问scheduler实例: {e}")
+
         # 停止SSE接收线程
         self._stop_sse_receiver()
 
