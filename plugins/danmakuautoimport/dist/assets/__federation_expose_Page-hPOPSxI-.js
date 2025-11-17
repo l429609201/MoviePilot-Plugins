@@ -557,12 +557,7 @@ const startCountdown = (initialSeconds) => {
 };
 
 // 启动整合倒计时
-const startConsolidateCountdown = (initialSeconds) => {
-  // 只在定时器未启动时设置初始值
-  if (!consolidateTimer.value) {
-    consolidateCountdown.value = initialSeconds;
-  }
-
+const startConsolidateCountdown = () => {
   // 清除旧的定时器
   if (consolidateTimer.value) {
     clearInterval(consolidateTimer.value);
@@ -754,7 +749,7 @@ const refreshTasks = async () => {
 
         // 如果定时器还没启动,启动它
         if (!consolidateTimer.value) {
-          startConsolidateCountdown(newCountdown);
+          startConsolidateCountdown();
         }
       } else if (Array.isArray(tasksResponse)) {
         // 兼容旧格式
@@ -954,9 +949,8 @@ const manualConsolidate = async () => {
     if (response && response.success) {
       // 整合成功,刷新任务列表
       await refreshTasks();
-      // 重置倒计时
-      consolidateCountdown.value = 30;
-      startConsolidateCountdown(30);
+      // 重置倒计时 - refreshTasks会从后端获取新的倒计时值
+      // 不需要手动设置,因为refreshTasks会更新consolidateCountdown.value
     } else {
       alert(response?.message || '整合失败');
     }
@@ -2015,6 +2009,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-f40802fe"]]);
+const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-283df241"]]);
 
 export { Page as default };

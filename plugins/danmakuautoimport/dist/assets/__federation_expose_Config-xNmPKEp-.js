@@ -1279,13 +1279,23 @@ const saveConfigManually = async () => {
 
   saving.value = true;
   try {
-    // 使用emit('save')触发保存,MoviePilot框架会自动处理保存并关闭窗口
-    emit('save', JSON.parse(JSON.stringify(localConfig)));
-    // 更新备份
-    Object.assign(initialConfigBackup, localConfig);
-    console.log('配置已发送保存请求');
+    // 调用插件API保存配置
+    const response = await props.api.post(`plugin/${getPluginId()}/config`, localConfig);
+
+    if (response && response.success) {
+      // 更新备份
+      Object.assign(initialConfigBackup, localConfig);
+      console.log('配置保存成功:', response.message);
+
+      // 使用emit('save')触发MoviePilot框架关闭窗口
+      emit('save', JSON.parse(JSON.stringify(localConfig)));
+    } else {
+      console.error('保存配置失败:', response?.message || '未知错误');
+      alert(response?.message || '保存配置失败');
+    }
   } catch (error) {
     console.error('保存配置失败:', error);
+    alert('保存配置失败: ' + error.message);
   } finally {
     saving.value = false;
   }
@@ -1862,6 +1872,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-46496897"]]);
+const Config = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-ff2001f1"]]);
 
 export { Config as default };
