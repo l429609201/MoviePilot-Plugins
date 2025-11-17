@@ -1,8 +1,8 @@
-import { importShared } from './__federation_fn_import-8yBjI_dD.js';
-import { B as useFocus, u as useRender, f as forwardRefs, D as makeVInputProps, R as makeVCheckboxBtnProps, E as VInput, w as VCheckboxBtn, S as useDensity, T as makeTagProps, U as makeDensityProps, a as makeComponentProps, W as useBackgroundColor, X as useBorder, Y as useElevation, Z as useRounded, $ as makeRoundedProps, a0 as makeElevationProps, a1 as makeBorderProps, a2 as VImg, z as VDefaultsProvider, a3 as VExpandTransition, a4 as useScopeId, a5 as makeVOverlayProps, a6 as VOverlay, _ as _export_sfc, I as VCard, J as VCardTitle, p as VIcon, K as VCardText, M as VRow, N as VCol, r as VList, s as VListItem, a7 as VListItemTitle, Q as VSpacer, y as VChip, a8 as VProgressLinear, t as VDivider, P as VBtn, q as VMenu, o as VTextField, a9 as VChipGroup, O as VCardActions } from './VTextField-B7M9BGqr.js';
-import { t as genericComponent, v as propsFactory, C as useProxiedModel, E as omit, O as filterInputAttrs, P as provideTheme, Q as makeThemeProps, B as convertToUnit, r as useRtl, R as provideDefaults } from './theme-CEIQfT3_.js';
+import { importShared } from './__federation_fn_import-DglrmYpL.js';
+import { B as useFocus, u as useRender, f as forwardRefs, D as makeVInputProps, R as makeVCheckboxBtnProps, E as VInput, w as VCheckboxBtn, S as useDensity, T as makeTagProps, U as makeDensityProps, a as makeComponentProps, W as useScopeId, X as makeVOverlayProps, Y as VOverlay, _ as _export_sfc, I as VCard, J as VCardTitle, p as VIcon, K as VCardText, M as VRow, N as VCol, r as VList, s as VListItem, Z as VListItemTitle, Q as VSpacer, y as VChip, $ as VProgressLinear, t as VDivider, P as VBtn, q as VMenu, o as VTextField, a0 as VChipGroup, O as VCardActions } from './VTextField-ihn0XDxk.js';
+import { t as genericComponent, v as propsFactory, C as useProxiedModel, E as omit, O as filterInputAttrs, P as provideTheme, Q as makeThemeProps, B as convertToUnit } from './theme-DITlnZcp.js';
 
-const {mergeProps:_mergeProps$2,createVNode:_createVNode$5} = await importShared('vue');
+const {mergeProps:_mergeProps$2,createVNode:_createVNode$3} = await importShared('vue');
 const {ref: ref$2,useId: useId$1} = await importShared('vue');
 const makeVCheckboxProps = propsFactory({
   ...makeVInputProps(),
@@ -33,7 +33,7 @@ const VCheckbox = genericComponent()({
       const [rootAttrs, controlAttrs] = filterInputAttrs(attrs);
       const inputProps = VInput.filterProps(props);
       const checkboxProps = VCheckboxBtn.filterProps(props);
-      return _createVNode$5(VInput, _mergeProps$2({
+      return _createVNode$3(VInput, _mergeProps$2({
         "ref": inputRef,
         "class": ['v-checkbox', props.class]
       }, rootAttrs, inputProps, {
@@ -52,7 +52,7 @@ const VCheckbox = genericComponent()({
             isReadonly,
             isValid
           } = _ref2;
-          return _createVNode$5(VCheckboxBtn, _mergeProps$2(checkboxProps, {
+          return _createVNode$3(VCheckboxBtn, _mergeProps$2(checkboxProps, {
             "id": id.value,
             "aria-describedby": messagesId.value,
             "disabled": isDisabled.value,
@@ -71,7 +71,7 @@ const VCheckbox = genericComponent()({
   }
 });
 
-const {createElementVNode:_createElementVNode$3,normalizeClass:_normalizeClass$3,normalizeStyle:_normalizeStyle$2,createVNode:_createVNode$4} = await importShared('vue');
+const {createElementVNode:_createElementVNode$1,normalizeClass:_normalizeClass$1,normalizeStyle:_normalizeStyle,createVNode:_createVNode$2} = await importShared('vue');
 const makeVTableProps = propsFactory({
   fixedHeader: Boolean,
   fixedFooter: Boolean,
@@ -101,8 +101,8 @@ const VTable = genericComponent()({
     const {
       densityClasses
     } = useDensity(props);
-    useRender(() => _createVNode$4(props.tag, {
-      "class": _normalizeClass$3(['v-table', {
+    useRender(() => _createVNode$2(props.tag, {
+      "class": _normalizeClass$1(['v-table', {
         'v-table--fixed-height': !!props.height,
         'v-table--fixed-header': props.fixedHeader,
         'v-table--fixed-footer': props.fixedFooter,
@@ -112,193 +112,16 @@ const VTable = genericComponent()({
         'v-table--striped-even': props.striped === 'even',
         'v-table--striped-odd': props.striped === 'odd'
       }, themeClasses.value, densityClasses.value, props.class]),
-      "style": _normalizeStyle$2(props.style)
+      "style": _normalizeStyle(props.style)
     }, {
-      default: () => [slots.top?.(), slots.default ? _createElementVNode$3("div", {
+      default: () => [slots.top?.(), slots.default ? _createElementVNode$1("div", {
         "class": "v-table__wrapper",
         "style": {
           height: convertToUnit(props.height)
         }
-      }, [_createElementVNode$3("table", null, [slots.default()])]) : slots.wrapper?.(), slots.bottom?.()]
+      }, [_createElementVNode$1("table", null, [slots.default()])]) : slots.wrapper?.(), slots.bottom?.()]
     }));
     return {};
-  }
-});
-
-const {createElementVNode:_createElementVNode$2,normalizeClass:_normalizeClass$2,normalizeStyle:_normalizeStyle$1,createVNode:_createVNode$3} = await importShared('vue');
-const makeVToolbarTitleProps = propsFactory({
-  text: String,
-  ...makeComponentProps(),
-  ...makeTagProps()
-}, 'VToolbarTitle');
-const VToolbarTitle = genericComponent()({
-  name: 'VToolbarTitle',
-  props: makeVToolbarTitleProps(),
-  setup(props, _ref) {
-    let {
-      slots
-    } = _ref;
-    useRender(() => {
-      const hasText = !!(slots.default || slots.text || props.text);
-      return _createVNode$3(props.tag, {
-        "class": _normalizeClass$2(['v-toolbar-title', props.class]),
-        "style": _normalizeStyle$1(props.style)
-      }, {
-        default: () => [hasText && _createElementVNode$2("div", {
-          "class": "v-toolbar-title__placeholder"
-        }, [slots.text ? slots.text() : props.text, slots.default?.()])]
-      });
-    });
-    return {};
-  }
-});
-
-const {createVNode:_createVNode$2,createElementVNode:_createElementVNode$1,normalizeClass:_normalizeClass$1,normalizeStyle:_normalizeStyle} = await importShared('vue');
-const {computed: computed$2,shallowRef} = await importShared('vue');
-const allowedDensities = [null, 'prominent', 'default', 'comfortable', 'compact'];
-const makeVToolbarProps = propsFactory({
-  absolute: Boolean,
-  collapse: Boolean,
-  color: String,
-  density: {
-    type: String,
-    default: 'default',
-    validator: v => allowedDensities.includes(v)
-  },
-  extended: {
-    type: Boolean,
-    default: null
-  },
-  extensionHeight: {
-    type: [Number, String],
-    default: 48
-  },
-  flat: Boolean,
-  floating: Boolean,
-  height: {
-    type: [Number, String],
-    default: 64
-  },
-  image: String,
-  title: String,
-  ...makeBorderProps(),
-  ...makeComponentProps(),
-  ...makeElevationProps(),
-  ...makeRoundedProps(),
-  ...makeTagProps({
-    tag: 'header'
-  }),
-  ...makeThemeProps()
-}, 'VToolbar');
-const VToolbar = genericComponent()({
-  name: 'VToolbar',
-  props: makeVToolbarProps(),
-  setup(props, _ref) {
-    let {
-      slots
-    } = _ref;
-    const {
-      backgroundColorClasses,
-      backgroundColorStyles
-    } = useBackgroundColor(() => props.color);
-    const {
-      borderClasses
-    } = useBorder(props);
-    const {
-      elevationClasses
-    } = useElevation(props);
-    const {
-      roundedClasses
-    } = useRounded(props);
-    const {
-      themeClasses
-    } = provideTheme(props);
-    const {
-      rtlClasses
-    } = useRtl();
-    const isExtended = shallowRef(props.extended === null ? !!slots.extension?.() : props.extended);
-    const contentHeight = computed$2(() => parseInt(Number(props.height) + (props.density === 'prominent' ? Number(props.height) : 0) - (props.density === 'comfortable' ? 8 : 0) - (props.density === 'compact' ? 16 : 0), 10));
-    const extensionHeight = computed$2(() => isExtended.value ? parseInt(Number(props.extensionHeight) + (props.density === 'prominent' ? Number(props.extensionHeight) : 0) - (props.density === 'comfortable' ? 4 : 0) - (props.density === 'compact' ? 8 : 0), 10) : 0);
-    provideDefaults({
-      VBtn: {
-        variant: 'text'
-      }
-    });
-    useRender(() => {
-      const hasTitle = !!(props.title || slots.title);
-      const hasImage = !!(slots.image || props.image);
-      const extension = slots.extension?.();
-      isExtended.value = props.extended === null ? !!extension : props.extended;
-      return _createVNode$2(props.tag, {
-        "class": _normalizeClass$1(['v-toolbar', {
-          'v-toolbar--absolute': props.absolute,
-          'v-toolbar--collapse': props.collapse,
-          'v-toolbar--flat': props.flat,
-          'v-toolbar--floating': props.floating,
-          [`v-toolbar--density-${props.density}`]: true
-        }, backgroundColorClasses.value, borderClasses.value, elevationClasses.value, roundedClasses.value, themeClasses.value, rtlClasses.value, props.class]),
-        "style": _normalizeStyle([backgroundColorStyles.value, props.style])
-      }, {
-        default: () => [hasImage && _createElementVNode$1("div", {
-          "key": "image",
-          "class": "v-toolbar__image"
-        }, [!slots.image ? _createVNode$2(VImg, {
-          "key": "image-img",
-          "cover": true,
-          "src": props.image
-        }, null) : _createVNode$2(VDefaultsProvider, {
-          "key": "image-defaults",
-          "disabled": !props.image,
-          "defaults": {
-            VImg: {
-              cover: true,
-              src: props.image
-            }
-          }
-        }, slots.image)]), _createVNode$2(VDefaultsProvider, {
-          "defaults": {
-            VTabs: {
-              height: convertToUnit(contentHeight.value)
-            }
-          }
-        }, {
-          default: () => [_createElementVNode$1("div", {
-            "class": "v-toolbar__content",
-            "style": {
-              height: convertToUnit(contentHeight.value)
-            }
-          }, [slots.prepend && _createElementVNode$1("div", {
-            "class": "v-toolbar__prepend"
-          }, [slots.prepend?.()]), hasTitle && _createVNode$2(VToolbarTitle, {
-            "key": "title",
-            "text": props.title
-          }, {
-            text: slots.title
-          }), slots.default?.(), slots.append && _createElementVNode$1("div", {
-            "class": "v-toolbar__append"
-          }, [slots.append?.()])])]
-        }), _createVNode$2(VDefaultsProvider, {
-          "defaults": {
-            VTabs: {
-              height: convertToUnit(extensionHeight.value)
-            }
-          }
-        }, {
-          default: () => [_createVNode$2(VExpandTransition, null, {
-            default: () => [isExtended.value && _createElementVNode$1("div", {
-              "class": "v-toolbar__extension",
-              "style": {
-                height: convertToUnit(extensionHeight.value)
-              }
-            }, [extension])]
-          })]
-        })]
-      });
-    });
-    return {
-      contentHeight,
-      extensionHeight
-    };
   }
 });
 
@@ -811,12 +634,6 @@ const toggleSelectAll = () => {
   }
 };
 
-// 清空选择
-const clearSelection = () => {
-  selectedTasks.value = [];
-  selectAll.value = false;
-};
-
 // 手动整合
 const manualConsolidate = async () => {
   if (consolidating.value) {
@@ -943,8 +760,6 @@ return (_ctx, _cache) => {
                                                      
                                                        
                                                                    
-                                                                         
-                                                             
                                                                
                                                                    
                                                                        
@@ -1562,61 +1377,6 @@ return (_ctx, _cache) => {
                       class: "pa-0"
                     }, {
                       default: _withCtx(() => [
-                        (selectedTasks.value.length > 0)
-                          ? (_openBlock(), _createBlock(VToolbar, {
-                              key: 0,
-                              density: "compact",
-                              color: "primary-lighten-5",
-                              class: "px-3"
-                            }, {
-                              default: _withCtx(() => [
-                                _createVNode(VToolbarTitle, { class: "text-caption" }, {
-                                  default: _withCtx(() => [
-                                    _createTextVNode(" 已选择 " + _toDisplayString(selectedTasks.value.length) + " 个任务 ", 1)
-                                  ]),
-                                  _: 1
-                                }),
-                                _createVNode(VSpacer),
-                                _createVNode(VBtn, {
-                                  color: "primary",
-                                  variant: "text",
-                                  size: "small",
-                                  "prepend-icon": "mdi-download",
-                                  onClick: batchImportTasks
-                                }, {
-                                  default: _withCtx(() => [...(_cache[27] || (_cache[27] = [
-                                    _createTextVNode(" 批量导入 ", -1)
-                                  ]))]),
-                                  _: 1
-                                }),
-                                _createVNode(VBtn, {
-                                  color: "error",
-                                  variant: "text",
-                                  size: "small",
-                                  "prepend-icon": "mdi-delete",
-                                  onClick: batchDeleteTasks
-                                }, {
-                                  default: _withCtx(() => [...(_cache[28] || (_cache[28] = [
-                                    _createTextVNode(" 批量删除 ", -1)
-                                  ]))]),
-                                  _: 1
-                                }),
-                                _createVNode(VBtn, {
-                                  color: "grey",
-                                  variant: "text",
-                                  size: "small",
-                                  "prepend-icon": "mdi-close",
-                                  onClick: clearSelection
-                                }, {
-                                  default: _withCtx(() => [...(_cache[29] || (_cache[29] = [
-                                    _createTextVNode(" 取消选择 ", -1)
-                                  ]))]),
-                                  _: 1
-                                })
-                              ]),
-                              _: 1
-                            }))
-                          : _createCommentVNode("", true),
                         _createVNode(VTable, {
                           density: "compact",
                           hover: "",
@@ -1625,7 +1385,7 @@ return (_ctx, _cache) => {
                           default: _withCtx(() => [
                             _createElementVNode("thead", null, [
                               _createElementVNode("tr", null, [
-                                _cache[30] || (_cache[30] = _createElementVNode("th", {
+                                _cache[27] || (_cache[27] = _createElementVNode("th", {
                                   class: "text-body-2 font-weight-bold",
                                   style: {"width":"40px"}
                                 }, null, -1)),
@@ -1638,19 +1398,19 @@ return (_ctx, _cache) => {
                                     onChange: toggleSelectAll
                                   }, null, 8, ["modelValue"])
                                 ]),
-                                _cache[31] || (_cache[31] = _createElementVNode("th", {
+                                _cache[28] || (_cache[28] = _createElementVNode("th", {
                                   class: "text-body-2 font-weight-bold text-center",
                                   style: {"width":"60px"}
                                 }, "类型", -1)),
-                                _cache[32] || (_cache[32] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "标题", -1)),
-                                _cache[33] || (_cache[33] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "剧集信息", -1)),
-                                _cache[34] || (_cache[34] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "添加时间", -1)),
-                                _cache[35] || (_cache[35] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-center" }, "状态", -1)),
-                                _cache[36] || (_cache[36] = _createElementVNode("th", {
+                                _cache[29] || (_cache[29] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "标题", -1)),
+                                _cache[30] || (_cache[30] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "剧集信息", -1)),
+                                _cache[31] || (_cache[31] = _createElementVNode("th", { class: "text-body-2 font-weight-bold" }, "添加时间", -1)),
+                                _cache[32] || (_cache[32] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-center" }, "状态", -1)),
+                                _cache[33] || (_cache[33] = _createElementVNode("th", {
                                   class: "text-body-2 font-weight-bold text-center",
                                   style: {"width":"150px"}
                                 }, "进度", -1)),
-                                _cache[37] || (_cache[37] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-right" }, "操作", -1))
+                                _cache[34] || (_cache[34] = _createElementVNode("th", { class: "text-body-2 font-weight-bold text-right" }, "操作", -1))
                               ])
                             ]),
                             _createElementVNode("tbody", null, [
@@ -1747,7 +1507,7 @@ return (_ctx, _cache) => {
                                               activator: "parent",
                                               location: "top"
                                             }, {
-                                              default: _withCtx(() => [...(_cache[38] || (_cache[38] = [
+                                              default: _withCtx(() => [...(_cache[35] || (_cache[35] = [
                                                 _createTextVNode("立即导入", -1)
                                               ]))]),
                                               _: 1
@@ -1773,7 +1533,7 @@ return (_ctx, _cache) => {
                                               activator: "parent",
                                               location: "top"
                                             }, {
-                                              default: _withCtx(() => [...(_cache[39] || (_cache[39] = [
+                                              default: _withCtx(() => [...(_cache[36] || (_cache[36] = [
                                                 _createTextVNode("删除此任务", -1)
                                               ]))]),
                                               _: 1
@@ -1829,7 +1589,7 @@ return (_ctx, _cache) => {
                             size: "small",
                             class: "mb-1"
                           }),
-                          _cache[40] || (_cache[40] = _createElementVNode("div", { class: "text-caption" }, "没有匹配的任务", -1))
+                          _cache[37] || (_cache[37] = _createElementVNode("div", { class: "text-caption" }, "没有匹配的任务", -1))
                         ]),
                         _: 1
                       }))
@@ -1843,7 +1603,7 @@ return (_ctx, _cache) => {
                             size: "small",
                             class: "mb-1"
                           }),
-                          _cache[41] || (_cache[41] = _createElementVNode("div", { class: "text-caption" }, "暂无待处理任务", -1))
+                          _cache[38] || (_cache[38] = _createElementVNode("div", { class: "text-caption" }, "暂无待处理任务", -1))
                         ]),
                         _: 1
                       }))
@@ -1863,7 +1623,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[42] || (_cache[42] = [
+              default: _withCtx(() => [...(_cache[39] || (_cache[39] = [
                 _createTextVNode(" 配置 ", -1)
               ]))]),
               _: 1
@@ -1877,7 +1637,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[43] || (_cache[43] = [
+              default: _withCtx(() => [...(_cache[40] || (_cache[40] = [
                 _createTextVNode(" 刷新状态 ", -1)
               ]))]),
               _: 1
@@ -1889,7 +1649,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[44] || (_cache[44] = [
+              default: _withCtx(() => [...(_cache[41] || (_cache[41] = [
                 _createTextVNode(" 清空队列 ", -1)
               ]))]),
               _: 1
@@ -1901,7 +1661,7 @@ return (_ctx, _cache) => {
               variant: "text",
               size: "small"
             }, {
-              default: _withCtx(() => [...(_cache[45] || (_cache[45] = [
+              default: _withCtx(() => [...(_cache[42] || (_cache[42] = [
                 _createTextVNode(" 关闭 ", -1)
               ]))]),
               _: 1
@@ -1917,6 +1677,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-8966a1b6"]]);
+const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-f27dcf2d"]]);
 
 export { Page as default };

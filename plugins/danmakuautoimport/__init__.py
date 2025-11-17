@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pytz
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from app.core.config import settings
 from app.core.event import Event, eventmanager
@@ -117,16 +118,31 @@ class DanmakuAutoImport(_PluginBase):
 
     def get_service(self) -> List[Dict[str, Any]]:
         """注册定时服务"""
-        if not self._enabled or not self._cron:
+        if not self._enabled:
             return []
 
-        return [{
-            "id": "DanmakuAutoImport",
-            "name": "弹幕自动导入定时任务",
-            "trigger": CronTrigger.from_crontab(self._cron),
-            "func": self._process_queue,
+        services = []
+
+        # 队列处理定时任务
+        if self._cron:
+            services.append({
+                "id": "DanmakuAutoImport",
+                "name": "弹幕自动导入定时任务",
+                "trigger": CronTrigger.from_crontab(self._cron),
+                "func": self._process_queue,
+                "kwargs": {}
+            })
+
+        # 整合定时任务 - 每30秒执行一次
+        services.append({
+            "id": "DanmakuAutoImportConsolidate",
+            "name": "弹幕自动导入整合任务",
+            "trigger": IntervalTrigger(seconds=30),
+            "func": self._consolidate_buffer,
             "kwargs": {}
-        }]
+        })
+
+        return services
 
     @eventmanager.register(EventType.TransferComplete)
     def on_transfer_complete(self, event: Event):
@@ -518,7 +534,7 @@ class DanmakuAutoImport(_PluginBase):
             task = None
             with self._lock:
                 for t in self._pending_tasks:
-                    if t.get('id') == task_id:
+                    if t.get('id') == task_id:  # 使用'id'而不是'task_id'
                         task = t
                         break
 
@@ -832,13 +848,22 @@ class DanmakuAutoImport(_PluginBase):
         with self._lock:
             # 从待处理队列中查找并删除
             for i, task in enumerate(self._pending_tasks):
-                if task.get('task_id') == task_id:
+                if task.get('id') == task_id:  # 使用'id'而不是'task_id'
                     # 检查任务状态
                     if task.get('status') == 'processing':
                         return {"success": False, "message": "任务正在处理中,无法删除"}
 
                     # 删除任务
                     deleted_task = self._pending_tasks.pop(i)
+
+                    # 同时从processing_tasks中删除(如果存在)
+                    if task_id in self._processing_tasks:
+                        del self._processing_tasks[task_id]
+
+                    # 从进度字典中删除
+                    if task_id in self._task_progress:
+                        del self._task_progress[task_id]
+
                     logger.info(f"手动删除任务: {deleted_task.get('mediainfo', {}).get('title', '未知')} (ID: {task_id})")
                     return {"success": True, "message": "任务已删除"}
 
