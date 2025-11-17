@@ -5386,7 +5386,7 @@ const makeVChipGroupProps = propsFactory({
     variant: 'tonal'
   })
 }, 'VChipGroup');
-const VChipGroup = genericComponent()({
+genericComponent()({
   name: 'VChipGroup',
   props: makeVChipGroupProps(),
   emits: {
@@ -9673,4 +9673,4 @@ const VTextField = genericComponent()({
   }
 });
 
-export { VProgressLinear as $, useLoader as A, useFocus as B, makeVSelectionControlProps as C, makeVInputProps as D, VInput as E, VSelectionControl as F, VScaleTransition as G, VProgressCircular as H, VCard as I, VCardTitle as J, VCardText as K, LoaderSlot as L, VRow as M, VCol as N, VCardActions as O, VBtn as P, VSpacer as Q, makeVCheckboxBtnProps as R, useDensity as S, makeTagProps as T, makeDensityProps as U, VDialogTransition as V, useScopeId as W, makeVOverlayProps as X, VOverlay as Y, VListItemTitle as Z, _export_sfc as _, makeComponentProps as a, VChipGroup as a0, useResizeObserver as b, createForm as c, useDimension as d, makeDimensionProps as e, forwardRefs as f, getScrollParent as g, useItems as h, useForm as i, deepEqual as j, makeTransitionProps$1 as k, makeVTextFieldProps as l, makeFormProps as m, makeItemsProps as n, VTextField as o, VIcon as p, VMenu as q, VList as r, VListItem as s, VDivider as t, useRender as u, VListSubheader as v, VCheckboxBtn as w, VAvatar as x, VChip as y, VDefaultsProvider as z };
+export { VProgressLinear as $, useLoader as A, useFocus as B, makeVSelectionControlProps as C, makeVInputProps as D, VInput as E, VSelectionControl as F, VScaleTransition as G, VProgressCircular as H, VCard as I, VCardTitle as J, VCardText as K, LoaderSlot as L, VRow as M, VCol as N, VCardActions as O, VBtn as P, VSpacer as Q, makeVCheckboxBtnProps as R, useDensity as S, makeTagProps as T, makeDensityProps as U, VDialogTransition as V, useScopeId as W, makeVOverlayProps as X, VOverlay as Y, VListItemTitle as Z, _export_sfc as _, makeComponentProps as a, useResizeObserver as b, createForm as c, useDimension as d, makeDimensionProps as e, forwardRefs as f, getScrollParent as g, useItems as h, useForm as i, deepEqual as j, makeTransitionProps$1 as k, makeVTextFieldProps as l, makeFormProps as m, makeItemsProps as n, VTextField as o, VIcon as p, VMenu as q, VList as r, VListItem as s, VDivider as t, useRender as u, VListSubheader as v, VCheckboxBtn as w, VAvatar as x, VChip as y, VDefaultsProvider as z };

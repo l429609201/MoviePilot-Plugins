@@ -61,6 +61,12 @@ class DanmakuAutoImport(_PluginBase):
     _consolidate_interval = 30  # 整合间隔(秒)
     _consolidate_countdown = 30  # 整合倒计时(秒)
 
+    # 流控状态缓存
+    _rate_limit_cache: Optional[Dict[str, Any]] = None  # 缓存的流控数据
+    _rate_limit_cache_lock = Lock()  # 缓存锁
+    _sse_thread = None  # SSE接收线程
+    _sse_running = False  # SSE线程运行标志
+
     def init_plugin(self, config: dict = None):
         """初始化插件"""
         if config:
@@ -87,6 +93,9 @@ class DanmakuAutoImport(_PluginBase):
         self._pending_tasks = []
         self._processing_tasks = {}
         self._last_consolidate_time = datetime.now(tz=pytz.timezone(settings.TZ))
+
+        # 启动SSE后台接收线程
+        self._start_sse_receiver()
 
     def get_state(self) -> bool:
         """获取插件状态"""
@@ -950,70 +959,108 @@ class DanmakuAutoImport(_PluginBase):
             logger.error(f"弹幕自动导入: 测试连接失败 - {error_msg}")
             return {"error": True, "message": error_msg}
 
+    def _start_sse_receiver(self):
+        """启动SSE后台接收线程"""
+        if not self._danmu_server_url or not self._external_api_key:
+            logger.debug("弹幕自动导入: 未配置服务器地址或API密钥,跳过SSE接收线程启动")
+            return
+
+        if self._sse_running:
+            logger.debug("弹幕自动导入: SSE接收线程已在运行")
+            return
+
+        import threading
+
+        self._sse_running = True
+        self._sse_thread = threading.Thread(target=self._sse_receiver_loop, daemon=True)
+        self._sse_thread.start()
+        logger.info("弹幕自动导入: SSE后台接收线程已启动")
+
+    def _stop_sse_receiver(self):
+        """停止SSE后台接收线程"""
+        self._sse_running = False
+        if self._sse_thread:
+            logger.info("弹幕自动导入: 正在停止SSE接收线程...")
+
+    def _sse_receiver_loop(self):
+        """SSE接收循环(在后台线程中运行)"""
+        import requests
+        import json
+
+        logger.info("弹幕自动导入: SSE接收循环已启动")
+
+        while self._sse_running:
+            try:
+                if not self._danmu_server_url or not self._external_api_key:
+                    logger.debug("弹幕自动导入: 配置未完成,等待5秒后重试")
+                    time.sleep(5)
+                    continue
+
+                # 构造SSE请求
+                base_url = self._danmu_server_url.rstrip('/')
+                url = f"{base_url}/api/control/rate-limit/status"
+                params = {
+                    "stream": "true",
+                    "api_key": self._external_api_key
+                }
+
+                logger.info(f"弹幕自动导入: 连接SSE流 - {url}?stream=true")
+
+                # 建立SSE连接
+                response = requests.get(url, params=params, stream=True, timeout=60)
+                response.raise_for_status()
+
+                # 逐行读取SSE流
+                for line in response.iter_lines(decode_unicode=True):
+                    if not self._sse_running:
+                        break
+
+                    if not line:
+                        continue
+
+                    # SSE格式: "data: {...}"
+                    if line.startswith('data: '):
+                        data_str = line[6:]  # 去掉 "data: " 前缀
+                        try:
+                            # 解析JSON数据
+                            data = json.loads(data_str)
+
+                            # 更新缓存
+                            with self._rate_limit_cache_lock:
+                                old_cache = self._rate_limit_cache
+                                self._rate_limit_cache = data
+
+                                # 只在数据变化时打印日志
+                                if old_cache != data:
+                                    logger.info(f"弹幕自动导入: 流控状态已更新 - globalEnabled={data.get('globalEnabled')}")
+
+                        except json.JSONDecodeError as e:
+                            logger.warning(f"弹幕自动导入: SSE数据JSON解析失败: {data_str[:100]}...")
+                            continue
+
+                logger.info("弹幕自动导入: SSE流已断开,5秒后重连")
+                time.sleep(5)
+
+            except requests.exceptions.RequestException as e:
+                logger.error(f"弹幕自动导入: SSE连接失败 - {str(e)}, 10秒后重试")
+                time.sleep(10)
+            except Exception as e:
+                logger.error(f"弹幕自动导入: SSE接收异常 - {str(e)}, 10秒后重试")
+                time.sleep(10)
+
+        logger.info("弹幕自动导入: SSE接收循环已停止")
+
     def _get_rate_limit_status(self) -> Dict[str, Any]:
-        """API端点: 获取流控状态(通过SSE流接收并返回最新数据)"""
+        """API端点: 获取流控状态(从缓存中读取)"""
         if not self._danmu_server_url or not self._external_api_key:
             return {"error": True, "message": "未配置弹幕库服务器地址或API密钥"}
 
-        try:
-            import requests
-            import json
-
-            # 确保URL不会有双斜杠
-            base_url = self._danmu_server_url.rstrip('/')
-            url = f"{base_url}/api/control/rate-limit/status"
-            # 使用stream=true启用SSE推送
-            params = {
-                "stream": "true",
-                "api_key": self._external_api_key
-            }
-
-            logger.info(f"弹幕自动导入: 开始SSE流式获取流控状态 - {url}?stream=true")
-
-            # 使用stream=True启用流式接收SSE
-            response = requests.get(url, params=params, stream=True, timeout=30)
-            response.raise_for_status()
-
-            # 存储最后接收到的数据
-            last_data = None
-
-            # 逐行读取SSE流
-            for line in response.iter_lines(decode_unicode=True):
-                if not line:
-                    continue
-
-                # SSE格式: "data: {...}"
-                if line.startswith('data: '):
-                    data_str = line[6:]  # 去掉 "data: " 前缀
-                    try:
-                        # 解析JSON数据
-                        data = json.loads(data_str)
-                        last_data = data
-                        logger.debug(f"弹幕自动导入: 接收到SSE数据 - {data}")
-                    except json.JSONDecodeError:
-                        logger.warning(f"弹幕自动导入: SSE数据JSON解析失败: {data_str}")
-                        continue
-
-            logger.info(f"弹幕自动导入: SSE流接收完成")
-
-            # 返回最后接收到的数据
-            if last_data:
-                return last_data
+        # 从缓存中读取数据
+        with self._rate_limit_cache_lock:
+            if self._rate_limit_cache:
+                return self._rate_limit_cache
             else:
-                return {"error": True, "message": "未接收到有效的流控数据"}
-
-        except requests.exceptions.HTTPError as e:
-            error_msg = f"HTTP错误 {e.response.status_code if e.response else 'N/A'}"
-            logger.error(f"弹幕自动导入: 获取流控状态失败 - {error_msg}")
-            return {"error": True, "message": error_msg}
-        except requests.exceptions.RequestException as e:
-            error_msg = f"网络请求失败: {str(e)}"
-            logger.error(f"弹幕自动导入: 获取流控状态失败 - {error_msg}")
-            return {"error": True, "message": error_msg}
-        except Exception as e:
-            error_msg = f"未知错误: {str(e)}"
-            logger.error(f"弹幕自动导入: 获取流控状态失败 - {error_msg}")
-            return {"error": True, "message": error_msg}
+                return {"error": True, "message": "暂无流控数据,请稍后再试"}
 
     def get_form(self) -> Tuple[Optional[List[dict]], Dict[str, Any]]:
         """
@@ -1096,6 +1143,6 @@ class DanmakuAutoImport(_PluginBase):
     def stop_service(self):
         """停止插件服务"""
         logger.info("弹幕自动导入: 停止服务")
-        # 清理资源
-        pass
+        # 停止SSE接收线程
+        self._stop_sse_receiver()
 

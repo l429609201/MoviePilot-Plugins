@@ -1,5 +1,5 @@
 import { importShared } from './__federation_fn_import-DglrmYpL.js';
-import { B as useFocus, u as useRender, f as forwardRefs, D as makeVInputProps, R as makeVCheckboxBtnProps, E as VInput, w as VCheckboxBtn, S as useDensity, T as makeTagProps, U as makeDensityProps, a as makeComponentProps, W as useScopeId, X as makeVOverlayProps, Y as VOverlay, _ as _export_sfc, I as VCard, J as VCardTitle, p as VIcon, K as VCardText, M as VRow, N as VCol, r as VList, s as VListItem, Z as VListItemTitle, Q as VSpacer, y as VChip, $ as VProgressLinear, t as VDivider, P as VBtn, q as VMenu, o as VTextField, a0 as VChipGroup, O as VCardActions } from './VTextField-ihn0XDxk.js';
+import { B as useFocus, u as useRender, f as forwardRefs, D as makeVInputProps, R as makeVCheckboxBtnProps, E as VInput, w as VCheckboxBtn, S as useDensity, T as makeTagProps, U as makeDensityProps, a as makeComponentProps, W as useScopeId, X as makeVOverlayProps, Y as VOverlay, _ as _export_sfc, I as VCard, J as VCardTitle, p as VIcon, K as VCardText, M as VRow, N as VCol, r as VList, s as VListItem, Z as VListItemTitle, Q as VSpacer, y as VChip, $ as VProgressLinear, t as VDivider, P as VBtn, q as VMenu, o as VTextField, O as VCardActions } from './VTextField-xBUDvqdu.js';
 import { t as genericComponent, v as propsFactory, C as useProxiedModel, E as omit, O as filterInputAttrs, P as provideTheme, Q as makeThemeProps, B as convertToUnit } from './theme-DITlnZcp.js';
 
 const {mergeProps:_mergeProps$1,createVNode:_createVNode$3} = await importShared('vue');
@@ -269,6 +269,8 @@ const _hoisted_37 = {
   class: "pa-3"
 };
 const _hoisted_38 = { class: "text-caption font-weight-bold mb-2" };
+const _hoisted_39 = { class: "d-flex flex-wrap align-center mb-3" };
+const _hoisted_40 = { class: "d-flex justify-end" };
 
 const {ref,computed,watch,onMounted,onUnmounted} = await importShared('vue');
 
@@ -329,6 +331,9 @@ const selectedTasks = ref([]);
 // 展开折叠相关
 const expandedTasks = ref([]);
 const selectAll = ref(false);
+
+// 剧集选择相关
+const selectedEpisodes = ref({});
 
 // 过滤后的任务列表
 const filteredTasks = computed(() => {
@@ -422,6 +427,134 @@ const toggleExpand = (taskId) => {
     expandedTasks.value.splice(index, 1);
   } else {
     expandedTasks.value.push(taskId);
+    // 初始化剧集选择(默认全选)
+    const task = tasks.value.find(t => t.task_id === taskId);
+    if (task && task.episodes) {
+      selectedEpisodes.value[taskId] = task.episodes.map(ep => ep.episode);
+    }
+  }
+};
+
+// 剧集排序(从小到大)
+const getSortedEpisodes = (episodes) => {
+  if (!episodes || !Array.isArray(episodes)) {
+    return []
+  }
+  return [...episodes].sort((a, b) => {
+    // 先按季排序,再按集排序
+    if (a.season !== b.season) {
+      return a.season - b.season
+    }
+    return a.episode - b.episode
+  })
+};
+
+// 将选中的集数转换为范围字符串 (如 "1,3,5,9-11")
+const episodesToRangeString = (episodes) => {
+  if (!episodes || episodes.length === 0) {
+    return ''
+  }
+
+  // 排序
+  const sorted = [...episodes].sort((a, b) => a - b);
+
+  const ranges = [];
+  let start = sorted[0];
+  let end = sorted[0];
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === end + 1) {
+      // 连续
+      end = sorted[i];
+    } else {
+      // 不连续,保存当前范围
+      if (start === end) {
+        ranges.push(String(start));
+      } else {
+        ranges.push(`${start}-${end}`);
+      }
+      start = sorted[i];
+      end = sorted[i];
+    }
+  }
+
+  // 保存最后一个范围
+  if (start === end) {
+    ranges.push(String(start));
+  } else {
+    ranges.push(`${start}-${end}`);
+  }
+
+  return ranges.join(',')
+};
+
+// 导入选中的剧集
+const importSelectedEpisodes = async (task) => {
+  const selected = selectedEpisodes.value[task.task_id];
+  if (!selected || selected.length === 0) {
+    alert('请先选择要导入的剧集');
+    return
+  }
+
+  const rangeString = episodesToRangeString(selected);
+
+  if (!confirm(`确定要导入选中的剧集吗?\n剧集范围: ${rangeString}`)) {
+    return
+  }
+
+  try {
+    const pluginId = getPluginId();
+    const response = await props.api.post(`plugin/${pluginId}/import_task`, {
+      task_id: task.task_id,
+      episodes: rangeString
+    });
+
+    if (response && response.success) {
+      // 导入成功,刷新任务列表
+      await refreshTasks();
+      // 清空选择
+      delete selectedEpisodes.value[task.task_id];
+    } else {
+      alert(response?.message || '导入失败');
+    }
+  } catch (error) {
+    console.error('导入剧集失败:', error);
+    alert('导入剧集失败: ' + error.message);
+  }
+};
+
+// 删除选中的剧集
+const deleteSelectedEpisodes = async (task) => {
+  const selected = selectedEpisodes.value[task.task_id];
+  if (!selected || selected.length === 0) {
+    alert('请先选择要删除的剧集');
+    return
+  }
+
+  const rangeString = episodesToRangeString(selected);
+
+  if (!confirm(`确定要删除选中的剧集吗?\n剧集范围: ${rangeString}`)) {
+    return
+  }
+
+  try {
+    const pluginId = getPluginId();
+    const response = await props.api.post(`plugin/${pluginId}/delete_task`, {
+      task_id: task.task_id,
+      episodes: rangeString
+    });
+
+    if (response && response.success) {
+      // 删除成功,刷新任务列表
+      await refreshTasks();
+      // 清空选择
+      delete selectedEpisodes.value[task.task_id];
+    } else {
+      alert(response?.message || '删除失败');
+    }
+  } catch (error) {
+    console.error('删除剧集失败:', error);
+    alert('删除剧集失败: ' + error.message);
   }
 };
 
@@ -761,7 +894,6 @@ return (_ctx, _cache) => {
                                                        
                                                                    
                                                                
-                                                                   
                                                                        
 
   return (_openBlock(), _createElementBlock("div", _hoisted_1, [
@@ -1547,24 +1679,62 @@ return (_ctx, _cache) => {
                                     ? (_openBlock(), _createElementBlock("tr", _hoisted_36, [
                                         _createElementVNode("td", _hoisted_37, [
                                           _createElementVNode("div", _hoisted_38, "集数列表 (共" + _toDisplayString(task.episode_count) + "集):", 1),
-                                          _createVNode(VChipGroup, null, {
-                                            default: _withCtx(() => [
-                                              (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(task.episodes, (ep, index) => {
-                                                return (_openBlock(), _createBlock(VChip, {
-                                                  key: index,
-                                                  size: "small",
-                                                  color: "primary",
-                                                  variant: "outlined"
-                                                }, {
-                                                  default: _withCtx(() => [
-                                                    _createTextVNode(" S" + _toDisplayString(String(ep.season).padStart(2, '0')) + "E" + _toDisplayString(String(ep.episode).padStart(2, '0')), 1)
-                                                  ]),
-                                                  _: 2
-                                                }, 1024))
-                                              }), 128))
-                                            ]),
-                                            _: 2
-                                          }, 1024)
+                                          _createElementVNode("div", _hoisted_39, [
+                                            (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(getSortedEpisodes(task.episodes), (ep, index) => {
+                                              return (_openBlock(), _createBlock(VCheckbox, {
+                                                key: index,
+                                                modelValue: selectedEpisodes.value[task.task_id],
+                                                "onUpdate:modelValue": $event => ((selectedEpisodes.value[task.task_id]) = $event),
+                                                value: ep.episode,
+                                                density: "compact",
+                                                "hide-details": "",
+                                                class: "mr-2 mb-1"
+                                              }, {
+                                                label: _withCtx(() => [
+                                                  _createVNode(VChip, {
+                                                    size: "small",
+                                                    color: selectedEpisodes.value[task.task_id]?.includes(ep.episode) ? 'primary' : 'grey',
+                                                    variant: "flat"
+                                                  }, {
+                                                    default: _withCtx(() => [
+                                                      _createTextVNode(" S" + _toDisplayString(String(ep.season).padStart(2, '0')) + "E" + _toDisplayString(String(ep.episode).padStart(2, '0')), 1)
+                                                    ]),
+                                                    _: 2
+                                                  }, 1032, ["color"])
+                                                ]),
+                                                _: 2
+                                              }, 1032, ["modelValue", "onUpdate:modelValue", "value"]))
+                                            }), 128))
+                                          ]),
+                                          _createElementVNode("div", _hoisted_40, [
+                                            _createVNode(VBtn, {
+                                              size: "small",
+                                              color: "primary",
+                                              variant: "outlined",
+                                              "prepend-icon": "mdi-download",
+                                              class: "mr-2",
+                                              disabled: !selectedEpisodes.value[task.task_id] || selectedEpisodes.value[task.task_id].length === 0,
+                                              onClick: $event => (importSelectedEpisodes(task))
+                                            }, {
+                                              default: _withCtx(() => [
+                                                _createTextVNode(" 导入选中 (" + _toDisplayString(selectedEpisodes.value[task.task_id]?.length || 0) + ") ", 1)
+                                              ]),
+                                              _: 2
+                                            }, 1032, ["disabled", "onClick"]),
+                                            _createVNode(VBtn, {
+                                              size: "small",
+                                              color: "error",
+                                              variant: "outlined",
+                                              "prepend-icon": "mdi-delete",
+                                              disabled: !selectedEpisodes.value[task.task_id] || selectedEpisodes.value[task.task_id].length === 0,
+                                              onClick: $event => (deleteSelectedEpisodes(task))
+                                            }, {
+                                              default: _withCtx(() => [
+                                                _createTextVNode(" 删除选中 (" + _toDisplayString(selectedEpisodes.value[task.task_id]?.length || 0) + ") ", 1)
+                                              ]),
+                                              _: 2
+                                            }, 1032, ["disabled", "onClick"])
+                                          ])
                                         ])
                                       ]))
                                     : _createCommentVNode("", true)
@@ -1676,6 +1846,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-fc634e0b"]]);
+const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-27ce8734"]]);
 
 export { Page as default };
