@@ -229,22 +229,26 @@ class DanmakuAutoImport(_PluginBase):
             else:
                 logger.warning(f"弹幕自动导入: 已添加到缓冲区 - {mediainfo.title} meta为空! (缓冲区长度: {len(self._buffer_tasks)})")
 
+    _tick_counter = 0  # 类变量,用于计数
+
     def _consolidate_tick(self):
         """整合定时器tick - 每秒执行一次"""
+        # 每次tick增加计数器
+        DanmakuAutoImport._tick_counter += 1
+
+        # 每30次tick(30秒)打印一次状态
+        if DanmakuAutoImport._tick_counter % 30 == 0:
+            with self._lock:
+                logger.info(f"弹幕自动导入: [TICK] 定时器运行中 - 缓冲区={len(self._buffer_tasks)}, 倒计时={self._consolidate_countdown}, tick计数={DanmakuAutoImport._tick_counter}")
+
         should_consolidate = False
-        buffer_count = 0
-        countdown = 0
 
         with self._lock:
-            buffer_count = len(self._buffer_tasks)
-            countdown = self._consolidate_countdown
-
             # 只有缓冲区有内容时才倒计时
             if self._buffer_tasks:
                 # 倒计时递减
                 if self._consolidate_countdown > 0:
                     self._consolidate_countdown -= 1
-                    countdown = self._consolidate_countdown
                     # 每10秒打印一次倒计时
                     if self._consolidate_countdown % 10 == 0:
                         logger.info(f"弹幕自动导入: 整合倒计时 {self._consolidate_countdown}秒 (缓冲区: {len(self._buffer_tasks)})")
@@ -253,11 +257,6 @@ class DanmakuAutoImport(_PluginBase):
                 if self._consolidate_countdown == 0:
                     should_consolidate = True
                     logger.info(f"弹幕自动导入: 倒计时结束,准备整合缓冲区 (缓冲区: {len(self._buffer_tasks)})")
-
-        # 每30秒打印一次tick状态(用于调试)
-        import time
-        if int(time.time()) % 30 == 0:
-            logger.debug(f"弹幕自动导入: tick运行中 - 缓冲区={buffer_count}, 倒计时={countdown}")
 
         # 在锁外调用整合(避免死锁)
         if should_consolidate:
