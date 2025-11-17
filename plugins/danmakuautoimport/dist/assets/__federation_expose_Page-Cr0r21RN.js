@@ -558,7 +558,10 @@ const startCountdown = (initialSeconds) => {
 
 // 启动整合倒计时
 const startConsolidateCountdown = (initialSeconds) => {
-  consolidateCountdown.value = initialSeconds;
+  // 只在定时器未启动时设置初始值
+  if (!consolidateTimer.value) {
+    consolidateCountdown.value = initialSeconds;
+  }
 
   // 清除旧的定时器
   if (consolidateTimer.value) {
@@ -746,13 +749,12 @@ const refreshTasks = async () => {
         // 更新倒计时值
         const newCountdown = tasksResponse.consolidate_countdown || 0;
 
-        // 如果倒计时值变化了,重新启动定时器
-        if (newCountdown !== consolidateCountdown.value) {
-          consolidateCountdown.value = newCountdown;
-          // 总是启动倒计时(即使缓冲区为空)
-          if (!consolidateTimer.value || newCountdown > 0) {
-            startConsolidateCountdown(newCountdown);
-          }
+        // 只更新倒计时值,不重启定时器
+        consolidateCountdown.value = newCountdown;
+
+        // 如果定时器还没启动,启动它
+        if (!consolidateTimer.value) {
+          startConsolidateCountdown(newCountdown);
         }
       } else if (Array.isArray(tasksResponse)) {
         // 兼容旧格式
@@ -1034,8 +1036,7 @@ watch(searchQuery, () => {
 onMounted(() => {
   refreshTasks();
   startAutoRefresh();
-  // 启动整合倒计时(初始值为30秒)
-  startConsolidateCountdown(30);
+  // 不在这里启动倒计时,由refreshTasks()从后端获取倒计时值后启动
 });
 
 onUnmounted(() => {
@@ -2014,6 +2015,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-2750ca63"]]);
+const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-f40802fe"]]);
 
 export { Page as default };
