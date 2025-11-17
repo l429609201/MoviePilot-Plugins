@@ -227,14 +227,15 @@ class DanmakuAutoImport(_PluginBase):
         should_consolidate = False
 
         with self._lock:
-            # 倒计时递减
-            if self._consolidate_countdown > 0:
-                self._consolidate_countdown -= 1
+            # 只有缓冲区有内容时才倒计时
+            if self._buffer_tasks:
+                # 倒计时递减
+                if self._consolidate_countdown > 0:
+                    self._consolidate_countdown -= 1
 
-            # 倒计时结束,标记需要整合
-            if self._consolidate_countdown == 0:
-                self._consolidate_countdown = self._consolidate_interval
-                should_consolidate = True
+                # 倒计时结束,标记需要整合
+                if self._consolidate_countdown == 0:
+                    should_consolidate = True
 
         # 在锁外调用整合(避免死锁)
         if should_consolidate:
@@ -247,16 +248,9 @@ class DanmakuAutoImport(_PluginBase):
             force: 是否强制整合(忽略时间间隔)
         """
         with self._lock:
-            # 如果缓冲区为空,直接返回
+            # 如果缓冲区为空,直接返回(不重置倒计时)
             if not self._buffer_tasks:
-                # 如果是强制整合,仍然重置倒计时
-                if force:
-                    self._consolidate_countdown = self._consolidate_interval
                 return
-
-            # 如果是强制整合,重置倒计时
-            if force:
-                self._consolidate_countdown = self._consolidate_interval
 
             logger.info(f"弹幕自动导入: 开始整合缓冲区任务 (缓冲区长度: {len(self._buffer_tasks)}, 强制: {force})")
 
@@ -276,22 +270,37 @@ class DanmakuAutoImport(_PluginBase):
                 if key not in groups:
                     groups[key] = {
                         "mediainfo": mediainfo,
-                        "episodes": []
+                        "episodes": [],
+                        "meta": meta  # 保存第一个meta用于调试
                     }
 
                 # 添加集数信息
                 episode_info = {}
                 if meta:
-                    if hasattr(meta, "begin_season") and meta.begin_season:
-                        episode_info["season"] = meta.begin_season
-                    if hasattr(meta, "begin_episode") and meta.begin_episode:
-                        episode_info["episode"] = meta.begin_episode
+                    # 提取季数和集数
+                    season = None
+                    episode = None
 
-                if episode_info:
-                    groups[key]["episodes"].append(episode_info)
+                    if hasattr(meta, "begin_season") and meta.begin_season:
+                        season = meta.begin_season
+                    if hasattr(meta, "begin_episode") and meta.begin_episode:
+                        episode = meta.begin_episode
+
+                    # 只有当季数和集数都存在时才添加
+                    if season is not None and episode is not None:
+                        episode_info = {"season": season, "episode": episode}
+                        groups[key]["episodes"].append(episode_info)
+                        logger.debug(f"弹幕自动导入: 提取集数信息 - {mediainfo.title} S{season}E{episode}")
+                    else:
+                        logger.warning(f"弹幕自动导入: 集数信息不完整 - {mediainfo.title}, season={season}, episode={episode}")
 
             # 创建整合任务
             for key, group in groups.items():
+                # 如果没有有效的集数信息,跳过
+                if not group["episodes"]:
+                    logger.warning(f"弹幕自动导入: 跳过无集数信息的任务 - {group['mediainfo'].title}")
+                    continue
+
                 task = {
                     "id": str(uuid.uuid4()),
                     "mediainfo": group["mediainfo"],
@@ -311,10 +320,14 @@ class DanmakuAutoImport(_PluginBase):
                     break
 
                 self._pending_tasks.append(task)
-                logger.info(f"弹幕自动导入: 已整合任务 - {group['mediainfo'].title} ({len(group['episodes'])}集)")
 
-            # 清空缓冲区
+                # 格式化集数信息用于日志
+                episodes_str = ", ".join([f"S{ep['season']}E{ep['episode']}" for ep in group['episodes']])
+                logger.info(f"弹幕自动导入: 已整合任务 - {group['mediainfo'].title} ({len(group['episodes'])}集: {episodes_str})")
+
+            # 清空缓冲区并重置倒计时
             self._buffer_tasks.clear()
+            self._consolidate_countdown = self._consolidate_interval
             logger.info(f"弹幕自动导入: 缓冲区整合完成 (待处理队列长度: {len(self._pending_tasks)})")
 
     def _add_to_queue_direct(self, buffer_task):
@@ -987,12 +1000,9 @@ class DanmakuAutoImport(_PluginBase):
         import requests
         import json
 
-        logger.info("弹幕自动导入: SSE接收循环已启动")
-
         while self._sse_running:
             try:
                 if not self._danmu_server_url or not self._external_api_key:
-                    logger.debug("弹幕自动导入: 配置未完成,等待5秒后重试")
                     time.sleep(5)
                     continue
 
@@ -1004,7 +1014,7 @@ class DanmakuAutoImport(_PluginBase):
                     "api_key": self._external_api_key
                 }
 
-                logger.info(f"弹幕自动导入: 连接SSE流 - {url}?stream=true")
+                logger.info(f"弹幕自动导入: SSE流已连接 - {url}")
 
                 # 建立SSE连接
                 response = requests.get(url, params=params, stream=True, timeout=60)
@@ -1025,17 +1035,11 @@ class DanmakuAutoImport(_PluginBase):
                             # 解析JSON数据
                             data = json.loads(data_str)
 
-                            # 更新缓存
+                            # 更新缓存(不打印日志)
                             with self._rate_limit_cache_lock:
-                                old_cache = self._rate_limit_cache
                                 self._rate_limit_cache = data
 
-                                # 只在数据变化时打印日志
-                                if old_cache != data:
-                                    logger.info(f"弹幕自动导入: 流控状态已更新 - globalEnabled={data.get('globalEnabled')}")
-
-                        except json.JSONDecodeError as e:
-                            logger.warning(f"弹幕自动导入: SSE数据JSON解析失败: {data_str[:100]}...")
+                        except json.JSONDecodeError:
                             continue
 
                 logger.info("弹幕自动导入: SSE流已断开,5秒后重连")
