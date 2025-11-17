@@ -901,8 +901,57 @@ class DanmakuAutoImport(_PluginBase):
 
             return {"success": False, "message": "未找到指定任务"}
 
+    def _test_connection(self) -> Dict[str, Any]:
+        """API端点: 测试连接(使用stream=false快速测试)"""
+        if not self._danmu_server_url or not self._external_api_key:
+            return {"error": True, "message": "未配置弹幕库服务器地址或API密钥"}
+
+        try:
+            import requests
+
+            # 确保URL不会有双斜杠
+            base_url = self._danmu_server_url.rstrip('/')
+            url = f"{base_url}/api/control/rate-limit/status"
+            # 使用stream=false进行快速测试连接
+            params = {
+                "stream": "false",
+                "api_key": self._external_api_key
+            }
+
+            logger.info(f"弹幕自动导入: 测试连接 - {url}?stream=false")
+
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+
+            # 检查响应内容
+            if not response.text:
+                logger.error(f"弹幕自动导入: 测试连接失败 - 服务器返回空响应")
+                return {"error": True, "message": "服务器返回空响应"}
+
+            try:
+                data = response.json()
+                logger.info(f"弹幕自动导入: 测试连接成功")
+                # 直接返回data
+                return data
+            except ValueError as json_err:
+                logger.error(f"弹幕自动导入: 测试连接失败 - JSON解析错误: {str(json_err)}")
+                return {"error": True, "message": f"服务器响应格式错误: {str(json_err)}"}
+
+        except requests.exceptions.HTTPError as e:
+            error_msg = f"HTTP错误 {e.response.status_code if e.response else 'N/A'}"
+            logger.error(f"弹幕自动导入: 测试连接失败 - {error_msg}")
+            return {"error": True, "message": error_msg}
+        except requests.exceptions.RequestException as e:
+            error_msg = f"网络请求失败: {str(e)}"
+            logger.error(f"弹幕自动导入: 测试连接失败 - {error_msg}")
+            return {"error": True, "message": error_msg}
+        except Exception as e:
+            error_msg = f"未知错误: {str(e)}"
+            logger.error(f"弹幕自动导入: 测试连接失败 - {error_msg}")
+            return {"error": True, "message": error_msg}
+
     def _get_rate_limit_status(self) -> Dict[str, Any]:
-        """API端点: 获取流控状态(通过SSE流接收)"""
+        """API端点: 获取流控状态(通过SSE流接收并返回最新数据)"""
         if not self._danmu_server_url or not self._external_api_key:
             return {"error": True, "message": "未配置弹幕库服务器地址或API密钥"}
 
@@ -913,9 +962,13 @@ class DanmakuAutoImport(_PluginBase):
             # 确保URL不会有双斜杠
             base_url = self._danmu_server_url.rstrip('/')
             url = f"{base_url}/api/control/rate-limit/status"
-            params = {"api_key": self._external_api_key}
+            # 使用stream=true启用SSE推送
+            params = {
+                "stream": "true",
+                "api_key": self._external_api_key
+            }
 
-            logger.info(f"弹幕自动导入: 开始SSE流式获取流控状态 - {url}")
+            logger.info(f"弹幕自动导入: 开始SSE流式获取流控状态 - {url}?stream=true")
 
             # 使用stream=True启用流式接收SSE
             response = requests.get(url, params=params, stream=True, timeout=30)
@@ -950,7 +1003,7 @@ class DanmakuAutoImport(_PluginBase):
                 return {"error": True, "message": "未接收到有效的流控数据"}
 
         except requests.exceptions.HTTPError as e:
-            error_msg = f"HTTP错误 {e.response.status_code if e.response else 'N/A'}: {str(e)}"
+            error_msg = f"HTTP错误 {e.response.status_code if e.response else 'N/A'}"
             logger.error(f"弹幕自动导入: 获取流控状态失败 - {error_msg}")
             return {"error": True, "message": error_msg}
         except requests.exceptions.RequestException as e:
@@ -1007,11 +1060,18 @@ class DanmakuAutoImport(_PluginBase):
                 "summary": "删除指定任务"
             },
             {
+                "path": "/test_connection",
+                "endpoint": self._test_connection,
+                "methods": ["GET"],
+                "auth": "bear",
+                "summary": "测试弹幕库服务器连接(stream=false)"
+            },
+            {
                 "path": "/rate_limit_status",
                 "endpoint": self._get_rate_limit_status,
                 "methods": ["GET"],
                 "auth": "bear",
-                "summary": "获取弹幕库流控状态(通过SSE流接收)"
+                "summary": "获取弹幕库流控状态(SSE流式接收,stream=true)"
             },
             {
                 "path": "/consolidate",
