@@ -192,20 +192,24 @@ class DanmakuAutoImport(_PluginBase):
             self._buffer_tasks.append(task)
             logger.info(f"弹幕自动导入: 已添加到缓冲区 - {mediainfo.title} (缓冲区长度: {len(self._buffer_tasks)})")
 
-    def _consolidate_buffer(self):
-        """整合缓冲区任务"""
+    def _consolidate_buffer(self, force: bool = False):
+        """整合缓冲区任务
+
+        Args:
+            force: 是否强制整合(忽略时间间隔)
+        """
         with self._lock:
             if not self._buffer_tasks:
                 return
 
-            # 检查是否到达整合时间
+            # 检查是否到达整合时间(除非强制整合)
             now = datetime.now(tz=pytz.timezone(settings.TZ))
-            if self._last_consolidate_time:
+            if not force and self._last_consolidate_time:
                 elapsed = (now - self._last_consolidate_time).total_seconds()
                 if elapsed < self._consolidate_interval:
                     return
 
-            logger.info(f"弹幕自动导入: 开始整合缓冲区任务 (缓冲区长度: {len(self._buffer_tasks)})")
+            logger.info(f"弹幕自动导入: 开始整合缓冲区任务 (缓冲区长度: {len(self._buffer_tasks)}, 强制: {force})")
 
             # 按tmdb_id和media_type分组
             groups = {}
@@ -469,6 +473,30 @@ class DanmakuAutoImport(_PluginBase):
         except Exception as e:
             logger.error(f"弹幕自动导入: 手动处理失败 - {e}")
             return {"message": f"手动处理失败: {e}", "error": True}
+
+    def _trigger_manual_consolidate(self) -> Dict[str, Any]:
+        """API: 手动触发整合"""
+        logger.info("弹幕自动导入: 收到手动整合请求")
+        if not self._enabled:
+            return {"success": False, "message": "插件已禁用,无法执行整合"}
+
+        try:
+            with self._lock:
+                buffer_count = len(self._buffer_tasks)
+                if buffer_count == 0:
+                    return {"success": False, "message": "缓冲区为空,无需整合"}
+
+            # 强制整合(忽略时间间隔)
+            self._consolidate_buffer(force=True)
+
+            with self._lock:
+                pending_count = len(self._pending_tasks)
+
+            logger.info(f"弹幕自动导入: 手动整合完成,待处理队列长度: {pending_count}")
+            return {"success": True, "message": f"整合完成,已添加 {pending_count} 个任务到队列"}
+        except Exception as e:
+            logger.error(f"弹幕自动导入: 手动整合失败 - {e}")
+            return {"success": False, "message": f"手动整合失败: {e}"}
 
     def _get_status(self) -> Dict[str, Any]:
         """API: 获取状态"""
@@ -857,6 +885,13 @@ class DanmakuAutoImport(_PluginBase):
                 "methods": ["GET"],
                 "auth": "bear",
                 "summary": "获取弹幕库流控状态"
+            },
+            {
+                "path": "/consolidate",
+                "endpoint": self._trigger_manual_consolidate,
+                "methods": ["POST"],
+                "auth": "bear",
+                "summary": "手动触发整合"
             }
         ]
 
