@@ -498,6 +498,53 @@ class DanmakuAutoImport(_PluginBase):
             logger.error(f"弹幕自动导入: 手动整合失败 - {e}")
             return {"success": False, "message": f"手动整合失败: {e}"}
 
+    def _trigger_import_task(self, payload: dict = None) -> Dict[str, Any]:
+        """API: 手动触发单条任务导入"""
+        if payload is None:
+            logger.error("弹幕自动导入: 导入任务请求数据为空")
+            return {"success": False, "message": "请求数据为空"}
+
+        task_id = payload.get('task_id')
+        if not task_id:
+            return {"success": False, "message": "缺少task_id参数"}
+
+        logger.info(f"弹幕自动导入: 收到手动导入请求 - task_id={task_id}")
+
+        if not self._enabled:
+            return {"success": False, "message": "插件已禁用,无法执行导入"}
+
+        try:
+            # 查找任务
+            task = None
+            with self._lock:
+                for t in self._pending_tasks:
+                    if t.get('id') == task_id:
+                        task = t
+                        break
+
+                if not task:
+                    return {"success": False, "message": "任务不存在"}
+
+                # 检查任务状态
+                if task.get('status') == 'processing':
+                    return {"success": False, "message": "任务正在处理中"}
+
+                # 标记为处理中
+                task['status'] = 'processing'
+                self._processing_tasks[task_id] = task
+
+            # 在后台线程中执行导入
+            import threading
+            thread = threading.Thread(target=self._import_danmaku, args=(task,))
+            thread.daemon = True
+            thread.start()
+
+            logger.info(f"弹幕自动导入: 已启动导入任务 - {task_id}")
+            return {"success": True, "message": "导入任务已启动"}
+        except Exception as e:
+            logger.error(f"弹幕自动导入: 手动导入失败 - {e}")
+            return {"success": False, "message": f"手动导入失败: {e}"}
+
     def _get_status(self) -> Dict[str, Any]:
         """API: 获取状态"""
         with self._lock:
@@ -892,6 +939,13 @@ class DanmakuAutoImport(_PluginBase):
                 "methods": ["POST"],
                 "auth": "bear",
                 "summary": "手动触发整合"
+            },
+            {
+                "path": "/import_task",
+                "endpoint": self._trigger_import_task,
+                "methods": ["POST"],
+                "auth": "bear",
+                "summary": "手动触发单条任务导入"
             }
         ]
 
