@@ -220,7 +220,14 @@ class DanmakuAutoImport(_PluginBase):
             }
 
             self._buffer_tasks.append(task)
-            logger.info(f"弹幕自动导入: 已添加到缓冲区 - {mediainfo.title} (缓冲区长度: {len(self._buffer_tasks)})")
+
+            # 打印meta信息用于调试
+            if meta:
+                season = getattr(meta, "begin_season", None)
+                episode = getattr(meta, "begin_episode", None)
+                logger.info(f"弹幕自动导入: 已添加到缓冲区 - {mediainfo.title} S{season}E{episode} (缓冲区长度: {len(self._buffer_tasks)})")
+            else:
+                logger.warning(f"弹幕自动导入: 已添加到缓冲区 - {mediainfo.title} meta为空! (缓冲区长度: {len(self._buffer_tasks)})")
 
     def _consolidate_tick(self):
         """整合定时器tick - 每秒执行一次"""
@@ -232,10 +239,14 @@ class DanmakuAutoImport(_PluginBase):
                 # 倒计时递减
                 if self._consolidate_countdown > 0:
                     self._consolidate_countdown -= 1
+                    # 每10秒打印一次倒计时
+                    if self._consolidate_countdown % 10 == 0:
+                        logger.info(f"弹幕自动导入: 整合倒计时 {self._consolidate_countdown}秒 (缓冲区: {len(self._buffer_tasks)})")
 
                 # 倒计时结束,标记需要整合
                 if self._consolidate_countdown == 0:
                     should_consolidate = True
+                    logger.info(f"弹幕自动导入: 倒计时结束,准备整合缓冲区 (缓冲区: {len(self._buffer_tasks)})")
 
         # 在锁外调用整合(避免死锁)
         if should_consolidate:
