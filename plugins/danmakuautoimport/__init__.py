@@ -139,6 +139,10 @@ class DanmakuAutoImport(_PluginBase):
                 self._scheduler.start()
                 logger.info("弹幕自动导入: 定时任务已启动")
 
+        # 保存配置到数据库(学习dynamicwechat的做法)
+        if config:
+            self.update_config(config)
+
     def get_state(self) -> bool:
         """获取插件状态"""
         return self._enabled and bool(self._danmu_server_url) and bool(self._external_api_key)
@@ -745,47 +749,8 @@ class DanmakuAutoImport(_PluginBase):
             return {"success": False, "message": "配置数据为空", "saved_config": self._get_config()}
 
         try:
-            # 更新实例变量
-            self._enabled = config_payload.get('enable', self._enabled)
-            self._notify = config_payload.get('notify', self._notify)
-            self._danmu_server_url = config_payload.get('danmu_server_url', self._danmu_server_url)
-            self._external_api_key = config_payload.get('external_api_key', self._external_api_key)
-            self._cron = config_payload.get('cron', self._cron)
-            # 支持delay_hours(小时)和delay_seconds(秒),优先使用delay_hours
-            delay_hours = config_payload.get('delay_hours')
-            if delay_hours is not None:
-                self._delay_seconds = int(delay_hours) * 3600
-            else:
-                self._delay_seconds = int(config_payload.get('delay_seconds', self._delay_seconds))
-            self._max_queue_size = int(config_payload.get('max_queue_size', self._max_queue_size))
-            self._process_batch_size = int(config_payload.get('process_batch_size', self._process_batch_size))
-            self._only_anime = config_payload.get('only_anime', self._only_anime)
-            self._search_type = config_payload.get('search_type', self._search_type)
-            self._auto_retry = config_payload.get('auto_retry', self._auto_retry)
-            self._retry_count = int(config_payload.get('retry_count', self._retry_count))
-
-            # 准备保存的配置
-            config_to_save = {
-                "enable": self._enabled,
-                "notify": self._notify,
-                "danmu_server_url": self._danmu_server_url,
-                "external_api_key": self._external_api_key,
-                "cron": self._cron,
-                "delay_hours": self._delay_seconds // 3600,  # 转换为小时保存
-                "max_queue_size": self._max_queue_size,
-                "process_batch_size": self._process_batch_size,
-                "only_anime": self._only_anime,
-                "search_type": self._search_type,
-                "auto_retry": self._auto_retry,
-                "retry_count": self._retry_count
-            }
-
-            # 保存配置
-            self.update_config(config_to_save)
-
-            # 重新初始化插件 - 从数据库读取配置(参考官方插件logsclean)
-            self.stop_service()
-            self.init_plugin(self.get_config())
+            # 直接调用init_plugin重新初始化,它会处理所有逻辑
+            self.init_plugin(config_payload)
 
             # 手动更新事件处理器状态 - 根据enable开关控制
             try:
