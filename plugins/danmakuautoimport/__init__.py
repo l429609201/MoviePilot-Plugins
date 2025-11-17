@@ -1,17 +1,17 @@
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional, Tuple
 
 import pytz
+from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from app.core.config import settings
 from app.core.event import Event, eventmanager
-from app.core.scheduler import scheduler
 from app.log import logger
 from app.plugins import _PluginBase
 from app.schemas import MediaType, NotificationType
@@ -68,6 +68,9 @@ class DanmakuAutoImport(_PluginBase):
     _sse_thread = None  # SSE接收线程
     _sse_running = False  # SSE线程运行标志
 
+    # 定时器
+    _scheduler: Optional[BackgroundScheduler] = None
+
     def init_plugin(self, config: dict = None):
         """初始化插件"""
         if config:
@@ -98,6 +101,44 @@ class DanmakuAutoImport(_PluginBase):
         # 启动SSE后台接收线程
         self._start_sse_receiver()
 
+        # 停止现有scheduler
+        self.stop_service()
+
+        # 创建并启动scheduler
+        if self._enabled:
+            self._scheduler = BackgroundScheduler(timezone=settings.TZ)
+
+            # 队列处理定时任务
+            if self._cron:
+                try:
+                    self._scheduler.add_job(
+                        func=self._process_queue,
+                        trigger=CronTrigger.from_crontab(self._cron),
+                        name="弹幕自动导入定时任务"
+                    )
+                except Exception as e:
+                    logger.error(f"弹幕自动导入: 队列处理定时任务配置错误: {e}")
+
+            # 整合定时任务 - 每1秒执行一次倒计时
+            self._scheduler.add_job(
+                func=self._consolidate_tick,
+                trigger=IntervalTrigger(seconds=1),
+                name="弹幕自动导入整合任务"
+            )
+
+            # 清理成功任务定时任务 - 每天0点和12点执行
+            self._scheduler.add_job(
+                func=self._cleanup_success_tasks,
+                trigger=CronTrigger.from_crontab("0 0,12 * * *"),
+                name="弹幕自动导入清理成功任务"
+            )
+
+            # 启动scheduler
+            if self._scheduler.get_jobs():
+                self._scheduler.print_jobs()
+                self._scheduler.start()
+                logger.info("弹幕自动导入: 定时任务已启动")
+
     def get_state(self) -> bool:
         """获取插件状态"""
         return self._enabled and bool(self._danmu_server_url) and bool(self._external_api_key)
@@ -123,41 +164,11 @@ class DanmakuAutoImport(_PluginBase):
         ]
 
     def get_service(self) -> List[Dict[str, Any]]:
-        """注册定时服务"""
-        if not self._enabled:
-            return []
-
-        services = []
-
-        # 队列处理定时任务
-        if self._cron:
-            services.append({
-                "id": "DanmakuAutoImport",
-                "name": "弹幕自动导入定时任务",
-                "trigger": CronTrigger.from_crontab(self._cron),
-                "func": self._process_queue,
-                "kwargs": {}
-            })
-
-        # 整合定时任务 - 每1秒执行一次倒计时 (只在启用时注册)
-        services.append({
-            "id": "DanmakuAutoImportConsolidate",
-            "name": "弹幕自动导入整合任务",
-            "trigger": IntervalTrigger(seconds=1),
-            "func": self._consolidate_tick,
-            "kwargs": {}
-        })
-
-        # 清理成功任务定时任务 - 每天0点和12点执行 (只在启用时注册)
-        services.append({
-            "id": "DanmakuAutoImportCleanup",
-            "name": "弹幕自动导入清理成功任务",
-            "trigger": CronTrigger.from_crontab("0 0,12 * * *"),
-            "func": self._cleanup_success_tasks,
-            "kwargs": {}
-        })
-
-        return services
+        """
+        注册定时服务
+        注意: 本插件使用自己的BackgroundScheduler,不使用MoviePilot全局scheduler
+        """
+        return []
 
     @eventmanager.register(EventType.TransferComplete)
     def on_transfer_complete(self, event: Event):
@@ -1186,22 +1197,19 @@ class DanmakuAutoImport(_PluginBase):
 
     def stop_service(self):
         """停止插件服务"""
-        logger.info("弹幕自动导入: 停止服务")
-
-        # 尝试删除已注册的定时任务,以便重新注册
         try:
-            # 删除所有定时任务
-            job_ids = ["DanmakuAutoImport", "DanmakuAutoImportConsolidate", "DanmakuAutoImportCleanup"]
-            for job_id in job_ids:
-                try:
-                    if scheduler.get_job(job_id):
-                        scheduler.remove_job(job_id)
-                        logger.info(f"弹幕自动导入: 已删除定时任务 {job_id}")
-                except Exception as e:
-                    logger.debug(f"弹幕自动导入: 删除定时任务 {job_id} 失败(可能不存在): {e}")
-        except Exception as e:
-            logger.warning(f"弹幕自动导入: 无法访问scheduler实例: {e}")
+            logger.info("弹幕自动导入: 停止服务")
 
-        # 停止SSE接收线程
-        self._stop_sse_receiver()
+            # 停止scheduler
+            if self._scheduler:
+                self._scheduler.remove_all_jobs()
+                if self._scheduler.running:
+                    self._scheduler.shutdown()
+                self._scheduler = None
+                logger.info("弹幕自动导入: 定时任务已停止")
+
+            # 停止SSE接收线程
+            self._stop_sse_receiver()
+        except Exception as e:
+            logger.error(f"弹幕自动导入: 停止服务失败: {e}")
 
