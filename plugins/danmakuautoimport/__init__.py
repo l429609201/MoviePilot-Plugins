@@ -584,9 +584,21 @@ class DanmakuAutoImport(_PluginBase):
             # 保存配置
             self.update_config(config_to_save)
 
-            # 重新初始化插件 - 使用刚保存的配置而不是从数据库读取
+            # 重新初始化插件 - 从数据库读取配置(参考官方插件logsclean)
             self.stop_service()
-            self.init_plugin(config_to_save)
+            self.init_plugin(self.get_config())
+
+            # 手动更新事件处理器状态 - 根据enable开关控制
+            try:
+                from app.core.event import eventmanager
+                if self.get_state():
+                    eventmanager.enable_event_handler(type(self))
+                    logger.info(f"弹幕自动导入: 事件处理器已启用")
+                else:
+                    eventmanager.disable_event_handler(type(self))
+                    logger.info(f"弹幕自动导入: 事件处理器已禁用")
+            except Exception as e:
+                logger.error(f"弹幕自动导入: 更新事件处理器状态失败: {e}")
 
             logger.info(f"弹幕自动导入: 配置已保存并重新初始化")
 
