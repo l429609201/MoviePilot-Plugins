@@ -215,18 +215,20 @@ class DanmakuAutoImport(_PluginBase):
 
     def _consolidate_tick(self):
         """整合定时器tick - 每秒执行一次"""
+        should_consolidate = False
+
         with self._lock:
             # 倒计时递减
             if self._consolidate_countdown > 0:
                 self._consolidate_countdown -= 1
 
-            # 倒计时结束,执行整合
+            # 倒计时结束,标记需要整合
             if self._consolidate_countdown == 0:
                 self._consolidate_countdown = self._consolidate_interval
-                # 释放锁后调用整合
+                should_consolidate = True
 
         # 在锁外调用整合(避免死锁)
-        if self._consolidate_countdown == self._consolidate_interval:
+        if should_consolidate:
             self._consolidate_buffer(force=False)
 
     def _consolidate_buffer(self, force: bool = False):
@@ -236,13 +238,16 @@ class DanmakuAutoImport(_PluginBase):
             force: 是否强制整合(忽略时间间隔)
         """
         with self._lock:
+            # 如果缓冲区为空,直接返回
+            if not self._buffer_tasks:
+                # 如果是强制整合,仍然重置倒计时
+                if force:
+                    self._consolidate_countdown = self._consolidate_interval
+                return
+
             # 如果是强制整合,重置倒计时
             if force:
                 self._consolidate_countdown = self._consolidate_interval
-
-            # 如果缓冲区为空,直接返回
-            if not self._buffer_tasks:
-                return
 
             logger.info(f"弹幕自动导入: 开始整合缓冲区任务 (缓冲区长度: {len(self._buffer_tasks)}, 强制: {force})")
 
