@@ -90,11 +90,7 @@ class DanmakuAutoImport(_PluginBase):
 
     def get_state(self) -> bool:
         """获取插件状态"""
-        state = self._enabled and bool(self._danmu_server_url) and bool(self._external_api_key)
-        logger.debug(f"弹幕自动导入: get_state() 返回={state}, _enabled={self._enabled}, "
-                    f"_danmu_server_url={'已配置' if self._danmu_server_url else '未配置'}, "
-                    f"_external_api_key={'已配置' if self._external_api_key else '未配置'}")
-        return state
+        return self._enabled and bool(self._danmu_server_url) and bool(self._external_api_key)
 
     @staticmethod
     def get_command() -> List[Dict[str, Any]]:
