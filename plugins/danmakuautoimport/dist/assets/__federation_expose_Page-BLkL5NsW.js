@@ -415,8 +415,14 @@ const startConsolidateCountdown = (initialSeconds) => {
   consolidateTimer.value = setInterval(() => {
     if (consolidateCountdown.value > 0) {
       consolidateCountdown.value--;
+    } else if (consolidateCountdown.value === 0 && bufferCount.value > 0) {
+      // 倒计时结束且缓冲区有内容,3秒后刷新一次(给后端时间完成整合)
+      setTimeout(() => {
+        refreshTasks();
+      }, 3000);
+      // 重置倒计时为-1,避免重复刷新
+      consolidateCountdown.value = -1;
     }
-    // 注意: 不在这里刷新,让自动刷新定时器处理
   }, 1000);
 };
 
@@ -1846,6 +1852,6 @@ return (_ctx, _cache) => {
 }
 
 };
-const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-27ce8734"]]);
+const Page = /*#__PURE__*/_export_sfc(_sfc_main, [['__scopeId',"data-v-169edfd6"]]);
 
 export { Page as default };
