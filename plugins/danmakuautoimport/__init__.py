@@ -98,11 +98,11 @@ class DanmakuAutoImport(_PluginBase):
         self._processing_tasks = {}
         self._last_consolidate_time = datetime.now(tz=pytz.timezone(settings.TZ))
 
+        # 停止现有scheduler和SSE线程
+        self.stop_service()
+
         # 启动SSE后台接收线程
         self._start_sse_receiver()
-
-        # 停止现有scheduler
-        self.stop_service()
 
         # 创建并启动scheduler
         if self._enabled:
@@ -141,7 +141,22 @@ class DanmakuAutoImport(_PluginBase):
 
         # 保存配置到数据库(学习dynamicwechat的做法)
         if config:
-            self.update_config(config)
+            # 只保存需要的字段,避免保存前端额外的字段
+            config_to_save = {
+                "enable": self._enabled,
+                "notify": self._notify,
+                "danmu_server_url": self._danmu_server_url,
+                "external_api_key": self._external_api_key,
+                "cron": self._cron,
+                "delay_hours": self._delay_seconds // 3600,
+                "max_queue_size": self._max_queue_size,
+                "process_batch_size": self._process_batch_size,
+                "only_anime": self._only_anime,
+                "search_type": self._search_type,
+                "auto_retry": self._auto_retry,
+                "retry_count": self._retry_count
+            }
+            self.update_config(config_to_save)
 
     def get_state(self) -> bool:
         """获取插件状态"""
@@ -245,18 +260,8 @@ class DanmakuAutoImport(_PluginBase):
             else:
                 logger.warning(f"弹幕自动导入: 已添加到缓冲区 - {mediainfo.title} meta为空! (缓冲区长度: {len(self._buffer_tasks)})")
 
-    _tick_counter = 0  # 类变量,用于计数
-
     def _consolidate_tick(self):
         """整合定时器tick - 每秒执行一次"""
-        # 每次tick增加计数器
-        DanmakuAutoImport._tick_counter += 1
-
-        # 每30次tick(30秒)打印一次状态
-        if DanmakuAutoImport._tick_counter % 30 == 0:
-            with self._lock:
-                logger.info(f"弹幕自动导入: [TICK] 定时器运行中 - 缓冲区={len(self._buffer_tasks)}, 倒计时={self._consolidate_countdown}, tick计数={DanmakuAutoImport._tick_counter}")
-
         should_consolidate = False
 
         with self._lock:
