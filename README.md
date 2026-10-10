@@ -80,7 +80,6 @@ npm run build
 
 构建产物使用 Vue 模块联邦，包含 `remoteEntry.js`、组件及全部引用的 JS/CSS，运行时复用 MoviePilot 的 Vue，不在宿主内编译 `.vue` 源文件。**仅克隆公开仓库不能重建 UI**，需要另行保有本地 Vue 开发工程及锁文件。
 
-发行工作流位于 [.github/workflows/release.yml](.github/workflows/release.yml)。维护或调整工作流时，应先确认它引用的构建脚本与测试文件已经纳入仓库，避免推送后因缺失文件导致构建失败。
 
 ## 使用注意
 
