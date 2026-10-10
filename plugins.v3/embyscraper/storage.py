@@ -166,7 +166,6 @@ class Storage:
             return [_load(row.payload) for row in session.scalars(select(JobRecord))]
 
     def save_jobs(self, rows: list[dict]) -> None:
-        rows = rows[-100:]
         if not self._db:
             self.plugin.save_data("jobs", rows)
             return
@@ -182,7 +181,6 @@ class Storage:
             return [_load(row.payload) for row in session.scalars(select(BackupRecord))]
 
     def save_backups(self, rows: list[dict]) -> None:
-        rows = rows[-100:]
         if not self._db:
             self.plugin.save_data("backups", rows)
             return

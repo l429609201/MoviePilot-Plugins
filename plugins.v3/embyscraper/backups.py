@@ -8,9 +8,10 @@ from threading import RLock
 
 
 class Backups:
-    def __init__(self, plugin, storage=None):
+    def __init__(self, plugin, storage=None, limit=1000):
         self.plugin = plugin
         self.storage = storage
+        self.limit = max(100, min(10000, int(limit)))
         self.root = Path(plugin.get_data_path()).resolve() / 'operation-images'
         self.root.mkdir(parents=True, exist_ok=True)
         self.lock = RLock()
@@ -20,14 +21,15 @@ class Backups:
             raise ValueError('备份索引无效，禁止执行写入')
 
     def persist(self):
+        # 限值由 Backups 自己控制；存储层保持原输入，不二次截断。
         if self.storage:
-            self.storage.save_backups(self.rows[-100:])
+            self.storage.save_backups(self.rows)
         else:
-            self.plugin.save_data('backups', self.rows[-100:])
+            self.plugin.save_data('backups', self.rows)
 
     def create(self, server, item, fields, images, api):
         """所有原图都成功读取后才提交备份，失败时绝不开始写入。"""
-        if len(self.rows) >= 100:
+        if len(self.rows) >= self.limit:
             raise ValueError('备份已达上限，禁止新增写入')
         ident = uuid.uuid4().hex
         directory = self.root / ident
@@ -52,7 +54,7 @@ class Backups:
             (directory / typ).write_bytes(data)
         with self.lock:
             self.rows.append(row)
-            self.rows = self.rows[-100:]
+            self.rows = self.rows[-self.limit:]
             self.persist()
         return row
 

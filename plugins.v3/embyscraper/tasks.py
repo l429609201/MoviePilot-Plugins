@@ -29,12 +29,13 @@ class Tasks:
         self.thread.start()
 
     def persist(self):
+        # 任务记录保留完整列表，历史截断只在存储层处理。
         if self.storage:
             self.storage.save_jobs(self.rows)
         else:
             self.plugin.save_data('jobs', self.rows)
 
-    def enqueue(self, server, item_ids, source='tmdb', tmdb_id=None, restore_id=None, transfer=None, confirmed=False):
+    def enqueue(self, server, item_ids, source='tmdb', tmdb_id=None, restore_id=None, transfer=None, confirmed=False, mode=None, recursive=True, scope=None, config_snapshot=None):
         with self.condition:
             if self.stop.is_set():
                 raise ValueError('工作线程已停止')
@@ -50,7 +51,9 @@ class Tasks:
             row = {'id': uuid.uuid4().hex, 'status': 'queued', 'server': server,
                    'item_ids': list(dict.fromkeys(item_ids)), 'source': source, 'tmdb_id': tmdb_id,
                    'restore_id': restore_id, 'transfer': transfer, 'confirmed': confirmed is True,
-                    'total': len(set(item_ids)), 'completed': 0,
+                   'mode': mode, 'recursive': recursive, 'scope': scope,
+                   'config_snapshot': copy.deepcopy(config_snapshot),
+                   'total': len(set(item_ids)), 'completed': 0,
                    'results': [], 'error': None, 'created_at': datetime.now(timezone.utc).isoformat()}
             self.rows.append(row)
             self.persist()
@@ -60,7 +63,7 @@ class Tasks:
     @staticmethod
     def view(row):
         return copy.deepcopy({k: row.get(k) for k in ('id', 'status', 'server', 'item_ids', 'total',
-                                                     'completed', 'results', 'error', 'created_at')})
+                                                     'completed', 'results', 'error', 'created_at', 'mode', 'recursive', 'scope', 'config_snapshot')})
 
     def views(self):
         with self.lock:
@@ -90,7 +93,7 @@ class Tasks:
             retry_ids += [i for i in row['item_ids'] if i not in done]
             if not retry_ids:
                 raise ValueError('没有可安全重试的项目，请检查备份后重新预览')
-            return self.enqueue(row['server'], retry_ids, row['source'], row['tmdb_id'], confirmed=row.get('confirmed') is True)
+            return self.enqueue(row['server'], retry_ids, row['source'], row['tmdb_id'], confirmed=row.get('confirmed') is True, mode=row.get('mode'), recursive=False, scope=row.get('scope'), config_snapshot=row.get('config_snapshot'))
 
     def check(self, row):
         if self.stop.is_set() or row['status'] == 'cancelled':

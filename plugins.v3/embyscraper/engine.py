@@ -1,6 +1,8 @@
 """预览与执行共用同一差异规则；每次写入前核验停止令牌和目标快照。"""
 import copy
+from dataclasses import replace
 from .config import TYPES
+from .execution_scope import inherited_locks
 from .translation import language_status
 from .episode_groups import EpisodeGroups
 
@@ -19,11 +21,21 @@ class OperationError(Exception):
 
 
 class Engine:
-    def __init__(self, config, backups, provider, translator=None):
+    def __init__(self, config, backups, provider, translator=None, mode=None):
         self.config = config
         self.backups = backups
         self.provider = provider
         self.translator = translator
+        self.mode = mode
+        self.image_overwrite = config.overwrite if mode is None else ('all' if mode in {'all', 'images'} else 'missing')
+        if mode in {'missing', 'metadata', 'images', 'all'}:
+            # 每个任务使用独立配置快照，模式不会污染全局 preferences。
+            overwrite = 'all' if mode in {'metadata', 'all'} else 'missing'
+            self.config = replace(config, overwrite=overwrite,
+                                  fields=[] if mode == 'images' else config.fields,
+                                  images=config.images,
+                                  ai_translation=False if mode == 'images' else config.ai_translation,
+                                  reindex_episodes=False if mode == 'images' else config.reindex_episodes)
 
     def scope(self, server, item, api):
         if server not in self.config.servers or not self.config.libraries.get(server):
@@ -86,8 +98,10 @@ class Engine:
         if group_mapping and str((derived.get('fields', {}).get('ProviderIds') or {}).get('Tmdb')) != group_mapping['tmdb_episode_id']:
             raise ValueError('TMDB 原播出定位与剧集组分集 ID 不一致')
         blocked_group = bool(group_mapping and not group_mapping['can_apply'])
-        locked = (self.config.respect_locked and bool(item.get('LockData'))) or not derived['reliable'] or blocked_group
-        locks = set(item.get('LockedFields') or []) if self.config.respect_locked else set()
+        # 子项继承父剧集写入锁，避免递归范围绕过 Series 的锁定策略。
+        inherited_locked, inherited_fields = inherited_locks(self.config, item, api)
+        locked = inherited_locked or not derived['reliable'] or blocked_group
+        locks = set(inherited_fields)
         fields = []
         # 编号不属于通用字段白名单，只能由已核验的组映射产生。
         for key in (f for f in self.config.fields if f not in {'IndexNumber', 'ParentIndexNumber'}):
@@ -147,7 +161,7 @@ class Engine:
             before = api.image_tag(item, typ)
             after = derived.get('images', {}).get(typ)
             apply = (not locked and 'Images' not in locks and typ not in locks and bool(after)
-                     and (self.config.overwrite == 'all' or not before))
+                     and (self.image_overwrite == 'all' or not before))
             images.append({'type': typ, 'before': before, 'after': after, 'apply': apply})
         public = {'item': item_view(item), 'title': item.get('Name') or '',
                   'match': {k: derived[k] for k in ('tmdb_id', 'method', 'reliable')},
@@ -158,7 +172,12 @@ class Engine:
         return public, item
 
     def execute(self, server, item_id, api, check, override=None, confirmed=False):
-        preview, original = self.preview(server, item_id, api, override)
+        # 手动编号只作用于单个根项目；递归子项目沿用自身 ProviderIds，避免误传到其它分集。
+        root_override = override
+        current_type = str(api.item(item_id).get('Type', ''))
+        if current_type in {'Season', 'Episode'}:
+            root_override = None
+        preview, original = self.preview(server, item_id, api, root_override)
         if not preview['match']['reliable']:
             raise ValueError('匹配不可靠，拒绝写入')
         fields = [f for f in preview['fields'] if f['apply']]

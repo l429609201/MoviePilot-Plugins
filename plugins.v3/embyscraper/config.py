@@ -28,6 +28,7 @@ class Config:
     max_items: int = 100
     delay_seconds: float = 2
     notify: bool = False
+    backup_limit: int = 1000
     rating_country: str = ''
     actor_limit: int = 30
     include_crew: bool = True
@@ -56,6 +57,7 @@ class Config:
         value.fields = [f for f in (value.fields or []) if f in FIELDS]
         value.images = [i for i in (value.images or []) if i in IMAGES]
         value.max_items = max(1, min(500, int(value.max_items)))
+        value.backup_limit = max(100, min(10000, int(value.backup_limit)))
         value.delay_seconds = max(0, min(300, float(value.delay_seconds)))
         value.overwrite = 'all' if value.overwrite == 'all' else 'missing'
         value.source = 'tmdb'

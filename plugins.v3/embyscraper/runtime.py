@@ -10,11 +10,13 @@ from .emby_api import discover_servers
 from .engine import Engine, OperationError, item_view
 from .models import (ActionResponse, BackupsResponse, IdRequest, ItemsResponse, JobResponse,
                      JobsResponse, OptionsResponse, PreviewRequest, PreviewResponse,
-                     RestoreRequest, ScrapeRequest, ClearCacheRequest, CacheStatusResponse)
+                     RestoreRequest, ScrapeRequest, ClearCacheRequest, CacheStatusResponse, ScrapeLibraryRequest)
 from .providers import get_provider, available_providers
 from .tasks import Tasks
 from .translation import Translator
 from .storage import Storage
+from dataclasses import asdict
+from .execution_scope import enumerate_items, plan_selected
 from .triggers import find_transferred, transfer_identity
 
 
@@ -24,7 +26,7 @@ class Runtime:
         self.config_lock = RLock()
         self.config = Config.parse(config)
         self.storage = Storage(plugin)
-        self.backups = Backups(plugin, self.storage)
+        self.backups = Backups(plugin, self.storage, self.config.backup_limit)
         self.provider = get_provider(self.config.source)
         self.configure_provider(self.provider)
         self.translator = Translator(plugin, storage=self.storage) if self.config.ai_translation else None
@@ -70,7 +72,9 @@ class Runtime:
         provider = get_provider(row['source'])
         try:
             self.configure_provider(provider)
-            return Engine(self.config, self.backups, provider, self.translator).execute(row['server'], ident, api, check, row['tmdb_id'], confirmed=row.get('confirmed', False))
+            config_snapshot = row.get('config_snapshot') or asdict(self.config)
+            config = Config.parse(config_snapshot)
+            return Engine(config, self.backups, provider, self.translator, mode=row.get('mode')).execute(row['server'], ident, api, check, row['tmdb_id'], confirmed=row.get('confirmed', False))
         finally:
             self.cleanup(provider, api)
 
@@ -120,7 +124,7 @@ class Runtime:
             provider = get_provider(body.source)
             self.configure_provider(provider)
             api = self.api(body.server)
-            return Engine(self.config, self.backups, provider, self.translator).preview(
+            return Engine(self.config, self.backups, provider, self.translator, mode=body.mode).preview(
                 body.server, body.item_id, api, body.tmdb_id)[0]
         except Exception:
             raise HTTPException(400, '无法可靠匹配或目标不在配置范围内') from None
@@ -172,19 +176,46 @@ class Runtime:
     def scrape(self, body: ScrapeRequest):
         if self.config.reindex_episodes and self.config.episode_group_mode != 'aired' and body.confirmed is not True:
             raise HTTPException(400, '剧集组编号转换必须明确确认')
-        if len(body.item_ids) > self.config.max_items:
-            raise HTTPException(400, '超出单任务项目上限')
         if body.tmdb_id and len(body.item_ids) != 1:
             raise HTTPException(400, '手动 TMDB 编号只能用于单项目')
+        api = None
         try:
             if body.source != self.config.source:
                 raise ValueError('来源未配置')
-            self.cleanup(self.api(body.server))
-            if not self.config.libraries.get(body.server):
-                raise ValueError('未选择媒体库')
-            return {'job': self.tasks.enqueue(body.server, body.item_ids, body.source, body.tmdb_id, confirmed=body.confirmed)}
+            api = self.api(body.server)
+            ids = plan_selected(self.engine, body.server, api, body.item_ids, body.recursive)
+            if body.tmdb_id and len(body.item_ids) == 1:
+                root_type = api.item(body.item_ids[0]).get('Type')
+                if root_type not in {'Movie', 'Series', 'Season', 'Episode'}:
+                    raise ValueError('手动 TMDB 编号仅支持电影或剧集')
+            return {'job': self.tasks.enqueue(body.server, ids, body.source, body.tmdb_id, confirmed=body.confirmed, mode=body.mode, recursive=body.recursive, config_snapshot=asdict(self.config))}
         except Exception:
             raise HTTPException(400, '无法创建任务，请检查范围和队列') from None
+        finally:
+            self.cleanup(api)
+
+    def scrape_library(self, body: ScrapeLibraryRequest):
+        if body.confirmed is not True:
+            raise HTTPException(400, '媒体库范围执行必须明确确认')
+        if body.recursive is not True or body.source != self.config.source:
+            raise HTTPException(400, '媒体库任务必须使用已配置来源并启用递归')
+        if body.library_id not in self.config.libraries.get(body.server, []):
+            raise HTTPException(400, '媒体库未选中')
+        api = None
+        try:
+            api = self.api(body.server)
+            rows = enumerate_items(api, body.library_id, body.search)
+            if rows and len(rows) + len(self.backups.rows) > self.backups.limit:
+                raise ValueError('备份剩余容量不足以完成全部范围，请提高备份上限或拆分范围')
+            for item in rows:
+                self.engine.scope(body.server, item, api)
+            return {'job': self.tasks.enqueue(body.server, [str(item['Id']) for item in rows],
+                        mode=body.mode, recursive=False, confirmed=True,
+                        scope={'library_id': body.library_id, 'search': body.search}, config_snapshot=asdict(self.config))}
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        finally:
+            self.cleanup(api)
 
     def jobs(self):
         return {'jobs': self.tasks.views()}
@@ -211,7 +242,7 @@ class Runtime:
         try:
             row = self.backups.get(body.id)
             self.cleanup(self.api(row['server']))
-            return {'job': self.tasks.enqueue(row['server'], [row['item_id']], restore_id=body.id, confirmed=body.confirmed)}
+            return {'job': self.tasks.enqueue(row['server'], [row['item_id']], restore_id=body.id, confirmed=body.confirmed, config_snapshot=asdict(self.config))}
         except ValueError:
             raise HTTPException(400, '无法恢复该备份') from None
 
@@ -228,6 +259,7 @@ class Runtime:
                   ('/items', self.items, 'GET', ItemsResponse),
                   ('/preview', self.preview, 'POST', PreviewResponse),
                   ('/scrape', self.scrape, 'POST', JobResponse),
+                  ('/scrape_library', self.scrape_library, 'POST', JobResponse),
                   ('/jobs', self.jobs, 'GET', JobsResponse),
                   ('/cancel', self.cancel, 'POST', ActionResponse),
                   ('/retry', self.retry, 'POST', JobResponse),
