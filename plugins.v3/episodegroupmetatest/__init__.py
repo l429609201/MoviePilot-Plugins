@@ -115,7 +115,7 @@ class EpisodeGroupMetaTest(_PluginBase):
     plugin_desc = "从TMDB剧集组刮削季集的实际顺序。"
     plugin_icon = "episode-group.png"
     plugin_color = "#098663"
-    plugin_version = "3.0.0"
+    plugin_version = "3.0.1"
     plugin_author = "Misaka10876"
     author_url = "https://github.com/l429609201"
     plugin_config_prefix = "EpisodeGroupMetaTest_"

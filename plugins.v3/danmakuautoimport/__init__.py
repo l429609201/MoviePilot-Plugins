@@ -20,7 +20,7 @@ class DanmakuAutoImport(ConfigMixin, DanmakuAPIMixin, EventMixin, SelectionMixin
     plugin_name = "弹幕库自动导入"
     plugin_desc = "媒体整理后自动导入弹幕，持久化排队并确认远端执行结果"
     plugin_icon = "danmaku-auto.png"
-    plugin_version = "3.0.0"
+    plugin_version = "3.0.1"
     plugin_author = "Misaka10876"
     author_url = "https://github.com/l429609201"
     plugin_config_prefix = "danmakuautoimport_"

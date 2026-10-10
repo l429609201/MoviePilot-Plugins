@@ -14,25 +14,29 @@
     "name": "TMDB剧集组刮削",
     "description": "按TMDB剧集组匹配媒体库季集，支持Vue3预览、手动刮削及任务状态。",
     "labels": "刮削",
-    "version": "3.0.0",
+    "version": "3.0.1",
     "icon": "episode-group.png",
     "author": "Misaka10876",
     "level": 1,
     "release": true,
     "system_version": ">=3.1.2",
-    "history": {"v3.0.0": "适配V3媒体身份和SDK，重建Vue3界面，新增鉴权接口、任务状态及安全交互。"}
+    "history": {
+      "v3.0.1": "修复宿主深浅主题可读性，增加长列表分页和即时剧集组弹窗，修复预览竞态及错误提示。",
+      "v3.0.0": "适配V3媒体身份和SDK，重建Vue3界面，新增鉴权接口、任务状态及安全交互。"
+    }
   },
   "DanmakuAutoImport": {
     "name": "弹幕库自动导入",
     "description": "整理完成后自动导入弹幕，支持全自动或搜索加MP AI选择，并以纯代码匹配回退。",
     "labels": "弹幕",
-    "version": "3.0.0",
+    "version": "3.0.1",
     "icon": "danmaku-auto.png",
     "author": "Misaka10876",
     "level": 2,
     "release": true,
     "system_version": ">=3.1.2",
     "history": {
+      "v3.0.1": "重设计宿主主题和服务流控面板，修复来源名称与无限配额脱敏丢失以及连接失败的过期状态。",
       "v3.0.0": "适配V3 SDK并模块化入口及弹幕API，重建Vue3界面，支持全自动导入或搜索加MP AI选择、纯代码匹配回退及持久化任务追踪。"
     }
   },

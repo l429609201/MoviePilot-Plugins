@@ -150,13 +150,19 @@ def collect_payload(root, class_name, metadata, ref=None):
     return payload
 
 
-def plans(root, require_tracked=False):
+def plans(root, require_tracked=False, plugin_ids=None):
     root = Path(root).resolve()
     metadata = json.loads(read_bytes(root, "package.v3.json"))
     if not isinstance(metadata, dict):
         raise BuildError("package.v3.json 必须为对象")
+    # 每个插件独立读取自己的版本；可限定只构建指定插件，不设置全仓版本。
+    selected = set(plugin_ids or [])
+    if selected - set(metadata):
+        raise BuildError("未知插件: " + ", ".join(sorted(selected - set(metadata))))
     releases = []
     for name, item in sorted(metadata.items()):
+        if selected and name not in selected:
+            continue
         if not isinstance(item, dict):
             raise BuildError(f"插件元数据无效: {name}")
         if item.get("release") is not True:
@@ -177,8 +183,8 @@ def plans(root, require_tracked=False):
     return releases
 
 
-def build(root, output, require_tracked=False):
-    releases = plans(root, require_tracked)
+def build(root, output, require_tracked=False, plugin_ids=None):
+    releases = plans(root, require_tracked, plugin_ids)
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     index = []
@@ -194,6 +200,7 @@ def build(root, output, require_tracked=False):
                 info.external_attr = 0o100644 << 16
                 info.create_system = 3
                 archive.writestr(info, data, compresslevel=9)
+        print(f"已构建 {release['class']} {release['version']} → {release['zip']}")
         release["path"] = path.resolve()
         index.append({key: release[key] for key in ("class", "version", "tag", "zip")}
                      | {"sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
@@ -262,6 +269,7 @@ def publish(root, releases, repository, target):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--plugin", action="append", dest="plugin_ids", help="只构建指定插件ID，可重复指定；版本取自该插件索引")
     parser.add_argument("--require-tracked", action="store_true")
     parser.add_argument("--output", default="release-build")
     parser.add_argument("--publish", action="store_true")
@@ -270,7 +278,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     root = Path(__file__).resolve().parents[1]
     try:
-        releases = build(root, root / args.output, args.require_tracked or args.publish)
+        releases = build(root, root / args.output, args.require_tracked or args.publish, args.plugin_ids)
         if args.publish:
             publish(root, releases, args.repository, args.target)
         print(f"已构建 {len(releases)} 个发行包" + ("，发布检查完成" if args.publish else "（未发布）"))

@@ -41,16 +41,6 @@ jobs:
       - name: 校验并构建 V3 ZIP
         run: python build/build_releases.py --require-tracked --output release-build
 
-      - name: 保存发行包及索引供审计
-        uses: actions/upload-artifact@v4
-        with:
-          name: v3-release-${{ github.sha }}
-          path: |
-            release-build/*.zip
-            release-build/releases.json
-          if-no-files-found: error
-          retention-days: 30
-
       # 显式 publish 才允许写 GitHub；已有版本内容变化会失败，绝不覆盖/删除。
       - name: 仅新增尚不存在的 Release
         env:
