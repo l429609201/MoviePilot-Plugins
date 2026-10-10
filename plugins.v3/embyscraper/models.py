@@ -39,6 +39,10 @@ class OptionsResponse(BaseModel):
     servers: list[dict] = Field(default_factory=list)
     sources: list[dict] = Field(default_factory=list)
 
+class StatusResponse(BaseModel):
+    """只返回服务器当前状态与条目计数，不包含连接凭据或媒体路径。"""
+    servers: list[dict] = Field(default_factory=list)
+
 class ItemsResponse(BaseModel):
     items: list[dict] = Field(default_factory=list)
     total: int = 0

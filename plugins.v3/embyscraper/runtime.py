@@ -10,7 +10,8 @@ from .emby_api import discover_servers
 from .engine import Engine, OperationError, item_view
 from .models import (ActionResponse, BackupsResponse, IdRequest, ItemsResponse, JobResponse,
                      JobsResponse, OptionsResponse, PreviewRequest, PreviewResponse,
-                     RestoreRequest, ScrapeRequest, ClearCacheRequest, CacheStatusResponse, ScrapeLibraryRequest)
+                     RestoreRequest, ScrapeRequest, ClearCacheRequest, CacheStatusResponse,
+                     ScrapeLibraryRequest, StatusResponse)
 from .providers import get_provider, available_providers
 from .tasks import Tasks
 from .translation import Translator
@@ -99,6 +100,33 @@ class Runtime:
             return {'servers': servers, 'sources': available_providers()}
         except Exception:
             raise HTTPException(502, '读取 Emby 服务器失败') from None
+        finally:
+            self.cleanup(*discovered.values())
+
+    def status(self):
+        """首页只读状态；单台服务器状态读取失败不影响其它服务器展示。"""
+        discovered = {}
+        try:
+            discovered = discover_servers()
+        except Exception:
+            raise HTTPException(502, '读取 Emby 服务器失败') from None
+        servers = []
+        try:
+            for name, api in discovered.items():
+                entry = {'name': name, 'selected': name in self.config.servers, 'available': True}
+                try:
+                    entry.update(api.system_status())
+                except Exception:
+                    # 连接仍在但状态接口异常时降级为不可用，不伪造计数。
+                    entry['available'] = False
+                    entry['error'] = '服务器状态读取失败'
+                servers.append(entry)
+            reachable = set(discovered)
+            for name in self.config.servers:
+                if name not in reachable:
+                    servers.append({'name': name, 'selected': True, 'available': False,
+                                    'error': 'Emby 服务器不可用'})
+            return {'servers': servers}
         finally:
             self.cleanup(*discovered.values())
 
@@ -256,6 +284,7 @@ class Runtime:
 
     def routes(self):
         routes = [('/options', self.options, 'GET', OptionsResponse),
+                  ('/status', self.status, 'GET', StatusResponse),
                   ('/items', self.items, 'GET', ItemsResponse),
                   ('/preview', self.preview, 'POST', PreviewResponse),
                   ('/scrape', self.scrape, 'POST', JobResponse),

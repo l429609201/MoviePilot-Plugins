@@ -131,6 +131,32 @@ class EmbyAPI:
         return [{'id': str(row['Id']), 'name': row.get('Name', '')}
                 for row in result.get('Items', []) if row.get('Id')]
 
+    def system_status(self):
+        """只读官方系统信息与各类型条目总数，不暴露地址、路径或连接信息。"""
+        info = self._json(('System', 'Info'))
+        if not isinstance(info, dict):
+            raise EmbyAPIError('Emby 返回了无效数据')
+        counts = {}
+        for key, item_type in (('movies', 'Movie'), ('series', 'Series'),
+                               ('seasons', 'Season'), ('episodes', 'Episode')):
+            # 官方 /Users/{UserId}/Items 以 TotalRecordCount 返回筛选总数，取 1 条即可读取计数。
+            result = self._json(('Users', self._user, 'Items'), {
+                'Recursive': 'true', 'IncludeItemTypes': item_type,
+                'StartIndex': 0, 'Limit': 1,
+            })
+            total = result.get('TotalRecordCount')
+            if isinstance(total, bool) or not isinstance(total, int) or not 0 <= total <= 1000000:
+                raise EmbyAPIError('Emby 条目总数无效')
+            counts[key] = total
+        return {'server_name': str(info.get('ServerName') or ''),
+                'version': str(info.get('Version') or ''),
+                'operating_system': str(info.get('OperatingSystemDisplayName') or ''),
+                'pending_restart': info.get('HasPendingRestart') is True,
+                'shutting_down': info.get('IsShuttingDown') is True,
+                'maintenance': info.get('IsInMaintenanceMode') is True,
+                'update_available': info.get('HasUpdateAvailable') is True,
+                **counts}
+
     def items(self, library_id, search='', start=0, limit=50, *,
               sort_by='SortName', sort_order='Ascending'):
         """分页读取条目；入库触发可按创建时间降序读取有界的最近条目。"""
