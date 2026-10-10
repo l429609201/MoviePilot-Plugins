@@ -23,6 +23,7 @@ class EmbyScraper(_PluginBase):
         super().__init__()
         self._runtime = None
 
+
     def init_plugin(self, config=None):
         if self._runtime and not self._runtime.close():
             raise RuntimeError('旧刮削任务尚未停止，禁止启动新写入线程')
