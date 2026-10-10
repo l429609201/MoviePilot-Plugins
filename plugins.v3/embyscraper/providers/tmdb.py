@@ -6,6 +6,7 @@ from difflib import SequenceMatcher
 from urllib.parse import urlsplit
 
 from app.sdk.config import settings
+from app.sdk.logging import logger
 from app.sdk.network import RequestUtils
 from app.modules.themoviedb.tmdbv3api import Movie, TV, Season, Episode, Search
 
@@ -291,10 +292,11 @@ class TMDBProvider:
                 or not re.fullmatch(r'/t/p/(?:original|w\d+)/[A-Za-z0-9_.-]+', parsed.path)):
             raise ValueError('图片 URL 不在 TMDB 允许范围内')
         if self._download_request is None:
-            self._download_request = RequestUtils(proxies=getattr(settings, 'PROXY', None), timeout=20, verify=True)
+            self._download_request = RequestUtils(proxies=getattr(settings, 'PROXY', None), timeout=20)
         try:
-            response = self._download_request.get_res(url, allow_redirects=False, stream=True)
-        except Exception:
+            response = self._download_request.get_res(url, allow_redirects=False, stream=True, verify=False)
+        except Exception as exc:
+            logger.error(f"Emby刮削器：TMDB 图片连接失败：{type(exc).__name__}")
             raise EmbyAPIError('TMDB 图片连接失败') from None
         if response is None:
             raise EmbyAPIError('TMDB 图片连接失败')
@@ -315,7 +317,9 @@ class TMDBProvider:
         failed = False
         for client in clients:
             try:
-                client.close()
+                close = getattr(client, 'close', None)
+                if callable(close):
+                    close()
             except Exception:
                 failed = True
         if failed:

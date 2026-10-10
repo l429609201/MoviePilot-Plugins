@@ -4,6 +4,7 @@ from apscheduler.triggers.cron import CronTrigger
 from .config import Config
 from app.sdk.plugin import _PluginBase
 from app.sdk.events import eventmanager, Event
+from app.sdk.logging import logger
 from app.schemas.types import EventType
 from .runtime import Runtime
 from .storage import MODELS
@@ -13,7 +14,7 @@ class EmbyScraper(_PluginBase):
     plugin_name = 'Emby刮削器'
     plugin_desc = '通过 Emby API 预览、补全元数据与图片，提供操作备份和手动恢复。'
     plugin_icon = 'emby-scraper.png'
-    plugin_version = '3.1.0'
+    plugin_version = '3.1.1'
     plugin_author = 'Misaka10876'
     author_url = 'https://github.com/Misaka10876'
     plugin_config_prefix = 'embyscraper_'
@@ -30,6 +31,7 @@ class EmbyScraper(_PluginBase):
         if config and config.get('enabled') and config.get('cron'):
             CronTrigger.from_crontab(config['cron'])
         self._runtime = Runtime(self, config)
+        logger.info(f"Emby刮削器：插件初始化完成，启用状态 {self.get_state()}")
 
     def get_database_models(self):
         return MODELS
@@ -61,6 +63,7 @@ class EmbyScraper(_PluginBase):
             # 先停止工作线程；缓存清理失败不得阻止插件退出或造成重复工作线程。
             if self._runtime.close():
                 self._runtime.storage.cleanup_translation_cache()
+                logger.info('Emby刮削器：插件已停止')
 
     @staticmethod
     def get_command():

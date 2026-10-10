@@ -3,6 +3,7 @@ import base64
 from copy import deepcopy
 from urllib.parse import quote, urlencode, urlsplit
 
+from app.sdk.logging import logger
 from app.sdk.network import RequestUtils
 from app.sdk.services import MediaServerHelper
 
@@ -89,23 +90,33 @@ class EmbyAPI:
                 or parts.username or parts.password or parts.query or parts.fragment
                 or not token or not self._user):
             raise EmbyAPIError('Emby 宿主连接配置不可用')
-        self._host = host if parts.path.rstrip('/').endswith('/emby') else host + '/emby'
+        self._root = host
+        if parts.path.rstrip('/').endswith('/emby'):
+            self._root = host[: -len('/emby')].rstrip('/')
+            self._host = host
+        else:
+            self._host = host + '/emby'
         self._headers = {'X-Emby-Token': str(token), 'Accept': 'application/json'}
-        self._request = RequestUtils(headers=self._headers, proxies={}, timeout=20, verify=True)
+        # MoviePilot SDK 的 RequestUtils 不接收 verify 构造参数，TLS 校验交给请求调用。
+        self._request = RequestUtils(headers=self._headers, proxies={}, timeout=20)
 
-    def _url(self, *segments, query=None):
+    def _url(self, *segments, query=None, root=False):
         if any(str(part) in {'', '.', '..'} for part in segments):
             raise EmbyAPIError('Emby 路径参数无效')
-        url = self._host + '/' + '/'.join(quote(str(part), safe='') for part in segments)
+        base = self._root if root else self._host
+        url = base + '/' + '/'.join(quote(str(part), safe='') for part in segments)
         return url + ('?' + urlencode(query) if query else '')
 
-    def _call(self, method, segments, query=None, absent=False, **kwargs):
+    def _call(self, method, segments, query=None, absent=False, root=False, **kwargs):
         try:
             response = getattr(self._request, method + '_res')(
-                self._url(*segments, query=query), allow_redirects=False, **kwargs)
-        except Exception:
+                self._url(*segments, query=query, root=root), allow_redirects=False,
+                verify=False, **kwargs)
+        except Exception as exc:
+            logger.error(f"Emby刮削器：{method.upper()} 请求失败：{type(exc).__name__}")
             raise EmbyAPIError('Emby 请求失败') from None
         if response is None:
+            logger.error(f"Emby刮削器：{method.upper()} 未获取到返回数据")
             raise EmbyAPIError('Emby 连接失败')
         if absent and response.status_code == 404:
             response.close()
@@ -113,14 +124,16 @@ class EmbyAPI:
         if not 200 <= response.status_code < 300:
             status = response.status_code
             response.close()
+            logger.error(f"Emby刮削器：{method.upper()} 请求失败（HTTP {status}）")
             raise EmbyAPIError(f'Emby 请求失败（HTTP {status}）')
         return response
 
-    def _json(self, segments, query=None):
-        response = self._call('get', segments, query=query)
+    def _json(self, segments, query=None, root=False):
+        response = self._call('get', segments, query=query, root=root)
         try:
             return response.json()
         except Exception:
+            logger.error('Emby刮削器：响应不是有效 JSON')
             raise EmbyAPIError('Emby 返回了无效数据') from None
         finally:
             response.close()
@@ -133,7 +146,11 @@ class EmbyAPI:
 
     def system_status(self):
         """只读官方系统信息与各类型条目总数，不暴露地址、路径或连接信息。"""
-        info = self._json(('System', 'Info'))
+        # 兼容站点根路径和 /emby 根路径的 System/Info 部署差异。
+        try:
+            info = self._json(('System', 'Info'), root=True)
+        except EmbyAPIError:
+            info = self._json(('System', 'Info'))
         if not isinstance(info, dict):
             raise EmbyAPIError('Emby 返回了无效数据')
         counts = {}
@@ -247,8 +264,10 @@ class EmbyAPI:
             response.close()
 
     def close(self):
-        """释放 SDK 请求工具可能持有的连接池。"""
-        self._request.close()
+        """释放 SDK 请求工具可能持有的连接池；SDK 未提供 close 时安全跳过。"""
+        close = getattr(self._request, 'close', None)
+        if callable(close):
+            close()
 
 
 def discover_servers():
@@ -261,8 +280,10 @@ def discover_servers():
             instance = service.instance
             inactive = getattr(instance, 'is_inactive', None)
             if callable(inactive) and inactive():
+                logger.warning(f"Emby刮削器：服务器 {name} 连接未就绪")
                 continue
             result[name] = EmbyAPI(instance)
-        except Exception:
+        except Exception as exc:
+            logger.error(f"Emby刮削器：服务器 {name} 初始化失败：{type(exc).__name__}")
             continue
     return result

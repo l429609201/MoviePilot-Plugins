@@ -3,6 +3,7 @@ import copy
 import uuid
 from datetime import datetime, timezone
 from threading import Condition, Event, RLock, Thread
+from app.sdk.logging import logger
 from .engine import OperationError
 
 
@@ -58,6 +59,7 @@ class Tasks:
             self.rows.append(row)
             self.persist()
             self.condition.notify()
+            logger.info(f"Emby刮削器：任务 {row['id'][:8]} 已入队，服务器 {server}，目标 {len(row['item_ids'])} 项")
             return self.view(row)
 
     @staticmethod
@@ -108,6 +110,7 @@ class Tasks:
                     continue
                 row['status'] = 'running'
                 self.persist()
+                logger.info(f"Emby刮削器：任务 {row['id'][:8]} 开始执行，目标 {row['total']} 项")
             for ident in row['item_ids']:
                 try:
                     self.check(row)
@@ -115,6 +118,7 @@ class Tasks:
                 except Cancelled:
                     break
                 except Exception as exc:
+                    logger.error(f"Emby刮削器：任务 {row['id'][:8]} 条目 {ident} 执行失败：{type(exc).__name__}")
                     result = {'item_id': ident, 'status': 'unknown' if isinstance(exc, OperationError) and exc.may_write else 'failed_safe',
                               'error': '操作未完成，请检查备份和媒体；未知写入不自动重试'}
                 with self.lock:
@@ -128,6 +132,7 @@ class Tasks:
                     row['status'] = ('interrupted' if self.stop.is_set() else
                                      'failed' if any(r['status'] in ('unknown', 'failed_safe') for r in row['results']) else 'complete')
                 self.persist()
+                logger.info(f"Emby刮削器：任务 {row['id'][:8]} 结束，状态 {row['status']}，完成 {row['completed']}/{row['total']}")
             if getattr(self.plugin, 'notify_job', None):
                 try:
                     self.plugin.notify_job(self.view(row))

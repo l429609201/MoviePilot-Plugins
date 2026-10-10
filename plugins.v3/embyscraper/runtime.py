@@ -1,6 +1,7 @@
 """插件生命周期、API 和自动触发装配，业务规则由独立模块负责。"""
 from fastapi import HTTPException
 from threading import RLock
+from app.sdk.logging import logger
 from .episode_groups import EpisodeGroups
 from .models import (BindGroupRequest, EpisodeGroupRequest, EpisodeGroupsResponse,
                      EpisodeGroupPreviewResponse)
@@ -48,6 +49,7 @@ class Runtime:
         api = servers.get(server)
         self.cleanup(*(value for name, value in servers.items() if name != server))
         if not api:
+            logger.error(f"Emby刮削器：服务器 {server} 未发现可用连接")
             raise ValueError('Emby 服务器不可用')
         return api
 
@@ -97,8 +99,10 @@ class Runtime:
                         'libraries': [{**library, 'selected': str(library['id']) in self.config.libraries.get(name, [])}
                                       for library in api.libraries()]}
                        for name, api in discovered.items()]
+            logger.info(f"Emby刮削器：读取到 {len(servers)} 台 Emby 服务器")
             return {'servers': servers, 'sources': available_providers()}
-        except Exception:
+        except Exception as exc:
+            logger.error(f"Emby刮削器：读取服务器选项失败：{type(exc).__name__}")
             raise HTTPException(502, '读取 Emby 服务器失败') from None
         finally:
             self.cleanup(*discovered.values())
@@ -116,8 +120,10 @@ class Runtime:
                 entry = {'name': name, 'selected': name in self.config.servers, 'available': True}
                 try:
                     entry.update(api.system_status())
-                except Exception:
+                    logger.info(f"Emby刮削器：服务器 {name} 状态读取成功")
+                except Exception as exc:
                     # 连接仍在但状态接口异常时降级为不可用，不伪造计数。
+                    logger.warning(f"Emby刮削器：服务器 {name} 状态读取失败：{type(exc).__name__}")
                     entry['available'] = False
                     entry['error'] = '服务器状态读取失败'
                 servers.append(entry)
@@ -138,7 +144,8 @@ class Runtime:
             api = self.api(server)
             rows, total = api.items(library_id, search, max(0, start), max(1, min(100, limit)))
             return {'items': [item_view(i) for i in rows], 'total': total}
-        except Exception:
+        except Exception as exc:
+            logger.error(f"Emby刮削器：读取媒体列表失败：{type(exc).__name__}")
             raise HTTPException(502, '读取媒体列表失败') from None
         finally:
             self.cleanup(api)
@@ -154,7 +161,8 @@ class Runtime:
             api = self.api(body.server)
             return Engine(self.config, self.backups, provider, self.translator, mode=body.mode).preview(
                 body.server, body.item_id, api, body.tmdb_id)[0]
-        except Exception:
+        except Exception as exc:
+            logger.error(f"Emby刮削器：预览失败，服务器 {body.server}，条目 {body.item_id}：{type(exc).__name__}")
             raise HTTPException(400, '无法可靠匹配或目标不在配置范围内') from None
         finally:
             self.cleanup(provider, api)
@@ -217,7 +225,8 @@ class Runtime:
                 if root_type not in {'Movie', 'Series', 'Season', 'Episode'}:
                     raise ValueError('手动 TMDB 编号仅支持电影或剧集')
             return {'job': self.tasks.enqueue(body.server, ids, body.source, body.tmdb_id, confirmed=body.confirmed, mode=body.mode, recursive=body.recursive, config_snapshot=asdict(self.config))}
-        except Exception:
+        except Exception as exc:
+            logger.error(f"Emby刮削器：创建刮削任务失败，服务器 {body.server}：{type(exc).__name__}")
             raise HTTPException(400, '无法创建任务，请检查范围和队列') from None
         finally:
             self.cleanup(api)

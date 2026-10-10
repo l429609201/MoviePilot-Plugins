@@ -1,6 +1,7 @@
 """预览与执行共用同一差异规则；每次写入前核验停止令牌和目标快照。"""
 import copy
 from dataclasses import replace
+from app.sdk.logging import logger
 from .config import TYPES
 from .execution_scope import inherited_locks
 from .translation import language_status
@@ -59,6 +60,7 @@ class Engine:
         raise ValueError('目标不属于已配置媒体库')
 
     def preview(self, server, item_id, api, override=None):
+        logger.info(f"Emby刮削器：读取条目 {item_id} 并生成预览")
         item = api.item(item_id)
         self.scope(server, item, api)
         resolution_item = copy.deepcopy(item)
@@ -191,6 +193,7 @@ class Engine:
         downloads = {i['type']: self.provider.download(i['after']) for i in images}
         row = self.backups.create(server, original, [f['field'] for f in fields],
                                   [i['type'] for i in images], api)
+        logger.info(f"Emby刮削器：条目 {item_id} 开始写入，字段 {len(fields)} 项，图片 {len(images)} 张")
         check()
         current = api.item(item_id)
         keys = {f['field'] for f in fields} | {'Id', 'Type', 'ParentId', 'SeriesId', 'ProviderIds', 'LockData', 'LockedFields',
