@@ -4,6 +4,7 @@
     "description": "将你在媒体库上的番剧观看，同步到Bangumi在看状态",
     "version": "2.1.1",
     "v2": true,
+    "v3": false,
     "icon": "https://raw.githubusercontent.com/honue/MoviePilot-Plugins/main/icons/bangumi.jpg",
     "author": "honue,happyTonakai,AAA",
     "level": 1,
@@ -20,6 +21,7 @@
     "author": "AAA",
     "level": 1,
     "v2": true,
+    "v3": false,
     "history": {
       "v1.0.8": "移除多余代码"
     }
@@ -33,6 +35,7 @@
     "author": "Misaka10876",
     "level": 2,
     "v2": true,
+    "v3": false,
     "history": {
       "v1.0.0": "bate版本"
     }

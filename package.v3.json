@@ -1,0 +1,53 @@
+{
+  "BangumiSyncDebug": {
+    "name": "Bgm打格子-debug",
+    "description": "将媒体库番剧观看进度同步到Bangumi，适配MoviePilot V3媒体身份。",
+    "version": "3.0.0",
+    "icon": "bangumi-sync.png",
+    "author": "honue,happyTonakai,AAA",
+    "level": 1,
+    "release": true,
+    "system_version": ">=3.1.2",
+    "history": {"v3.0.0": "适配V3 SDK和统一媒体身份，修复初始化、连接生命周期及敏感日志。"}
+  },
+  "EpisodeGroupMetaTest": {
+    "name": "TMDB剧集组刮削",
+    "description": "按TMDB剧集组匹配媒体库季集，支持Vue3预览、手动刮削及任务状态。",
+    "labels": "刮削",
+    "version": "3.0.0",
+    "icon": "episode-group.png",
+    "author": "Misaka10876",
+    "level": 1,
+    "release": true,
+    "system_version": ">=3.1.2",
+    "history": {"v3.0.0": "适配V3媒体身份和SDK，重建Vue3界面，新增鉴权接口、任务状态及安全交互。"}
+  },
+  "DanmakuAutoImport": {
+    "name": "弹幕库自动导入",
+    "description": "整理完成后自动导入弹幕，支持全自动或搜索加MP AI选择，并以纯代码匹配回退。",
+    "labels": "弹幕",
+    "version": "3.0.0",
+    "icon": "danmaku-auto.png",
+    "author": "Misaka10876",
+    "level": 2,
+    "release": true,
+    "system_version": ">=3.1.2",
+    "history": {
+      "v3.0.0": "适配V3 SDK并模块化入口及弹幕API，重建Vue3界面，支持全自动导入或搜索加MP AI选择、纯代码匹配回退及持久化任务追踪。"
+    }
+  },
+  "EmbyScraper": {
+    "name": "Emby刮削器",
+    "description": "复用MoviePilot的Emby与TMDB配置，通过Emby API刮削元数据和图片，支持预览、自动任务与备份恢复。",
+    "labels": "刮削,Emby",
+    "version": "3.0.0",
+    "icon": "emby-scraper.png",
+    "author": "Misaka10876",
+    "level": 1,
+    "release": true,
+    "system_version": ">=3.1.2",
+    "history": {
+      "v3.0.0": "模块化Emby API刮削器，支持TMDB自动匹配、刮削语言与MP AI翻译、Vue预览、定时入库任务、批量取消重试及操作备份恢复。"
+    }
+  }
+}

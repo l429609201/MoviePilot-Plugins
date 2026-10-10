@@ -1,0 +1,139 @@
+"""串行持久化工作队列，中断或未知写入不自动重试。"""
+import copy
+import uuid
+from datetime import datetime, timezone
+from threading import Condition, Event, RLock, Thread
+from .engine import OperationError
+
+
+class Cancelled(Exception):
+    pass
+
+
+class Tasks:
+    def __init__(self, plugin, execute, delay=0, storage=None):
+        self.plugin = plugin
+        self.storage = storage
+        self.execute = execute
+        self.delay = delay
+        self.lock = RLock()
+        self.condition = Condition(self.lock)
+        self.stop = Event()
+        self.rows = (storage.get_jobs() if storage else plugin.get_data('jobs')) or []
+        for row in self.rows:
+            if row.get('status') in ('running', 'queued'):
+                row['status'] = 'interrupted'
+                row['error'] = '上次运行中断，请检查备份；不会自动重新写入'
+        self.persist()
+        self.thread = Thread(target=self.run, name='EmbyScraperWorker', daemon=True)
+        self.thread.start()
+
+    def persist(self):
+        if self.storage:
+            self.storage.save_jobs(self.rows)
+        else:
+            self.plugin.save_data('jobs', self.rows)
+
+    def enqueue(self, server, item_ids, source='tmdb', tmdb_id=None, restore_id=None, transfer=None, confirmed=False):
+        with self.condition:
+            if self.stop.is_set():
+                raise ValueError('工作线程已停止')
+            for existing in self.rows:
+                if (existing['status'] in ('queued', 'running') and existing['server'] == server
+                        and set(existing['item_ids']) & set(item_ids)):
+                    raise ValueError('目标已有活动任务')
+            if sum(r['status'] in ('queued', 'running') for r in self.rows) >= 20:
+                raise ValueError('队列已满')
+            if len(self.rows) >= 100:
+                self.rows = [r for r in self.rows if r['status'] in ('queued', 'running')] + [
+                    r for r in self.rows if r['status'] not in ('queued', 'running')][-79:]
+            row = {'id': uuid.uuid4().hex, 'status': 'queued', 'server': server,
+                   'item_ids': list(dict.fromkeys(item_ids)), 'source': source, 'tmdb_id': tmdb_id,
+                   'restore_id': restore_id, 'transfer': transfer, 'confirmed': confirmed is True,
+                    'total': len(set(item_ids)), 'completed': 0,
+                   'results': [], 'error': None, 'created_at': datetime.now(timezone.utc).isoformat()}
+            self.rows.append(row)
+            self.persist()
+            self.condition.notify()
+            return self.view(row)
+
+    @staticmethod
+    def view(row):
+        return copy.deepcopy({k: row.get(k) for k in ('id', 'status', 'server', 'item_ids', 'total',
+                                                     'completed', 'results', 'error', 'created_at')})
+
+    def views(self):
+        with self.lock:
+            return [self.view(r) for r in reversed(self.rows)]
+
+    def get(self, ident):
+        row = next((r for r in self.rows if r['id'] == ident), None)
+        if not row:
+            raise ValueError('任务不存在')
+        return row
+
+    def cancel(self, ident):
+        with self.condition:
+            row = self.get(ident)
+            if row['status'] in ('queued', 'running'):
+                row['status'] = 'cancelled'
+                self.persist()
+            self.condition.notify()
+
+    def retry(self, ident):
+        with self.lock:
+            row = self.get(ident)
+            if row.get('restore_id') or row['status'] in ('running', 'queued', 'interrupted'):
+                raise ValueError('该任务可能已写入，禁止自动重试')
+            retry_ids = [r['item_id'] for r in row['results'] if r['status'] == 'failed_safe']
+            done = {r['item_id'] for r in row['results']}
+            retry_ids += [i for i in row['item_ids'] if i not in done]
+            if not retry_ids:
+                raise ValueError('没有可安全重试的项目，请检查备份后重新预览')
+            return self.enqueue(row['server'], retry_ids, row['source'], row['tmdb_id'], confirmed=row.get('confirmed') is True)
+
+    def check(self, row):
+        if self.stop.is_set() or row['status'] == 'cancelled':
+            raise Cancelled('任务已取消')
+
+    def run(self):
+        while not self.stop.is_set():
+            with self.condition:
+                row = next((r for r in self.rows if r['status'] == 'queued'), None)
+                if row is None:
+                    self.condition.wait()
+                    continue
+                row['status'] = 'running'
+                self.persist()
+            for ident in row['item_ids']:
+                try:
+                    self.check(row)
+                    result = self.execute(row, ident, lambda: self.check(row))
+                except Cancelled:
+                    break
+                except Exception as exc:
+                    result = {'item_id': ident, 'status': 'unknown' if isinstance(exc, OperationError) and exc.may_write else 'failed_safe',
+                              'error': '操作未完成，请检查备份和媒体；未知写入不自动重试'}
+                with self.lock:
+                    row['results'].append(result)
+                    row['completed'] += 1
+                    self.persist()
+                if self.stop.wait(self.delay):
+                    break
+            with self.lock:
+                if row['status'] != 'cancelled':
+                    row['status'] = ('interrupted' if self.stop.is_set() else
+                                     'failed' if any(r['status'] in ('unknown', 'failed_safe') for r in row['results']) else 'complete')
+                self.persist()
+            if getattr(self.plugin, 'notify_job', None):
+                try:
+                    self.plugin.notify_job(self.view(row))
+                except Exception:
+                    pass
+
+    def close(self):
+        self.stop.set()
+        with self.condition:
+            self.condition.notify_all()
+        self.thread.join(timeout=5)
+        return not self.thread.is_alive()

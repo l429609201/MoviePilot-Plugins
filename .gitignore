@@ -1,1 +1,11 @@
 test/
+.upstream-*/
+node_modules/
+__pycache__/
+.pytest_cache/
+.venv/
+test-results/
+# Vue 源码仅供本机开发；插件发布只包含 dist/assets 编译产物。
+/frontend/
+/plugins.v3/*/vue/
+/release-build/

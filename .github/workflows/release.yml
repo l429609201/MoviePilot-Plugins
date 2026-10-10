@@ -1,0 +1,62 @@
+name: V3 Plugin Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'package.v3.json'
+      - 'plugins.v3/**'
+      - 'scripts/**'
+      - 'tests/test_release_build.py'
+      - '.github/workflows/release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# 不取消正在发行的任务，避免已创建一部分 Release 时被新推送中断。
+concurrency:
+  group: v3-plugin-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出全部历史与标签
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 配置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装测试运行器
+        run: python -m pip install pytest
+
+      - name: 验证发行构建器
+        run: python -m pytest tests/test_release_build.py -q
+
+      # 不安装 Node/npm，不上传 frontend 源码；只使用 Git 内已编译产物。
+      - name: 校验并构建 V3 ZIP
+        run: python scripts/build_releases.py --require-tracked --output release-build
+
+      - name: 保存发行包及索引供审计
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-release-${{ github.sha }}
+          path: |
+            release-build/*.zip
+            release-build/releases.json
+          if-no-files-found: error
+          retention-days: 30
+
+      # 显式 publish 才允许写 GitHub；已有版本内容变化会失败，绝不覆盖/删除。
+      - name: 仅新增尚不存在的 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/build_releases.py --require-tracked --output release-build --publish
