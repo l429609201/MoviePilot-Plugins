@@ -75,7 +75,11 @@ class ConfigMixin:
                 result[key] = ConfigMixin._safe_data(item, secret)
             elif isinstance(item, list):
                 result[key] = [ConfigMixin._safe_data(entry, secret) for entry in item if isinstance(entry, dict)]
-            elif key.lower() in ("provider", "name", "source") and isinstance(item, str) and re.fullmatch(r"[a-zA-Z0-9_.\-]{1,40}", item) and item != secret:
+            elif key.lower() in ("provider", "providername", "name", "source") and isinstance(item, str) and re.fullmatch(r"[a-zA-Z0-9_.\-]{1,40}", item) and item != secret:
+                result[key] = item
+            elif key == "quota" and item == "∞":
+                result[key] = item
+            elif key == "globalPeriod" and isinstance(item, str) and re.fullmatch(r"\d{1,10}\s*(?:秒|seconds?|s)", item):
                 result[key] = item
         return result
 

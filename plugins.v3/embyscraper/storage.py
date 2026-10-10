@@ -6,17 +6,16 @@ import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from sqlalchemy import Boolean, DateTime, String, Text, delete, select
+from sqlalchemy.orm import Mapped, mapped_column
+
 try:
-    from sqlalchemy import Boolean, DateTime, String, Text, delete, select
-    from sqlalchemy.orm import Mapped, mapped_column
     from app.sdk.database import plugin_declarative_base
     _SQLALCHEMY_AVAILABLE = True
-except ImportError:
-    # 宿主V3提供SQLAlchemy；隔离测试或极简开发环境缺失时安全回退旧存储。
-    from typing import Any as Mapped
-    Boolean = DateTime = String = Text = lambda *args, **kwargs: object()
-    delete = select = None
-    mapped_column = lambda *args, **kwargs: None
+except ModuleNotFoundError as exc:
+    # 只兼容缺失宿主 SDK 的隔离环境，依赖损坏或 SDK 内部导入失败必须暴露。
+    if exc.name not in {"app", "app.sdk", "app.sdk.database"}:
+        raise
     plugin_declarative_base = lambda: type('PluginStorageFallbackBase', (), {})
     _SQLALCHEMY_AVAILABLE = False
 
@@ -88,9 +87,10 @@ class Storage:
         try:
             self.handle = handle or plugin.get_database()
             self._db = bool(self.handle and getattr(self.handle, "session_factory", None))
-            if self._db:
-                Base.metadata.create_all(self.handle.engine)
-                self._migrate_legacy()
+            if not self._db or not _SQLALCHEMY_AVAILABLE:
+                raise RuntimeError("宿主未提供可用的插件数据库句柄或声明式基类")
+            Base.metadata.create_all(self.handle.engine)
+            self._migrate_legacy()
         except Exception as exc:
             # 只有隔离宿主完全没有数据库入口时才回退；真实数据库建表/迁移失败必须显式暴露。
             if handle is not None or callable(getattr(plugin, "get_database", None)):
@@ -230,8 +230,10 @@ class Storage:
         cutoff = datetime.now(timezone.utc) - timedelta(days=max(0, ttl_days))
         with self._session() as session:
             rows = list(session.scalars(select(TranslationCacheRecord).order_by(TranslationCacheRecord.created_at.desc())))
+            # SQLite 不保留 DateTime 的时区；无时区缓存时间按写入约定视为 UTC。
             stale = [row for index, row in enumerate(rows)
-                     if row.created_at < cutoff or index >= max(0, max_rows)]
+                     if (row.created_at.replace(tzinfo=timezone.utc) if row.created_at.tzinfo is None
+                         else row.created_at.astimezone(timezone.utc)) < cutoff or index >= max(0, max_rows)]
             for row in stale:
                 session.delete(row)
             session.commit()

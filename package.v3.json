@@ -40,13 +40,14 @@
     "name": "Emby刮削器",
     "description": "复用MoviePilot的Emby与TMDB配置，通过Emby API刮削元数据和图片，支持预览、自动任务与备份恢复。",
     "labels": "刮削,Emby",
-    "version": "3.0.0",
+    "version": "3.0.1",
     "icon": "emby-scraper.png",
     "author": "Misaka10876",
     "level": 1,
     "release": true,
     "system_version": ">=3.1.2",
     "history": {
+      "v3.0.1": "修复EventType错误导入导致插件加载失败，修复SQLite缓存清理时区比较及停止生命周期。",
       "v3.0.0": "模块化Emby API刮削器，支持TMDB自动匹配、刮削语言与MP AI翻译、Vue预览、定时入库任务、批量取消重试及操作备份恢复。"
     }
   }

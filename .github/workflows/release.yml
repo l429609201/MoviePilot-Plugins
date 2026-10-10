@@ -6,7 +6,7 @@ on:
     paths:
       - 'package.v3.json'
       - 'plugins.v3/**'
-      - 'scripts/**'
+      - 'build/**'
       - 'tests/test_release_build.py'
       - '.github/workflows/release.yml'
   workflow_dispatch:
@@ -35,7 +35,7 @@ jobs:
 
       - name: 检查发行工具文件完整性
         run: |
-          test -f scripts/build_releases.py
+          test -f build/build_releases.py
           test -f tests/test_release_build.py
 
       - name: 安装测试运行器
@@ -46,7 +46,7 @@ jobs:
 
       # 不安装 Node/npm，不上传 frontend 源码；只使用 Git 内已编译产物。
       - name: 校验并构建 V3 ZIP
-        run: python scripts/build_releases.py --require-tracked --output release-build
+        run: python build/build_releases.py --require-tracked --output release-build
 
       - name: 保存发行包及索引供审计
         uses: actions/upload-artifact@v4
@@ -64,4 +64,4 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: python scripts/build_releases.py --require-tracked --output release-build --publish
+        run: python build/build_releases.py --require-tracked --output release-build --publish
