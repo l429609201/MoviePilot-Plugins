@@ -46,6 +46,9 @@ class Engine:
         if item.get('Type') not in TYPES:
             raise ValueError('不支持该媒体类型')
         allowed = set(self.config.libraries[server])
+        # 先用视图库查询确认，避免合法条目的实体父目录不可访问导致误拒绝。
+        if any(api.contains(library_id, item.get('Id')) for library_id in allowed):
+            return
         current = item
         seen = set()
         for _ in range(32):

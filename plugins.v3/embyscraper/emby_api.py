@@ -152,8 +152,10 @@ class EmbyAPI:
             'StartIndex': max(0, int(start)), 'Limit': max(1, min(500, int(limit))),
             'SortBy': 'SortName', 'SortOrder': 'Ascending',
         })
-        rows = result.get('Items') if isinstance(result.get('Items'), list) else []
-        return rows, int(result.get('TotalRecordCount', len(rows)))
+        rows, total = result.get('Items'), result.get('TotalRecordCount')
+        if not isinstance(rows, list) or isinstance(total, bool) or not isinstance(total, int) or total < 0:
+            raise EmbyAPIError('子条目分页响应无效')
+        return rows, total
 
     def system_status(self):
         """只读官方系统信息与各类型条目总数，不暴露地址、路径或连接信息。"""
@@ -235,6 +237,31 @@ class EmbyAPI:
             if len(output) > expected:
                 raise EmbyAPIError('剧集单集分页数量不一致')
         return output
+
+    def contains(self, library_id, item_id):
+        """使用用户媒体库查询确认成员关系，兼容视图库与实体父目录 ID 不同。"""
+        result = self._json(('Users', self._user, 'Items'), {
+            'ParentId': str(library_id), 'Recursive': 'true',
+            'Ids': str(item_id), 'Limit': 1,
+        })
+        rows = result.get('Items') if isinstance(result, dict) else None
+        if not isinstance(rows, list):
+            raise EmbyAPIError('媒体库成员校验响应无效')
+        return any(str(row.get('Id') or '') == str(item_id) for row in rows)
+
+    def roots(self, library_id, search='', start=0, limit=50, kinds='Movie,Series'):
+        """递归读取电影及剧集主条目，文件夹不影响主列表与搜索。"""
+        query = {'ParentId': str(library_id), 'Recursive': 'true',
+                 'IncludeItemTypes': kinds, 'Fields': ITEM_FIELDS,
+                 'StartIndex': max(0, int(start)), 'Limit': max(1, min(500, int(limit))),
+                 'SortBy': 'SortName', 'SortOrder': 'Ascending'}
+        if str(search or '').strip():
+            query['SearchTerm'] = str(search).strip()
+        result = self._json(('Users', self._user, 'Items'), query)
+        rows, total = result.get('Items'), result.get('TotalRecordCount')
+        if not isinstance(rows, list) or isinstance(total, bool) or not isinstance(total, int) or total < 0:
+            raise EmbyAPIError('媒体主条目分页响应无效')
+        return rows, total
 
     def item(self, item_id):
         """从用户条目端点读取完整元数据，保留所有锁定信息。"""

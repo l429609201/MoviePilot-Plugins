@@ -1,8 +1,6 @@
 """写前只读范围规划：流式分页快照，去重和父级锁继承。"""
 from .config import TYPES
 
-# 选中条目递归仍保留可解释的保护上限；媒体库全自动扫描不受此上限限制。
-MAX_TARGETS = 100000
 
 
 def iter_items(api, parent, search='', check=lambda: None):
@@ -47,8 +45,6 @@ def plan_selected(engine, server, api, ids, recursive=True):
                     raise ValueError('递归范围包含其它根目录条目')
                 engine.scope(server, child, api)
                 output[str(child['Id'])] = child
-                if len(output) > MAX_TARGETS:
-                    raise ValueError('递归范围超过 100000 项，请拆分范围后重试')
                 if child.get('Type') in {'Series', 'Season'} and str(child['Id']) not in visited:
                     visited.add(str(child['Id']))
                     queue.append(child)

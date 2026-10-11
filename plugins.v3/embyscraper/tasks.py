@@ -125,7 +125,7 @@ class Tasks:
             yield ident, total
         with self.lock:
             if row.get('stream') and row.get('total') is None:
-                row['total'] = 0
+                row['total'] = row.get('scanned', 0)
                 self.persist()
 
     def run(self):

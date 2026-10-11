@@ -78,8 +78,16 @@ class Runtime:
         api = self.api(row['server'])
         try:
             scope = row.get('scope') or {}
-            for item, total in iter_items(api, scope.get('library_id', ''), scope.get('search', ''), check):
-                yield str(item['Id']), total
+            parents = scope.get('library_ids') or [scope.get('library_id', '')]
+            seen = set()
+            for parent in parents:
+                for item, total in iter_items(api, parent, scope.get('search', ''), check):
+                    ident = str(item['Id'])
+                    if ident in seen:
+                        continue
+                    seen.add(ident)
+                    # 多库去重后的总数只有扫描结束才能确定。
+                    yield ident, (total if len(parents) == 1 else None)
         finally:
             self.cleanup(api)
 
@@ -159,17 +167,41 @@ class Runtime:
         finally:
             self.cleanup(*discovered.values())
 
-    def items(self, server: str, library_id: str, search: str = '', start: int = 0, limit: int = 50, tree: bool = False):
-        if library_id not in self.config.libraries.get(server, []):
+    def scope_libraries(self, server, library_id):
+        """全库仅合并已配置的媒体库，不能绕过服务器及范围授权。"""
+        libraries = self.config.libraries.get(server, [])
+        if server not in self.config.servers or not libraries:
+            raise HTTPException(400, '请先配置服务器和媒体库范围')
+        if library_id == '__all__':
+            return libraries
+        if library_id not in libraries:
             raise HTTPException(400, '媒体库未选中')
+        return [library_id]
+
+    def items(self, server: str, library_id: str, search: str = '', start: int = 0, limit: int = 50, tree: bool = False, kind: str = 'Movie,Series'):
+        libraries = self.scope_libraries(server, library_id)
+        if kind not in {'Movie', 'Series', 'Movie,Series'}:
+            raise HTTPException(400, '媒体类型筛选无效')
         api = None
         try:
             api = self.api(server)
-            if tree and not str(search or '').strip():
-                rows, total = api.children(library_id, max(0, start), max(1, min(100, limit)), kinds='Movie,Series')
-            else:
-                rows, total = api.items(library_id, search, max(0, start), max(1, min(100, limit)))
-            return {'items': [item_view(i) for i in rows], 'total': total}
+            # 主列表始终递归查找主条目；季和集仅在父节点下面展开。
+            offset, remaining, rows, total = max(0, start), max(1, min(100, limit)), [], 0
+            for parent in libraries:
+                batch, count = api.roots(parent, search, offset, remaining, kinds=kind)
+                total += count
+                if remaining == 0:
+                    continue
+                if offset >= count:
+                    offset -= count
+                    continue
+                rows.extend(batch)
+                remaining -= len(batch)
+                offset = 0
+                if remaining <= 0:
+                    # 后续库仍查询总数，不把每页大小当作全库总数。
+                    remaining = 0
+            return {'items': [item_view(i) for i in rows[:max(1, min(100, limit))]], 'total': total}
         except Exception as exc:
             logger.error(f"Emby刮削器：读取媒体列表失败：{type(exc).__name__}")
             raise HTTPException(502, '读取媒体列表失败') from None
@@ -185,6 +217,9 @@ class Runtime:
             kinds = {'Series': 'Season', 'Season': 'Episode'}.get(str(item.get('Type')), 'Movie,Series,Season,Episode')
             rows, total = api.children(item_id, max(0, start), max(1, min(100, limit)), kinds=kinds)
             return {'items': [item_view(i) for i in rows], 'total': total}
+        except ValueError as exc:
+            logger.warning(f"Emby刮削器：子条目范围校验未通过，条目 {item_id}：{exc}")
+            raise HTTPException(400, str(exc)) from None
         except Exception as exc:
             logger.error(f"Emby刮削器：读取子条目失败，条目 {item_id}：{type(exc).__name__}")
             raise HTTPException(400, '无法读取该条目的子条目') from None
@@ -319,13 +354,12 @@ class Runtime:
             raise HTTPException(400, '媒体库范围执行必须明确确认')
         if body.recursive is not True or body.source != self.config.source:
             raise HTTPException(400, '媒体库任务必须使用已配置来源并启用递归')
-        if body.library_id not in self.config.libraries.get(body.server, []):
-            raise HTTPException(400, '媒体库未选中')
+        libraries = self.scope_libraries(body.server, body.library_id)
         api = None
         try:
             # 大媒体库采用服务端流式扫描，任务线程持续处理并更新扫描/完成进度。
             job = self.tasks.enqueue(body.server, [], body.source, confirmed=True, mode=body.mode,
-                                     recursive=False, scope={'library_id': body.library_id, 'search': body.search},
+                                     recursive=False, scope={'library_id': body.library_id, 'library_ids': libraries, 'search': body.search},
                                      config_snapshot=asdict(self.config), stream=True)
             logger.info(f"Emby刮削器：媒体库 {body.library_id} 已创建流式任务 {job['id'][:8]}")
             return {'job': job}

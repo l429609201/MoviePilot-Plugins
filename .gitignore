@@ -9,3 +9,5 @@ test-results/
 /frontend/
 /plugins.v3/*/vue/
 /release-build/
+# 本地项目提示词包含测试凭据，不纳入版本控制。
+/AGENTS.local.md
