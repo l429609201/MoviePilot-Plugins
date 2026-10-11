@@ -179,13 +179,24 @@ class EmbyAPI:
         """分页读取条目；入库触发可按创建时间降序读取有界的最近条目。"""
         if sort_by not in {'SortName', 'DateCreated'} or sort_order not in {'Ascending', 'Descending'}:
             raise EmbyAPIError('条目排序参数无效')
-        result = self._json(('Users', self._user, 'Items'), {
+        query = {
             'ParentId': str(library_id), 'Recursive': 'true',
             'IncludeItemTypes': 'Movie,Series,Season,Episode', 'Fields': ITEM_FIELDS,
-            'SearchTerm': search, 'StartIndex': max(0, int(start)),
-            'Limit': max(1, min(500, int(limit))), 'SortBy': sort_by, 'SortOrder': sort_order,
-        })
-        return result.get('Items', []), int(result.get('TotalRecordCount', 0))
+            'StartIndex': max(0, int(start)), 'Limit': max(1, min(500, int(limit))),
+            'SortBy': sort_by, 'SortOrder': sort_order,
+        }
+        # Emby 对空 SearchTerm 的处理因版本而异，空搜索不传该参数。
+        if str(search or '').strip():
+            query['SearchTerm'] = str(search).strip()
+        result = self._json(('Users', self._user, 'Items'), query)
+        rows = result.get('Items') if isinstance(result.get('Items'), list) else []
+        total = result.get('TotalRecordCount', 0)
+        try:
+            total = int(total)
+        except (TypeError, ValueError):
+            raise EmbyAPIError('Emby 条目总数无效') from None
+        logger.info(f"Emby刮削器：媒体库 {library_id} 读取 {len(rows)} 项，总数 {total}")
+        return rows, total
 
     def series_episodes(self, series_id):
         """完整读取一个剧集的在库单集，超出边界或分页不一致时拒绝转换。"""

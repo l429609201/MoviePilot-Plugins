@@ -242,7 +242,10 @@ class Runtime:
         try:
             api = self.api(body.server)
             rows = enumerate_items(api, body.library_id, body.search)
-            if rows and len(rows) + len(self.backups.rows) > self.backups.limit:
+            logger.info(f"Emby刮削器：媒体库 {body.library_id} 扫描到 {len(rows)} 项")
+            if not rows:
+                raise ValueError('媒体库范围为空，请确认已选媒体库和搜索条件')
+            if len(rows) + len(self.backups.rows) > self.backups.limit:
                 raise ValueError('备份剩余容量不足以完成全部范围，请提高备份上限或拆分范围')
             for item in rows:
                 self.engine.scope(body.server, item, api)
