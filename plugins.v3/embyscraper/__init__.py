@@ -14,7 +14,7 @@ class EmbyScraper(_PluginBase):
     plugin_name = 'Emby刮削器'
     plugin_desc = '通过 Emby API 预览、补全元数据与图片，提供操作备份和手动恢复。'
     plugin_icon = 'emby-scraper.png'
-    plugin_version = '3.1.2'
+    plugin_version = '3.1.3'
     plugin_author = 'Misaka10876'
     author_url = 'https://github.com/Misaka10876'
     plugin_config_prefix = 'embyscraper_'

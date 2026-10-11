@@ -57,7 +57,7 @@ class Config:
         value.fields = [f for f in (value.fields or []) if f in FIELDS]
         value.images = [i for i in (value.images or []) if i in IMAGES]
         value.max_items = max(1, min(500, int(value.max_items)))
-        value.backup_limit = max(100, min(10000, int(value.backup_limit)))
+        value.backup_limit = max(1, int(value.backup_limit))
         value.delay_seconds = max(0, min(300, float(value.delay_seconds)))
         value.overwrite = 'all' if value.overwrite == 'all' else 'missing'
         value.source = 'tmdb'

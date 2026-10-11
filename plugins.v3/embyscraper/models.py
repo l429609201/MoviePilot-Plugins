@@ -47,6 +47,19 @@ class ItemsResponse(BaseModel):
     items: list[dict] = Field(default_factory=list)
     total: int = 0
 
+class ItemResponse(BaseModel):
+    item: dict
+
+class ItemUpdateRequest(BaseModel):
+    server: str
+    item_id: str
+    fields: dict = Field(default_factory=dict)
+    confirmed: StrictBool = False
+
+class ItemUpdateResponse(BaseModel):
+    success: bool
+    item: dict
+
 class PreviewResponse(BaseModel):
     item: dict
     title: str

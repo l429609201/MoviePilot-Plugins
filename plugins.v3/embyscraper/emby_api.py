@@ -144,6 +144,17 @@ class EmbyAPI:
         return [{'id': str(row['Id']), 'name': row.get('Name', '')}
                 for row in result.get('Items', []) if row.get('Id')]
 
+    def children(self, parent_id, start=0, limit=50, kinds='Movie,Series,Season,Episode'):
+        """读取直接子条目，供电影、季度和集逐层展开。"""
+        result = self._json(('Users', self._user, 'Items'), {
+            'ParentId': str(parent_id), 'Recursive': 'false',
+            'IncludeItemTypes': kinds, 'Fields': ITEM_FIELDS,
+            'StartIndex': max(0, int(start)), 'Limit': max(1, min(500, int(limit))),
+            'SortBy': 'SortName', 'SortOrder': 'Ascending',
+        })
+        rows = result.get('Items') if isinstance(result.get('Items'), list) else []
+        return rows, int(result.get('TotalRecordCount', len(rows)))
+
     def system_status(self):
         """只读官方系统信息与各类型条目总数，不暴露地址、路径或连接信息。"""
         # 兼容站点根路径和 /emby 根路径的 System/Info 部署差异。

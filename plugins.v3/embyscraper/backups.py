@@ -11,7 +11,8 @@ class Backups:
     def __init__(self, plugin, storage=None, limit=1000):
         self.plugin = plugin
         self.storage = storage
-        self.limit = max(100, min(10000, int(limit)))
+        # 备份是恢复点，不设总数上限；历史配置值仅用于兼容旧数据，不再截断或拒绝写入。
+        self.limit = max(1, int(limit))
         self.root = Path(plugin.get_data_path()).resolve() / 'operation-images'
         self.root.mkdir(parents=True, exist_ok=True)
         self.lock = RLock()
@@ -29,8 +30,6 @@ class Backups:
 
     def create(self, server, item, fields, images, api):
         """所有原图都成功读取后才提交备份，失败时绝不开始写入。"""
-        if len(self.rows) >= self.limit:
-            raise ValueError('备份已达上限，禁止新增写入')
         ident = uuid.uuid4().hex
         directory = self.root / ident
         blobs = {}
@@ -54,7 +53,6 @@ class Backups:
             (directory / typ).write_bytes(data)
         with self.lock:
             self.rows.append(row)
-            self.rows = self.rows[-self.limit:]
             self.persist()
         return row
 

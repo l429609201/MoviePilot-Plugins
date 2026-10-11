@@ -6,10 +6,11 @@ from .episode_groups import EpisodeGroups
 from .models import (BindGroupRequest, EpisodeGroupRequest, EpisodeGroupsResponse,
                      EpisodeGroupPreviewResponse)
 from .backups import Backups
-from .config import Config
+from .config import Config, FIELDS
 from .emby_api import discover_servers
 from .engine import Engine, OperationError, item_view
-from .models import (ActionResponse, BackupsResponse, IdRequest, ItemsResponse, JobResponse,
+from .models import (ActionResponse, BackupsResponse, IdRequest, ItemsResponse, ItemResponse,
+                     ItemUpdateRequest, ItemUpdateResponse, JobResponse,
                      JobsResponse, OptionsResponse, PreviewRequest, PreviewResponse,
                      RestoreRequest, ScrapeRequest, ClearCacheRequest, CacheStatusResponse,
                      ScrapeLibraryRequest, StatusResponse)
@@ -18,8 +19,20 @@ from .tasks import Tasks
 from .translation import Translator
 from .storage import Storage
 from dataclasses import asdict
-from .execution_scope import enumerate_items, plan_selected
+from .execution_scope import iter_items, plan_selected
 from .triggers import find_transferred, transfer_identity
+
+
+def public_item(item):
+    """详情接口只返回可编辑元信息，不暴露媒体路径、连接信息或媒体源。"""
+    return {key: item.get(key) for key in (
+        'Id', 'Type', 'Name', 'OriginalTitle', 'SortName', 'Overview',
+        'ProductionYear', 'PremiereDate', 'EndDate', 'Genres', 'Studios',
+        'Taglines', 'CommunityRating', 'CriticRating', 'OfficialRating',
+        'CustomRating', 'People', 'ProviderIds', 'Tags', 'LockedFields',
+        'LockData', 'IndexNumber', 'ParentIndexNumber', 'SeriesId', 'ParentId',
+        'SeasonId', 'SeriesName', 'ImageTags', 'BackdropImageTags', 'Status',
+    )}
 
 
 class Runtime:
@@ -33,7 +46,7 @@ class Runtime:
         self.configure_provider(self.provider)
         self.translator = Translator(plugin, storage=self.storage) if self.config.ai_translation else None
         self.engine = Engine(self.config, self.backups, self.provider, self.translator)
-        self.tasks = Tasks(plugin, self.execute, self.config.delay_seconds, self.storage)
+        self.tasks = Tasks(plugin, self.execute, self.config.delay_seconds, self.storage, stream=self.stream)
 
     def configure_provider(self, provider):
         """提供者可选语言契约不改变注册表工厂的调用接口。"""
@@ -57,6 +70,16 @@ class Runtime:
         api = self.api(row['server'])
         try:
             return self.execute_with_api(row, ident, check, api)
+        finally:
+            self.cleanup(api)
+
+    def stream(self, row, check):
+        """流式扫描媒体库并逐项交给任务线程，避免大媒体库一次性占用内存和请求超时。"""
+        api = self.api(row['server'])
+        try:
+            scope = row.get('scope') or {}
+            for item, total in iter_items(api, scope.get('library_id', ''), scope.get('search', ''), check):
+                yield str(item['Id']), total
         finally:
             self.cleanup(api)
 
@@ -136,17 +159,77 @@ class Runtime:
         finally:
             self.cleanup(*discovered.values())
 
-    def items(self, server: str, library_id: str, search: str = '', start: int = 0, limit: int = 50):
+    def items(self, server: str, library_id: str, search: str = '', start: int = 0, limit: int = 50, tree: bool = False):
         if library_id not in self.config.libraries.get(server, []):
             raise HTTPException(400, '媒体库未选中')
         api = None
         try:
             api = self.api(server)
-            rows, total = api.items(library_id, search, max(0, start), max(1, min(100, limit)))
+            if tree and not str(search or '').strip():
+                rows, total = api.children(library_id, max(0, start), max(1, min(100, limit)), kinds='Movie,Series')
+            else:
+                rows, total = api.items(library_id, search, max(0, start), max(1, min(100, limit)))
             return {'items': [item_view(i) for i in rows], 'total': total}
         except Exception as exc:
             logger.error(f"Emby刮削器：读取媒体列表失败：{type(exc).__name__}")
             raise HTTPException(502, '读取媒体列表失败') from None
+        finally:
+            self.cleanup(api)
+
+    def children(self, server: str, item_id: str, start: int = 0, limit: int = 50):
+        api = None
+        try:
+            api = self.api(server)
+            item = api.item(item_id)
+            self.engine.scope(server, item, api)
+            kinds = {'Series': 'Season', 'Season': 'Episode'}.get(str(item.get('Type')), 'Movie,Series,Season,Episode')
+            rows, total = api.children(item_id, max(0, start), max(1, min(100, limit)), kinds=kinds)
+            return {'items': [item_view(i) for i in rows], 'total': total}
+        except Exception as exc:
+            logger.error(f"Emby刮削器：读取子条目失败，条目 {item_id}：{type(exc).__name__}")
+            raise HTTPException(400, '无法读取该条目的子条目') from None
+        finally:
+            self.cleanup(api)
+
+    def item_detail(self, server: str, item_id: str):
+        api = None
+        try:
+            api = self.api(server)
+            item = api.item(item_id)
+            self.engine.scope(server, item, api)
+            return {'item': public_item(item)}
+        except Exception as exc:
+            logger.error(f"Emby刮削器：读取条目详情失败，条目 {item_id}：{type(exc).__name__}")
+            raise HTTPException(400, '无法读取条目详情') from None
+        finally:
+            self.cleanup(api)
+
+    def update_item(self, body: ItemUpdateRequest):
+        if body.confirmed is not True:
+            raise HTTPException(400, '保存元信息必须明确确认')
+        api = None
+        try:
+            api = self.api(body.server)
+            item = api.item(body.item_id)
+            self.engine.scope(body.server, item, api)
+            if item.get('LockData') or (item.get('LockedFields') or []):
+                raise ValueError('条目或字段已锁定，禁止直接编辑')
+            fields = {k: v for k, v in body.fields.items() if k in FIELDS}
+            if not fields:
+                raise ValueError('没有可写入的元信息字段')
+            payload = dict(item)
+            payload.update(fields)
+            row = self.backups.create(body.server, item, list(fields), [], api)
+            api.update(body.item_id, payload)
+            verified = api.item(body.item_id)
+            self.backups.checkpoint(row, verified, api, fields=list(fields), status='complete')
+            logger.info(f"Emby刮削器：条目 {body.item_id} 元信息已手动更新")
+            return {'success': True, 'item': public_item(verified)}
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        except Exception as exc:
+            logger.error(f"Emby刮削器：保存条目元信息失败，条目 {body.item_id}：{type(exc).__name__}")
+            raise HTTPException(400, '保存元信息失败') from None
         finally:
             self.cleanup(api)
 
@@ -240,18 +323,12 @@ class Runtime:
             raise HTTPException(400, '媒体库未选中')
         api = None
         try:
-            api = self.api(body.server)
-            rows = enumerate_items(api, body.library_id, body.search)
-            logger.info(f"Emby刮削器：媒体库 {body.library_id} 扫描到 {len(rows)} 项")
-            if not rows:
-                raise ValueError('媒体库范围为空，请确认已选媒体库和搜索条件')
-            if len(rows) + len(self.backups.rows) > self.backups.limit:
-                raise ValueError('备份剩余容量不足以完成全部范围，请提高备份上限或拆分范围')
-            for item in rows:
-                self.engine.scope(body.server, item, api)
-            return {'job': self.tasks.enqueue(body.server, [str(item['Id']) for item in rows],
-                        mode=body.mode, recursive=False, confirmed=True,
-                        scope={'library_id': body.library_id, 'search': body.search}, config_snapshot=asdict(self.config))}
+            # 大媒体库采用服务端流式扫描，任务线程持续处理并更新扫描/完成进度。
+            job = self.tasks.enqueue(body.server, [], body.source, confirmed=True, mode=body.mode,
+                                     recursive=False, scope={'library_id': body.library_id, 'search': body.search},
+                                     config_snapshot=asdict(self.config), stream=True)
+            logger.info(f"Emby刮削器：媒体库 {body.library_id} 已创建流式任务 {job['id'][:8]}")
+            return {'job': job}
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from None
         finally:
@@ -298,6 +375,9 @@ class Runtime:
         routes = [('/options', self.options, 'GET', OptionsResponse),
                   ('/status', self.status, 'GET', StatusResponse),
                   ('/items', self.items, 'GET', ItemsResponse),
+                  ('/children', self.children, 'GET', ItemsResponse),
+                  ('/item', self.item_detail, 'GET', ItemResponse),
+                  ('/item_update', self.update_item, 'POST', ItemUpdateResponse),
                   ('/preview', self.preview, 'POST', PreviewResponse),
                   ('/scrape', self.scrape, 'POST', JobResponse),
                   ('/scrape_library', self.scrape_library, 'POST', JobResponse),

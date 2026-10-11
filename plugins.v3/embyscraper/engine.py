@@ -12,7 +12,9 @@ def item_view(item):
     return {'id': str(item['Id']), 'title': item.get('Name') or '', 'type': item.get('Type'),
             'year': item.get('ProductionYear'), 'tmdb_id': (item.get('ProviderIds') or {}).get('Tmdb'),
             'locked': bool(item.get('LockData')), 'series_id': item.get('SeriesId'),
-            'season': item.get('ParentIndexNumber'), 'episode': item.get('IndexNumber')}
+            'season': item.get('ParentIndexNumber'), 'episode': item.get('IndexNumber'),
+            'has_children': item.get('Type') in {'Series', 'Season', 'Episode'},
+            'overview': item.get('Overview') or ''}
 
 
 class OperationError(Exception):

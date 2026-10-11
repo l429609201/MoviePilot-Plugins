@@ -1,28 +1,33 @@
-"""写前只读范围规划：完整分页快照，去重和父级锁继承。"""
+"""写前只读范围规划：流式分页快照，去重和父级锁继承。"""
 from .config import TYPES
 
-MAX_TARGETS = 10000
+# 选中条目递归仍保留可解释的保护上限；媒体库全自动扫描不受此上限限制。
+MAX_TARGETS = 100000
 
 
-def enumerate_items(api, parent, search='', check=lambda: None):
-    output, seen, expected = [], set(), None
-    while expected is None or len(output) < expected:
+def iter_items(api, parent, search='', check=lambda: None):
+    """逐页读取条目并返回 (条目, 当前总数)，避免一次性阻塞大媒体库扫描。"""
+    seen, expected = set(), None
+    while expected is None or len(seen) < expected:
         check()
-        batch, total = api.items(parent, search, len(output), 500)
-        if total < 0 or total > MAX_TARGETS or (expected is not None and total != expected):
-            raise ValueError('范围超过 10000 项或分页总数已变化，请拆分范围后重试')
+        batch, total = api.items(parent, search, len(seen), 500)
+        if not isinstance(total, int) or total < 0 or (expected is not None and total != expected):
+            raise ValueError('分页总数已变化，请重新扫描')
         expected = total
-        if not isinstance(batch, list) or (not batch and len(output) < total):
+        if not isinstance(batch, list) or (not batch and len(seen) < total):
             raise ValueError('范围分页不完整，请重新扫描')
         for item in batch:
             ident = str(item.get('Id') or '')
             if not ident or ident in seen or item.get('Type') not in TYPES:
                 raise ValueError('范围条目身份重复或无效，请重新扫描')
             seen.add(ident)
-            output.append(item)
-        if len(output) > total:
+            yield item, expected
+        if len(seen) > total:
             raise ValueError('范围分页数量不一致，请重新扫描')
-    return output
+
+
+def enumerate_items(api, parent, search='', check=lambda: None):
+    return [item for item, _ in iter_items(api, parent, search, check)]
 
 
 def plan_selected(engine, server, api, ids, recursive=True):
@@ -43,7 +48,7 @@ def plan_selected(engine, server, api, ids, recursive=True):
                 engine.scope(server, child, api)
                 output[str(child['Id'])] = child
                 if len(output) > MAX_TARGETS:
-                    raise ValueError('范围超过 10000 项，请拆分范围后重试')
+                    raise ValueError('递归范围超过 100000 项，请拆分范围后重试')
                 if child.get('Type') in {'Series', 'Season'} and str(child['Id']) not in visited:
                     visited.add(str(child['Id']))
                     queue.append(child)
