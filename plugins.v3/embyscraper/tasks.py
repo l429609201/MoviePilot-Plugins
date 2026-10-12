@@ -150,9 +150,11 @@ class Tasks:
                     except Cancelled:
                         break
                     except Exception as exc:
-                        logger.error(f"Emby刮削器：任务 {row['id'][:8]} 条目 {ident} 执行失败：{type(exc).__name__}：{error_reason(exc)}")
+                        reason = error_reason(exc)
+                        logger.error(f"Emby刮削器：任务 {row['id'][:8]} 条目 {ident} 执行失败：{type(exc).__name__}：{reason}")
                         result = {'item_id': ident, 'status': 'unknown' if isinstance(exc, OperationError) and exc.may_write else 'failed_safe',
-                                  'error': '操作未完成，请检查备份和媒体；未知写入不自动重试'}
+                                  'error': reason if not (isinstance(exc, OperationError) and exc.may_write) else '操作未完成，请检查备份和媒体；未知写入不自动重试',
+                                  'retryable': False}
                     with self.lock:
                         row['results'].append(result)
                         row['completed'] += 1

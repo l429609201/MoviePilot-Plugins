@@ -212,7 +212,7 @@ class Engine:
                   'match': {k: derived[k] for k in ('tmdb_id', 'method', 'reliable')},
                   'episode_group': group_mapping,
                   'fields': fields, 'images': images, 'translation': translation,
-                  'warnings': ['本插件不直接修改 NFO；文件同步取决于 Emby 媒体库设置'] + warnings +
+                  'warnings': ['本插件只通过 Emby API 更新条目，不直接修改 NFO；文件同步取决于 Emby 媒体库设置'] + warnings +
                               (['目标已锁定，未选择任何写入'] if locked else [])}
         return public, item
 
