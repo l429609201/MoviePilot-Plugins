@@ -3,6 +3,7 @@ import re
 import unicodedata
 from datetime import date
 from difflib import SequenceMatcher
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from app.sdk.config import settings
@@ -24,6 +25,35 @@ def _positive_id(value):
 def _normalize(value):
     return ''.join(character for character in unicodedata.normalize('NFKC', str(value)).casefold()
                    if character.isalnum())
+
+
+def _filename_titles(item):
+    """从 Emby 文件名提取保守候选；不把路径本身发送给 TMDB。"""
+    values = []
+    for raw in (item.get('Path'), item.get('Name'), item.get('OriginalTitle')):
+        if not raw:
+            continue
+        name = Path(str(raw)).stem if raw == item.get('Path') else str(raw)
+        name = re.sub(r'\[[^\]]*\]|\([^)]*\)', ' ', name)
+        name = re.sub(r'(?i)(?:19|20)\d{2}', ' ', name)
+        name = re.sub(r'(?i)\b(?:s\d{1,2}|e\d{1,4}|season\s*\d+)\b', ' ', name)
+        name = re.sub(r'[_\.]+', ' ', name)
+        name = re.sub(r'\s+', ' ', name).strip(' -')
+        if name and _normalize(name) not in {_normalize(v) for v in values}:
+            values.append(name)
+    return values
+
+
+def _candidate_aliases(candidate):
+    """TMDB 搜索候选的主标题、原名和别名统一参与评分。"""
+    aliases = []
+    for key in ('title', 'original_title', 'name', 'original_name'):
+        if candidate.get(key):
+            aliases.append(candidate[key])
+    for key in ('also_known_as', 'aliases'):
+        if isinstance(candidate.get(key), list):
+            aliases.extend(row.get('name') if isinstance(row, dict) else row for row in candidate[key])
+    return [str(value) for value in aliases if value]
 
 
 def _plain(value):
@@ -105,29 +135,36 @@ class TMDBProvider:
         existing = next((value for key, value in provider_ids.items() if key.casefold() == 'tmdb'), None)
         if existing:
             return _positive_id(existing), 'provider_id', True
-        title = item.get('Name') or item.get('OriginalTitle') or ''
-        if not title.strip():
-            raise ValueError('缺少可用于匹配的标题')
+        titles = _filename_titles(item)
+        if not titles:
+            raise ValueError('缺少可用于匹配的标题或文件名')
         year = item.get('ProductionYear')
         search = self._client('search')
-        candidates = _plain(search.movies(title, year=year) if kind == 'movie'
-                            else search.tv_shows(title, release_year=year))
-        titles = {_normalize(item.get(key) or '') for key in ('Name', 'OriginalTitle')} - {''}
         scored = []
-        for candidate in candidates or []:
-            names = [candidate.get(key) for key in ('title', 'original_title', 'name', 'original_name')]
-            score = max((SequenceMatcher(None, wanted, _normalize(name)).ratio()
-                         for wanted in titles for name in names if name), default=0)
-            candidate_date = candidate.get('release_date') or candidate.get('first_air_date') or ''
-            if year and str(year) != candidate_date[:4]:
-                score = min(score, 0.7)
-            scored.append((score, candidate))
-        scored.sort(key=lambda entry: entry[0], reverse=True)
-        if not scored:
+        for title in titles:
+            candidates = _plain(search.movies(title, year=year) if kind == 'movie'
+                                else search.tv_shows(title, release_year=year))
+            for candidate in candidates or []:
+                aliases = _candidate_aliases(candidate)
+                score = max((SequenceMatcher(None, _normalize(title), _normalize(alias)).ratio()
+                             for alias in aliases if alias), default=0)
+                candidate_date = candidate.get('release_date') or candidate.get('first_air_date') or ''
+                if year and str(year) != candidate_date[:4]:
+                    score = min(score, 0.7)
+                scored.append((score, candidate))
+        # 同一 ID 由多个文件名命中时保留最高分，避免重复候选降低置信度。
+        best_by_id = {}
+        for score, candidate in scored:
+            ident = str(candidate.get('id') or '')
+            if ident and score > best_by_id.get(ident, (-1, candidate))[0]:
+                best_by_id[ident] = (score, candidate)
+        ranked = sorted(best_by_id.values(), key=lambda entry: entry[0], reverse=True)
+        if not ranked:
             raise ValueError('TMDB 未找到匹配条目')
-        best = scored[0]
-        reliable = best[0] >= (self.options.match_threshold if self.options else .92) and (len(scored) == 1 or best[0] - scored[1][0] >= 0.05)
-        return _positive_id(best[1]['id']), 'search', reliable
+        best = ranked[0]
+        threshold = self.options.match_threshold if self.options else .92
+        reliable = best[0] >= threshold and (len(ranked) == 1 or best[0] - ranked[1][0] >= 0.05)
+        return _positive_id(best[1]['id']), 'filename_search', reliable
 
     def resolve(self, item, api, override=None):
         """季/集 override 表示父剧集 ID；写入的 ProviderIds.Tmdb 为自身详情 ID。"""
