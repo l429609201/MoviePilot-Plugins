@@ -44,7 +44,7 @@
     "name": "Emby刮削器",
     "description": "复用MoviePilot的Emby与TMDB配置，通过Emby API刮削元数据和图片，支持预览、自动任务与备份恢复。",
     "labels": "刮削,Emby",
-    "version": "3.1.7",
+    "version": "3.1.8",
     "icon": "https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/main/icons/emby-scraper.png",
     "author": "Misaka10876",
     "level": 1,
