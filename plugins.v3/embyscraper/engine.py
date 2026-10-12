@@ -230,7 +230,8 @@ class Engine:
             raise ValueError('剧集组转换必须明确确认')
         images = [i for i in preview['images'] if i['apply']]
         if not fields and not images:
-            return {'item_id': item_id, 'status': 'skipped', 'warnings': preview['warnings'],
+            return {'item_id': item_id, 'emby_id': str(item_id), 'checked': True, 'written': False,
+                    'status': 'skipped', 'warnings': preview['warnings'],
                     'translation': preview['translation']}
         # 下载与备份全部成功后才开始任何副作用。
         downloads = {i['type']: self.provider.download(i['after']) for i in images}
@@ -301,5 +302,6 @@ class Engine:
             if not may_write:
                 raise
             raise OperationError(may_write=True) from None
-        return {'item_id': item_id, 'status': 'complete', 'backup_id': row['id'],
+        return {'item_id': item_id, 'emby_id': str(item_id), 'checked': True, 'written': True,
+                'status': 'complete', 'backup_id': row['id'],
                 'warnings': preview['warnings'], 'translation': preview['translation']}
