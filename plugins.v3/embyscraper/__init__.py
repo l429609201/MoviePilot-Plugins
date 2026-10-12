@@ -15,7 +15,7 @@ class EmbyScraper(_PluginBase):
     plugin_desc = '通过 Emby API 预览、补全元数据与图片，提供操作备份和手动恢复。'
     # 图标使用本仓库 Raw 地址，插件安装后可直接加载。
     plugin_icon = 'https://raw.githubusercontent.com/l429609201/MoviePilot-Plugins/main/icons/emby-scraper.png'
-    plugin_version = '3.1.5'
+    plugin_version = '3.1.6'
     plugin_author = 'Misaka10876'
     author_url = 'https://github.com/Misaka10876'
     plugin_config_prefix = 'embyscraper_'
