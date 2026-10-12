@@ -89,7 +89,13 @@ class TMDBProvider:
     def _client(self, kind):
         if kind not in self._clients:
             classes = {'movie': Movie, 'series': TV, 'season': Season, 'episode': Episode, 'search': Search, 'person': Person}
-            self._clients[kind] = classes[kind](language=self.language)
+            client = classes[kind](language=self.language)
+            # requests 会自动解压 gzip/deflate；显式声明后 TMDB JSON 流量可压缩，避免 br 依赖不一致。
+            session = getattr(client, '_session', None)
+            headers = getattr(session, 'headers', None)
+            if headers is not None:
+                headers.update({'Accept-Encoding': 'gzip, deflate'})
+            self._clients[kind] = client
         return self._clients[kind]
 
     def _match(self, item, kind, override):
@@ -163,8 +169,15 @@ class TMDBProvider:
             # 宿主 details 没有图片语言参数，使用其公开 images 方法读取候选。
             image_args = [tmdb_id] if kind in {'movie', 'series'} else args
             details = dict(details)
-            image_rows = _plain(client.images(*image_args,
-                                               include_image_language=','.join(self.options.image_languages)))
+            raw_images = client.images(*image_args,
+                                       include_image_language=','.join(self.options.image_languages))
+            image_rows = _plain(raw_images)
+            # 宿主 TMDB 图片接口对季/集会直接返回列表（posters/stills），统一包装成字段映射。
+            if isinstance(image_rows, list):
+                image_key = 'stills' if kind == 'episode' else 'posters'
+                image_rows = {image_key: image_rows}
+            if image_rows is None:
+                image_rows = {}
             if not isinstance(image_rows, dict):
                 raise ValueError('TMDB 图片列表无效')
             details['images'] = image_rows
