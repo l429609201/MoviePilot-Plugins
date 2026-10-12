@@ -5,6 +5,7 @@ from app.sdk.logging import logger
 from .config import TYPES
 from .execution_scope import inherited_locks
 from .translation import language_status
+from .actors import preserve_existing
 from .episode_groups import EpisodeGroups
 
 
@@ -38,6 +39,7 @@ class Engine:
                                   fields=[] if mode == 'images' else config.fields,
                                   images=config.images,
                                   ai_translation=False if mode == 'images' else config.ai_translation,
+                                  actor_ai_translation=False if mode == 'images' else config.actor_ai_translation,
                                   reindex_episodes=False if mode == 'images' else config.reindex_episodes)
 
     def scope(self, server, item, api):
@@ -133,7 +135,8 @@ class Engine:
         if group_mapping:
             warnings = warnings + ['剧集组编号转换必须经手动任务明确确认；不移动物理文件']
         target = derived.get('language') or self.config.language
-        translation = {'language': target, 'enabled': self.config.ai_translation, 'fields': []}
+        translation = {'language': target, 'enabled': self.config.ai_translation,
+                       'actor_enabled': self.config.actor_ai_translation, 'fields': []}
         if self.config.ai_translation:
             selected = {}
             allowed = {'Overview', 'Taglines'}
@@ -163,6 +166,41 @@ class Engine:
                         translation['fields'].append(key)
                     if key in failed:
                         row['apply'] = False
+        # 人物详情仅用于可写 People 候选；缓存不替代当前媒体写入锁与快照检查。
+        if self.config.actor_localization and str(target).lower().startswith('zh'):
+            for row in fields:
+                if row['field'] == 'People' and row['apply']:
+                    row['after'] = preserve_existing(row['after'], item.get('People'))
+                    localize = getattr(self.provider, 'localize_people', None)
+                    if callable(localize):
+                        row['after'], notes = localize(row['after'])
+                        warnings.extend(note for note in notes if note not in warnings)
+                    row['apply'] = row['after'] != row['before']
+        # 人名音译与简介翻译独立；仅处理真正可写入的 People，避免锁定/图片任务收费。
+        if (self.config.actor_localization and self.config.actor_ai_translation
+                and str(target).lower().startswith('zh')):
+            for row in fields:
+                if row['field'] != 'People' or not row['apply']:
+                    continue
+                for person in row['after']:
+                    name = person.get('Name') or ''
+                    if person.get('Type') != 'Actor' or not name or language_status(name, 'zh') == 'target':
+                        continue
+                    ident = (person.get('ProviderIds') or {}).get('Tmdb')
+                    if not ident:
+                        continue
+                    if self.translator:
+                        translated, note = self.translator.translate_actor(name, target, str(ident))
+                        if translated:
+                            person['Name'] = translated
+                            row['source'] = 'tmdb+ai_actor_translation'
+                            if 'People' not in translation['fields']:
+                                translation['fields'].append('People')
+                        if note and note not in warnings:
+                            warnings.append(note)
+                    elif '演员 AI 翻译不可用，已保留原名' not in warnings:
+                        warnings.append('演员 AI 翻译不可用，已保留原名')
+                row['apply'] = row['after'] != row['before']
         images = []
         for typ in self.config.images:
             before = api.image_tag(item, typ)

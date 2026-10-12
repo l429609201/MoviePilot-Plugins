@@ -17,10 +17,12 @@ from .models import (ActionResponse, BackupsResponse, IdRequest, ItemsResponse, 
 from .providers import get_provider, available_providers
 from .tasks import Tasks
 from .translation import Translator
+from .official_cache import OfficialCache
 from .storage import Storage
 from dataclasses import asdict
 from .execution_scope import iter_items, plan_selected
 from .triggers import find_transferred, transfer_identity
+from .diagnostics import error_reason
 
 
 def public_item(item):
@@ -44,7 +46,7 @@ class Runtime:
         self.backups = Backups(plugin, self.storage, self.config.backup_limit)
         self.provider = get_provider(self.config.source)
         self.configure_provider(self.provider)
-        self.translator = Translator(plugin, storage=self.storage) if self.config.ai_translation else None
+        self.translator = Translator(plugin, storage=self.storage) if (self.config.ai_translation or self.config.actor_ai_translation) else None
         self.engine = Engine(self.config, self.backups, self.provider, self.translator)
         self.tasks = Tasks(plugin, self.execute, self.config.delay_seconds, self.storage, stream=self.stream)
 
@@ -105,9 +107,11 @@ class Runtime:
             return {'item_id': ident, 'status': 'complete' if results else 'skipped', 'count': len(results)}
         provider = get_provider(row['source'])
         try:
-            self.configure_provider(provider)
             config_snapshot = row.get('config_snapshot') or asdict(self.config)
             config = Config.parse(config_snapshot)
+            # 人物语言与字段缓存策略使用任务快照，避免排队期间配置变化扩大调用。
+            provider.set_options(config)
+            provider.set_language(config.language)
             return Engine(config, self.backups, provider, self.translator, mode=row.get('mode')).execute(row['server'], ident, api, check, row['tmdb_id'], confirmed=row.get('confirmed', False))
         finally:
             self.cleanup(provider, api)
@@ -218,8 +222,8 @@ class Runtime:
             rows, total = api.children(item_id, max(0, start), max(1, min(100, limit)), kinds=kinds)
             return {'items': [item_view(i) for i in rows], 'total': total}
         except ValueError as exc:
-            logger.warning(f"Emby刮削器：子条目范围校验未通过，条目 {item_id}：{exc}")
-            raise HTTPException(400, str(exc)) from None
+            logger.warning(f"Emby刮削器：子条目范围校验未通过，条目 {item_id}：{error_reason(exc)}")
+            raise HTTPException(400, f'无法读取子条目：{error_reason(exc)}') from None
         except Exception as exc:
             logger.error(f"Emby刮削器：读取子条目失败，条目 {item_id}：{type(exc).__name__}")
             raise HTTPException(400, '无法读取该条目的子条目') from None
@@ -280,8 +284,8 @@ class Runtime:
             return Engine(self.config, self.backups, provider, self.translator, mode=body.mode).preview(
                 body.server, body.item_id, api, body.tmdb_id)[0]
         except Exception as exc:
-            logger.error(f"Emby刮削器：预览失败，服务器 {body.server}，条目 {body.item_id}：{type(exc).__name__}")
-            raise HTTPException(400, '无法可靠匹配或目标不在配置范围内') from None
+            logger.error(f"Emby刮削器：预览失败，服务器 {body.server}，条目 {body.item_id}：{type(exc).__name__}：{error_reason(exc)}")
+            raise HTTPException(400, f'预览失败：{error_reason(exc)}') from None
         finally:
             self.cleanup(provider, api)
 
@@ -398,12 +402,12 @@ class Runtime:
             raise HTTPException(400, '无法恢复该备份') from None
 
     def cache_status(self):
-        return {'rows': len(self.storage.get_translation_cache())}
+        return {'rows': OfficialCache().count()}
 
     def cache_clear(self, body: ClearCacheRequest):
         if body.confirmed is not True:
             raise HTTPException(400, '清理缓存必须明确确认')
-        return {'success': True, 'cleared': self.storage.clear_rebuildable_cache()}
+        return {'success': True, 'cleared': OfficialCache().clear()}
 
     def routes(self):
         routes = [('/options', self.options, 'GET', OptionsResponse),

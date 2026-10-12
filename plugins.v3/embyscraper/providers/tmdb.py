@@ -8,7 +8,9 @@ from urllib.parse import urlsplit
 from app.sdk.config import settings
 from app.sdk.logging import logger
 from app.sdk.network import RequestUtils
-from app.modules.themoviedb.tmdbv3api import Movie, TV, Season, Episode, Search
+from app.modules.themoviedb.tmdbv3api import Movie, TV, Season, Episode, Search, Person
+
+from ..actors import ActorLocalizer
 
 from ..emby_api import EmbyAPIError, read_image_response
 
@@ -49,6 +51,13 @@ class TMDBProvider:
         """参数只影响此提供者实例，不修改宿主 TMDB 全局配置。"""
         self.options = config
 
+    def localize_people(self, people):
+        """只按 TMDB 人物 ID 查询官方中文翻译，未命中保留原对象。"""
+        if not self.options or not self.options.actor_localization or not str(self.language).lower().startswith('zh'):
+            return people, []
+        return ActorLocalizer(self._client('person'), language=self.language).localize(people)
+
+
     def episode_groups(self, series_id):
         rows = _plain(self._client('series').episode_groups(_positive_id(series_id)))
         rows = rows.get('results', []) if isinstance(rows, dict) else rows
@@ -79,7 +88,7 @@ class TMDBProvider:
 
     def _client(self, kind):
         if kind not in self._clients:
-            classes = {'movie': Movie, 'series': TV, 'season': Season, 'episode': Episode, 'search': Search}
+            classes = {'movie': Movie, 'series': TV, 'season': Season, 'episode': Episode, 'search': Search, 'person': Person}
             self._clients[kind] = classes[kind](language=self.language)
         return self._clients[kind]
 
@@ -215,13 +224,25 @@ class TMDBProvider:
         credits = details.get('credits') or {}
         for person in credits.get('cast', [])[:self.options.actor_limit if self.options else 30]:
             if person.get('name'):
-                people.append({'Name': person['name'], 'Type': 'Actor', 'Role': person.get('character', '')})
+                row = {'Name': person['name'], 'Type': 'Actor', 'Role': person.get('character', '')}
+                if person.get('id'):
+                    row['ProviderIds'] = {'Tmdb': str(_positive_id(person['id']))}
+                people.append(row)
         for person in (credits.get('crew', []) if not self.options or self.options.include_crew else []):
             role = person.get('job')
             if role in {'Director', 'Writer', 'Screenplay', 'Producer'} and person.get('name'):
                 people.append({'Name': person['name'], 'Type': 'Writer' if role == 'Screenplay' else role})
         if people:
-            fields['People'] = people
+            # 同一人物在不同角色保留；仅删除身份、类型、角色均相同的重复项。
+            unique = []
+            seen = set()
+            for person in people:
+                identity = ((person.get('ProviderIds') or {}).get('Tmdb'), person['Type'], person.get('Role', ''))
+                if identity[0] and identity in seen:
+                    continue
+                seen.add(identity)
+                unique.append(person)
+            fields['People'] = unique
         # 季集详情的自身 ID 与父剧集 ID 分离；保留其它来源 ID，由引擎再执行白名单合并。
         ids = {key: value for key, value in (item.get('ProviderIds') or {}).items() if key.casefold() != 'tmdb'}
         ids['Tmdb'] = str(_positive_id(details['id']))

@@ -265,7 +265,9 @@ class EmbyAPI:
 
     def item(self, item_id):
         """从用户条目端点读取完整元数据，保留所有锁定信息。"""
-        return self._json(('Users', self._user, 'Items', item_id), {'Fields': ITEM_FIELDS})
+        # 人员外部 ID 用于保护已有中文姓名/角色，不按同名猜测人物身份。
+        return self._json(('Users', self._user, 'Items', item_id),
+                          {'Fields': ITEM_FIELDS, 'PersonFields': 'ProviderIds'})
 
     def update(self, item_id, payload):
         """提交调用方已合并的可写元数据；成功返回 None。"""

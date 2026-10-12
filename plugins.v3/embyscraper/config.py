@@ -31,6 +31,9 @@ class Config:
     backup_limit: int = 1000
     rating_country: str = ''
     actor_limit: int = 30
+    # 官方中文名默认优先，AI 音译独立选择，避免默认产生费用。
+    actor_localization: bool = True
+    actor_ai_translation: bool = False
     include_crew: bool = True
     image_languages: list = field(default_factory=lambda: ['zh', 'en', 'null'])
     image_size: str = 'original'
@@ -72,6 +75,8 @@ class Config:
         if value.rating_country and not re.fullmatch(r'[A-Z]{2}', value.rating_country):
             raise ValueError('评分地区必须为两位国家代码')
         value.actor_limit = max(0, min(500, int(value.actor_limit)))
+        value.actor_localization = value.actor_localization is True
+        value.actor_ai_translation = value.actor_ai_translation is True
         value.include_crew = value.include_crew is True
         value.include_specials = value.include_specials is True
         value.reindex_episodes = value.reindex_episodes is True
