@@ -269,6 +269,40 @@ class EmbyAPI:
         return self._json(('Users', self._user, 'Items', item_id),
                           {'Fields': ITEM_FIELDS, 'PersonFields': 'ProviderIds'})
 
+    def verify_metadata(self, item, expected):
+        """仅在写后核验需要时按 Emby 人物 ID 查证外部身份，不按姓名猜测。"""
+        verified = deepcopy(item)
+        intended = expected.get('People')
+        observed = verified.get('People')
+        if not isinstance(intended, list) or not isinstance(observed, list) or len(intended) != len(observed):
+            return verified
+        details = {}
+        for person, target in zip(observed, intended):
+            if not isinstance(person, dict) or not isinstance(target, dict):
+                continue
+            wanted = target.get('ProviderIds') or {}
+            present = {str(key).lower(): str(value) for key, value in (person.get('ProviderIds') or {}).items()}
+            missing = {key: value for key, value in wanted.items() if str(key).lower() not in present}
+            if not missing or not person.get('Id'):
+                continue
+            if any((person.get(key) or '') != (target.get(key) or '') for key in ('Name', 'Type', 'Role')):
+                continue
+            ident = str(person['Id'])
+            if ident not in details:
+                details[ident] = self._json(('Users', self._user, 'Items', ident), {'Fields': 'ProviderIds'})
+            detail = details[ident]
+            if str(detail.get('Id')) != ident or detail.get('Name') != person.get('Name') or detail.get('Type') != 'Person':
+                raise EmbyAPIError('人物身份回读无法确认')
+            # 只补详情已证实的字段；已出现但冲突的外部 ID 保留给比较器拒绝。
+            external = {str(key).lower(): (key, value) for key, value in (detail.get('ProviderIds') or {}).items()}
+            ids = dict(person.get('ProviderIds') or {})
+            for key in missing:
+                evidence = external.get(str(key).lower())
+                if evidence:
+                    ids[evidence[0]] = evidence[1]
+            person['ProviderIds'] = ids
+        return verified
+
     def update(self, item_id, payload):
         """提交调用方已合并的可写元数据；成功返回 None。"""
         response = self._call('post', ('Items', item_id), json=filter_update_payload(payload))

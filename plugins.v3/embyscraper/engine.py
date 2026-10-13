@@ -8,6 +8,7 @@ from .translation import language_status
 from .actors import preserve_existing
 from .episode_groups import EpisodeGroups
 from .diagnostics import error_reason
+from .metadata import metadata_equal, mismatch_fields
 
 
 def item_view(item):
@@ -123,7 +124,7 @@ class Engine:
                 if self.config.overwrite == 'missing':
                     after = {**after, **(before or {})}
             apply = (not locked and key not in locks and key.replace('CommunityRating', 'Rating') not in locks
-                     and after not in (None, '', [], {}) and after != before
+                     and after not in (None, '', [], {}) and not metadata_equal(key, before, after)
                      and (self.config.overwrite == 'all' or before in (None, '', [], {})
                           or key == 'ProviderIds'))
             fields.append({'field': key, 'before': before, 'after': after, 'apply': apply, 'source': 'tmdb'})
@@ -164,7 +165,7 @@ class Engine:
                     if key in translated:
                         row['after'] = translated[key]
                         row['source'] = 'ai_translation'
-                        row['apply'] = row['after'] != row['before']
+                        row['apply'] = not metadata_equal(key, row['before'], row['after'])
                         translation['fields'].append(key)
                     if key in failed:
                         row['apply'] = False
@@ -191,7 +192,7 @@ class Engine:
                     if callable(localize):
                         row['after'], notes = localize(row['after'])
                         warnings.extend(note for note in notes if note not in warnings)
-                    row['apply'] = row['after'] != row['before']
+                    row['apply'] = not metadata_equal('People', row['before'], row['after'])
         # 人名音译与简介翻译独立；仅处理真正可写入的 People，避免锁定/图片任务收费。
         if (self.config.actor_localization and self.config.actor_ai_translation
                 and str(target).lower().startswith('zh')):
@@ -216,7 +217,7 @@ class Engine:
                             warnings.append(note)
                     elif '演员 AI 翻译不可用，已保留原名' not in warnings:
                         warnings.append('演员 AI 翻译不可用，已保留原名')
-                row['apply'] = row['after'] != row['before']
+                row['apply'] = not metadata_equal('People', row['before'], row['after'])
         for row in fields:
             if row['field'] == 'People' and actor_report['checked']:
                 before_names = {(str((p.get('ProviderIds') or {}).get('Tmdb')), p.get('Type'), p.get('Name'))
@@ -302,10 +303,13 @@ class Engine:
                 self.backups.checkpoint(row, current, api, status='unknown')
                 may_write = True
                 api.update(item_id, payload)
+                expected = {f['field']: f['after'] for f in fields}
                 verified = api.item(item_id)
                 self.backups.checkpoint(row, verified, api, fields=[f['field'] for f in fields])
-                if any(verified.get(f['field']) != f['after'] for f in fields):
-                    raise ValueError('元数据写入回读不一致')
+                evidence = api.verify_metadata(verified, expected)
+                mismatches = mismatch_fields(evidence, expected)
+                if mismatches:
+                    raise ValueError('元数据写入回读不一致，字段：' + '、'.join(mismatches))
                 current = verified
             for image in images:
                 typ = image['type']

@@ -26,6 +26,7 @@ import json
 from .execution_scope import iter_items, plan_selected, inherited_locks
 from .triggers import find_transferred, transfer_identity
 from .diagnostics import error_reason
+from .metadata import mismatch_fields
 
 
 def public_item(item):
@@ -292,8 +293,10 @@ class Runtime:
                 api.update(body.item_id, payload)
                 verified = api.item(body.item_id)
                 self.backups.checkpoint(row, verified, api, fields=list(fields), status='partial')
-                if any(verified.get(key) != value for key, value in fields.items()):
-                    raise ValueError('元信息写入回读不一致')
+                evidence = api.verify_metadata(verified, fields)
+                mismatches = mismatch_fields(evidence, fields)
+                if mismatches:
+                    raise ValueError('元信息写入回读不一致，字段：' + '、'.join(mismatches))
                 self.backups.checkpoint(row, verified, api, status='complete')
             except Exception as exc:
                 try:

@@ -5,6 +5,7 @@ import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import RLock
+from .metadata import metadata_equal
 
 
 class Backups:
@@ -141,12 +142,15 @@ class Backups:
             check()
             self.restore_checkpoint(row, progress, pending=True)
             api.update(row['item_id'], current)
+            expected_fields = {key: row['fields'][key]['value'] if row['fields'][key]['present'] else current[key]
+                               for key in row['after_fields']}
             verified = api.item(row['item_id'])
+            evidence = api.verify_metadata(verified, expected_fields)
             for key in row['after_fields']:
                 saved = row['fields'][key]
                 expected = saved['value'] if saved['present'] else current[key]
-                if verified.get(key) != expected:
-                    raise ValueError('恢复元数据回读不一致')
+                if not metadata_equal(key, evidence.get(key), expected):
+                    raise ValueError('恢复元数据回读不一致，字段：' + key)
             progress['fields'] = {key: {'present': key in verified, 'value': copy.deepcopy(verified.get(key))}
                                   for key in row['after_fields']}
             self.restore_checkpoint(row, progress)

@@ -270,12 +270,19 @@ class TMDBProvider:
     def _fields(self, details, item, kind):
         fields = {}
         mappings = {'Name': ('title', 'name'), 'OriginalTitle': ('original_title', 'original_name'),
-                    'Overview': ('overview',), 'CommunityRating': ('vote_average',)}
+                    'Overview': ('overview',)}
         for output, keys in mappings.items():
             for key in keys:
                 if details.get(key) is not None and details.get(key) != '':
                     fields[output] = details[key]
                     break
+        # 零分或明确无投票不作为有效评分，避免反复向 Emby 补写无评分占位值。
+        rating = details.get('vote_average')
+        votes = details.get('vote_count')
+        if (isinstance(rating, (int, float)) and not isinstance(rating, bool)
+                and 0 < rating <= 10
+                and (votes is None or (isinstance(votes, int) and not isinstance(votes, bool) and votes > 0))):
+            fields['CommunityRating'] = rating
         released = details.get('release_date') or details.get('first_air_date') or details.get('air_date')
         if released:
             try:
