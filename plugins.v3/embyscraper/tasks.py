@@ -28,15 +28,25 @@ class Tasks:
                 row['status'] = 'interrupted'
                 row['error'] = '上次运行中断，请检查备份；不会自动重新写入'
         self.persist()
-        self.thread = Thread(target=self.run, name='EmbyScraperWorker', daemon=True)
+        self.thread = Thread(target=self._run_guarded, name='EmbyScraperWorker', daemon=True)
         self.thread.start()
 
     def persist(self):
-        # 任务记录保留完整列表，历史截断只在存储层处理。
-        if self.storage:
-            self.storage.save_jobs(self.rows)
-        else:
-            self.plugin.save_data('jobs', self.rows)
+        # 持久化失败立即关闭写入入口，不能让未落盘的取消/入队继续执行。
+        try:
+            if self.storage:
+                self.storage.save_jobs(self.rows)
+            else:
+                self.plugin.save_data('jobs', self.rows)
+        except Exception:
+            self.stop.set()
+            with self.condition:
+                for row in self.rows:
+                    if row['status'] in ('queued', 'running'):
+                        row['status'] = 'interrupted'
+                        row['error'] = '任务持久化失败，工作线程已停止；请核验备份，不自动重试'
+                self.condition.notify_all()
+            raise
 
     def enqueue(self, server, item_ids, source='tmdb', tmdb_id=None, restore_id=None, transfer=None, confirmed=False, mode=None, recursive=True, scope=None, config_snapshot=None, stream=False):
         with self.condition:
@@ -72,7 +82,7 @@ class Tasks:
     def view(row):
         return copy.deepcopy({k: row.get(k) for k in ('id', 'status', 'server', 'item_ids', 'total',
                                                      'completed', 'scanned', 'phase', 'stream',
-                                                     'results', 'error', 'created_at', 'mode', 'recursive', 'scope', 'config_snapshot')})
+                                                     'results', 'error', 'created_at', 'mode', 'recursive', 'scope', 'config_snapshot', 'cancel_requested')})
 
     def views(self):
         with self.lock:
@@ -87,27 +97,32 @@ class Tasks:
     def cancel(self, ident):
         with self.condition:
             row = self.get(ident)
-            if row['status'] in ('queued', 'running'):
+            if row['status'] == 'queued':
                 row['status'] = 'cancelled'
-                self.persist()
+            elif row['status'] == 'running':
+                # 取消请求不等于工作线程已停；结算前禁止再次执行同一目标。
+                row['cancel_requested'] = True
+            self.persist()
             self.condition.notify()
 
     def retry(self, ident):
         with self.lock:
             row = self.get(ident)
-            if row.get('restore_id') or row['status'] in ('running', 'queued', 'interrupted'):
+            if row.get('restore_id') or row.get('transfer') or row['status'] in ('running', 'queued', 'interrupted'):
                 raise ValueError('该任务可能已写入，禁止自动重试')
             if row.get('stream'):
                 raise ValueError('流式任务请重新发起全库执行，避免重复写入已处理条目')
-            retry_ids = [r['item_id'] for r in row['results'] if r['status'] == 'failed_safe']
+            retry_ids = [r['item_id'] for r in row['results'] if r['status'] == 'failed_safe' and r.get('retryable') is True]
             done = {r['item_id'] for r in row['results']}
             retry_ids += [i for i in row['item_ids'] if i not in done]
             if not retry_ids:
                 raise ValueError('没有可安全重试的项目，请检查备份后重新预览')
-            return self.enqueue(row['server'], retry_ids, row['source'], row['tmdb_id'], confirmed=row.get('confirmed') is True, mode=row.get('mode'), recursive=False, scope=row.get('scope'), config_snapshot=row.get('config_snapshot'))
+            # 根条目成功后只重试子条目时，不得把根的手动编号挪给第一个子条目。
+            override = row['tmdb_id'] if retry_ids[0] == row['item_ids'][0] else None
+            return self.enqueue(row['server'], retry_ids, row['source'], override, confirmed=row.get('confirmed') is True, mode=row.get('mode'), recursive=False, scope=row.get('scope'), config_snapshot=row.get('config_snapshot'))
 
     def check(self, row):
-        if self.stop.is_set() or row['status'] == 'cancelled':
+        if self.stop.is_set() or row['status'] == 'cancelled' or row.get('cancel_requested'):
             raise Cancelled('任务已取消')
 
     def _iter_targets(self, row, check):
@@ -118,10 +133,10 @@ class Tasks:
             return
         for ident, total in self.stream(row, check):
             with self.lock:
-                row['scanned'] = row.get('scanned', 0) + 1
+                row['scanned'] = total if total is not None else row.get('scanned', 0) + 1
                 row['total'] = total
-                # 流式任务不保存完整 ID 列表，避免大媒体库占用内存和任务记录。
-                row['phase'] = 'scanning'
+                # 首个目标产出前快照已扫描完，不把执行进度误标为扫描进度。
+                row['phase'] = 'scraping'
                 self.persist()
             yield ident, total
         with self.lock:
@@ -129,13 +144,28 @@ class Tasks:
                 row['total'] = row.get('scanned', 0)
                 self.persist()
 
+    def _run_guarded(self):
+        # 顶层存储/调度错误使工作线程安全停机，不让用户看到永久运行中。
+        try:
+            self.run()
+        except Exception as exc:
+            with self.condition:
+                self.stop.set()
+                for row in self.rows:
+                    if row['status'] in ('queued', 'running'):
+                        row['status'] = 'interrupted'
+                        row['error'] = '工作线程异常停止，请核验任务和备份：' + error_reason(exc)
+                self.condition.notify_all()
+            logger.error('Emby刮削器：工作线程停止：' + error_reason(exc))
+
     def run(self):
         while not self.stop.is_set():
             with self.condition:
-                row = next((r for r in self.rows if r['status'] == 'queued'), None)
-                if row is None:
-                    self.condition.wait()
-                    continue
+                # 在条件锁内判断停止，避免关闭通知先到导致永久等待。
+                self.condition.wait_for(lambda: self.stop.is_set() or any(r['status'] == 'queued' for r in self.rows))
+                if self.stop.is_set():
+                    return
+                row = next(r for r in self.rows if r['status'] == 'queued')
                 row['status'] = 'running'
                 row['phase'] = 'scanning' if row.get('stream') else 'scraping'
                 self.persist()
@@ -152,10 +182,13 @@ class Tasks:
                     except Exception as exc:
                         reason = error_reason(exc)
                         logger.error(f"Emby刮削器：任务 {row['id'][:8]} 条目 {ident} 执行失败：{type(exc).__name__}：{reason}")
-                        result = {'item_id': ident, 'emby_id': str(ident), 'checked': False, 'written': None,
-                                  'status': 'unknown' if isinstance(exc, OperationError) and exc.may_write else 'failed_safe',
-                                  'error': reason if not (isinstance(exc, OperationError) and exc.may_write) else '操作未完成，请检查备份和媒体；未知写入不自动重试',
-                                  'retryable': False}
+                        may_write = isinstance(exc, OperationError) and exc.may_write
+                        result = {'item_id': ident, 'emby_id': str(ident), 'checked': None,
+                                  'written': None if may_write else False,
+                                  'status': 'unknown' if may_write else 'failed_safe',
+                                  'error': reason + ('；可能已写入，请核验备份和媒体' if may_write else ''),
+                                  'backup_id': getattr(exc, 'backup_id', None),
+                                  'retryable': not may_write}
                     with self.lock:
                         row['results'].append(result)
                         row['completed'] += 1
@@ -169,6 +202,8 @@ class Tasks:
                 with self.lock:
                     row['error'] = '服务端扫描失败，请检查媒体库范围后重试'
             with self.lock:
+                if row.get('cancel_requested'):
+                    row['status'] = 'cancelled'
                 if row['status'] != 'cancelled':
                     row['status'] = ('interrupted' if self.stop.is_set() else
                                      'failed' if row.get('error') or any(r['status'] in ('unknown', 'failed_safe') for r in row['results']) else 'complete')
@@ -181,8 +216,8 @@ class Tasks:
                     pass
 
     def close(self):
-        self.stop.set()
         with self.condition:
+            self.stop.set()
             self.condition.notify_all()
         self.thread.join(timeout=5)
         return not self.thread.is_alive()

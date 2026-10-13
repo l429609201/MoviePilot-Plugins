@@ -7,6 +7,7 @@ from .execution_scope import inherited_locks
 from .translation import language_status
 from .actors import preserve_existing
 from .episode_groups import EpisodeGroups
+from .diagnostics import error_reason
 
 
 def item_view(item):
@@ -19,9 +20,10 @@ def item_view(item):
 
 
 class OperationError(Exception):
-    def __init__(self, may_write=False):
+    def __init__(self, may_write=False, reason='操作未完成', backup_id=None):
         self.may_write = may_write
-        super().__init__('操作未完成')
+        self.backup_id = backup_id
+        super().__init__(reason)
 
 
 class Engine:
@@ -166,7 +168,21 @@ class Engine:
                         translation['fields'].append(key)
                     if key in failed:
                         row['apply'] = False
-        # 人物详情仅用于可写 People 候选；缓存不替代当前媒体写入锁与快照检查。
+        # 缺失模式只汉化现有人员，禁止借姓名汉化替换整份名单和角色。
+        people_writable = (derived['reliable'] and not locked and 'People' not in locks)
+        actor_report = {'enabled': self.config.actor_localization, 'checked': False,
+                        'changed_names': 0, 'reason': '未选择演员字段或演员字段已锁定'}
+        translation['actors'] = actor_report
+        if self.config.actor_localization and str(target).lower().startswith('zh') and people_writable:
+            for row in fields:
+                if row['field'] != 'People':
+                    continue
+                if self.config.overwrite == 'missing' and row['before']:
+                    row['after'] = copy.deepcopy(row['before'])
+                # 即使源名单与当前相同，仍需查询人物中文名；先查询再判断差异。
+                row['apply'] = bool(row['after'])
+                actor_report['checked'] = True
+                actor_report['reason'] = '未找到可确认的新中文姓名，保留现有人员'
         if self.config.actor_localization and str(target).lower().startswith('zh'):
             for row in fields:
                 if row['field'] == 'People' and row['apply']:
@@ -180,7 +196,7 @@ class Engine:
         if (self.config.actor_localization and self.config.actor_ai_translation
                 and str(target).lower().startswith('zh')):
             for row in fields:
-                if row['field'] != 'People' or not row['apply']:
+                if row['field'] != 'People' or not actor_report['checked'] or not row['after']:
                     continue
                 for person in row['after']:
                     name = person.get('Name') or ''
@@ -201,6 +217,15 @@ class Engine:
                     elif '演员 AI 翻译不可用，已保留原名' not in warnings:
                         warnings.append('演员 AI 翻译不可用，已保留原名')
                 row['apply'] = row['after'] != row['before']
+        for row in fields:
+            if row['field'] == 'People' and actor_report['checked']:
+                before_names = {(str((p.get('ProviderIds') or {}).get('Tmdb')), p.get('Type'), p.get('Name'))
+                                for p in row['before'] or []}
+                actor_report['changed_names'] = sum(
+                    (str((p.get('ProviderIds') or {}).get('Tmdb')), p.get('Type'), p.get('Name')) not in before_names
+                    for p in row['after'] or [])
+                if actor_report['changed_names']:
+                    actor_report['reason'] = '人员名单或姓名存在候选变化，是否包含中文姓名及实际写入以预览和任务结果为准'
         images = []
         for typ in self.config.images:
             before = api.image_tag(item, typ)
@@ -217,12 +242,8 @@ class Engine:
         return public, item
 
     def execute(self, server, item_id, api, check, override=None, confirmed=False):
-        # 手动编号只作用于单个根项目；递归子项目沿用自身 ProviderIds，避免误传到其它分集。
-        root_override = override
-        current_type = str(api.item(item_id).get('Type', ''))
-        if current_type in {'Season', 'Episode'}:
-            root_override = None
-        preview, original = self.preview(server, item_id, api, root_override)
+        # 调用方仅给选中的根条目传 override；季/集表示所属剧集 ID。
+        preview, original = self.preview(server, item_id, api, override)
         if not preview['match']['reliable']:
             raise ValueError('匹配不可靠，拒绝写入')
         fields = [f for f in preview['fields'] if f['apply']]
@@ -231,7 +252,8 @@ class Engine:
         images = [i for i in preview['images'] if i['apply']]
         if not fields and not images:
             return {'item_id': item_id, 'emby_id': str(item_id), 'checked': True, 'written': False,
-                    'status': 'skipped', 'warnings': preview['warnings'],
+                    'status': 'skipped', 'title': preview['title'],
+                    'reason': '当前模式、锁定或覆盖策略下没有可执行写入', 'warnings': preview['warnings'],
                     'translation': preview['translation']}
         # 下载与备份全部成功后才开始任何副作用。
         downloads = {i['type']: self.provider.download(i['after']) for i in images}
@@ -240,6 +262,11 @@ class Engine:
         logger.info(f"Emby刮削器：条目 {item_id} 开始写入，字段 {len(fields)} 项，图片 {len(images)} 张")
         check()
         current = api.item(item_id)
+        # 父级锁也可能在预览后变化，写前重新核验而非只看当前条目。
+        current_locked, current_locks = inherited_locks(self.config, current, api)
+        if current_locked or any(f['field'] in current_locks for f in fields) or (
+                images and ('Images' in current_locks or any(i['type'] in current_locks for i in images))):
+            raise ValueError('预览后目标或父级已锁定拒绝写入')
         keys = {f['field'] for f in fields} | {'Id', 'Type', 'ParentId', 'SeriesId', 'ProviderIds', 'LockData', 'LockedFields',
                                                 'IndexNumber', 'ParentIndexNumber'}
         if any(current.get(k) != original.get(k) for k in keys) or any(
@@ -272,6 +299,7 @@ class Engine:
                 for f in fields:
                     payload[f['field']] = f['after']
                 check()
+                self.backups.checkpoint(row, current, api, status='unknown')
                 may_write = True
                 api.update(item_id, payload)
                 verified = api.item(item_id)
@@ -285,6 +313,7 @@ class Engine:
                 latest = api.item(item_id)
                 if api.image_tag(latest, typ) != image['before']:
                     raise ValueError('图片在执行前已变化，拒绝覆盖')
+                self.backups.checkpoint(row, current, api, status='unknown')
                 may_write = True
                 api.upload(item_id, typ, *downloads[typ])
                 verified = api.item(item_id)
@@ -296,12 +325,16 @@ class Engine:
                 if not tag:
                     raise ValueError('图片写入回读未确认')
             self.backups.checkpoint(row, current, api, status='complete')
-        except Exception:
-            # 网络超时可能已写成功，保留 unknown 状态，重试不可自动覆盖。
-            self.backups.checkpoint(row, current, api, status='unknown' if may_write else 'prepared')
+        except Exception as exc:
+            # 保存检查点失败也不得覆盖可能已写入的安全分类。
+            reason = error_reason(exc)
+            try:
+                self.backups.checkpoint(row, current, api, status='unknown' if may_write else 'prepared')
+            except Exception:
+                logger.error('Emby刮削器：异常检查点保存失败，请核验备份和媒体')
             if not may_write:
                 raise
-            raise OperationError(may_write=True) from None
+            raise OperationError(may_write=True, reason=reason, backup_id=row['id']) from None
         return {'item_id': item_id, 'emby_id': str(item_id), 'checked': True, 'written': True,
-                'status': 'complete', 'backup_id': row['id'],
+                'status': 'complete', 'title': preview['title'], 'backup_id': row['id'],
                 'warnings': preview['warnings'], 'translation': preview['translation']}

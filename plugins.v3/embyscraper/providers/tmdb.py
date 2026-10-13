@@ -27,18 +27,29 @@ def _normalize(value):
                    if character.isalnum())
 
 
+def _filename_years(item):
+    """仅括号内完整年份构成文件年份证据，标题中的数字保持原样。"""
+    stem = Path(str(item.get('Path') or '').replace('\\', '/')).stem
+    years = re.findall(r'\(((?:19|20)\d{2})\)|\[((?:19|20)\d{2})\]', stem)
+    return {int(left or right) for left, right in years}
+
+
 def _filename_titles(item):
-    """从 Emby 文件名提取保守候选；不把路径本身发送给 TMDB。"""
+    """保留主标题和原名；文件名只清理明确发行标签，不发送路径。"""
     values = []
-    for raw in (item.get('Path'), item.get('Name'), item.get('OriginalTitle')):
+    for key in ('Name', 'OriginalTitle', 'Path'):
+        raw = item.get(key)
         if not raw:
             continue
-        name = Path(str(raw)).stem if raw == item.get('Path') else str(raw)
-        name = re.sub(r'\[[^\]]*\]|\([^)]*\)', ' ', name)
-        name = re.sub(r'(?i)(?:19|20)\d{2}', ' ', name)
-        name = re.sub(r'(?i)\b(?:s\d{1,2}|e\d{1,4}|season\s*\d+)\b', ' ', name)
-        name = re.sub(r'[_\.]+', ' ', name)
-        name = re.sub(r'\s+', ' ', name).strip(' -')
+        name = str(raw)
+        if key == 'Path':
+            name = Path(name.replace('\\', '/')).stem
+            name = re.sub(r'\((?:19|20)\d{2}\)|\[(?:19|20)\d{2}\]', ' ', name)
+            name = re.sub(r'[_\.]+', ' ', name)
+            # 分辨率之后通常为编码/发布组；仅文件名候选可裁去这些标签。
+            name = re.split(r'(?i)(?<!\w)(?:480|576|720|1080|2160|4320)[pi](?!\w)', name)[0]
+            name = re.sub(r'(?i)\b(?:s\d{1,2}(?:e\d{1,4})?|e\d{1,4}|season\s*\d+)\b', ' ', name)
+            name = re.sub(r'\s+', ' ', name).strip(' -[]')
         if name and _normalize(name) not in {_normalize(v) for v in values}:
             values.append(name)
     return values
@@ -139,6 +150,12 @@ class TMDBProvider:
         if not titles:
             raise ValueError('缺少可用于匹配的标题或文件名')
         year = item.get('ProductionYear')
+        filename_years = _filename_years(item)
+        # 多个年份或与已有年份冲突时仍可预览，但不得自动确认身份。
+        year_conflict = len(filename_years) > 1 or bool(
+            year and filename_years and str(year) not in {str(value) for value in filename_years})
+        if not year and len(filename_years) == 1:
+            year = next(iter(filename_years))
         search = self._client('search')
         scored = []
         for title in titles:
@@ -163,7 +180,9 @@ class TMDBProvider:
             raise ValueError('TMDB 未找到匹配条目')
         best = ranked[0]
         threshold = self.options.match_threshold if self.options else .92
-        reliable = best[0] >= threshold and (len(ranked) == 1 or best[0] - ranked[1][0] >= 0.05)
+        best_date = best[1].get('release_date') or best[1].get('first_air_date') or ''
+        reliable = (not year_conflict and (not year or str(year) == best_date[:4])
+                    and best[0] >= threshold and (len(ranked) == 1 or best[0] - ranked[1][0] >= 0.05))
         return _positive_id(best[1]['id']), 'filename_search', reliable
 
     def resolve(self, item, api, override=None):

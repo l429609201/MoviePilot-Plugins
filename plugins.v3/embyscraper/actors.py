@@ -27,10 +27,12 @@ def preserve_existing(people, existing):
     for row in output:
         ident = (row.get('ProviderIds') or {}).get('Tmdb')
         matches = known.get((str(ident), row.get('Type')), []) if ident else []
+        # 多角色不影响身份一致的姓名保护；角色仍要求唯一对应。
+        names = {previous['Name'] for previous in matches if _is_chinese(previous.get('Name'))}
+        if len(names) == 1:
+            row['Name'] = next(iter(names))
         if len(matches) == 1:
             previous = matches[0]
-            if _is_chinese(previous.get('Name')):
-                row['Name'] = previous['Name']
             if _is_chinese(previous.get('Role')) and not _is_chinese(row.get('Role')):
                 row['Role'] = previous['Role']
     return output
@@ -67,9 +69,7 @@ class ActorLocalizer:
             name = data.get('name')
             if _is_chinese(name):
                 return name
-        for name in details.get('also_known_as') or []:
-            if _is_chinese(name):
-                return name
+        # also_known_as 没有语言证据，纯汉字也可能是日文姓名，不能冒充官方中文。
         return ''
 
     def localize(self, people):
@@ -85,7 +85,8 @@ class ActorLocalizer:
             with CACHE_LOCK:
                 cached = self.cache.get(key)
                 details = cached
-                if not isinstance(details, dict):
+                # 缓存也必须核验身份，损坏或旧资料按未命中处理。
+                if not isinstance(details, dict) or str(details.get('id')) != str(person_id):
                     try:
                         details = _plain(self.client.details(int(person_id), append_to_response='translations'))
                         if not isinstance(details, dict) or str(details.get('id')) != str(person_id):

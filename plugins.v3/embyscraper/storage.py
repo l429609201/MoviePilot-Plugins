@@ -170,8 +170,21 @@ class Storage:
             self.plugin.save_data("jobs", rows)
             return
         with self._session() as session:
-            session.execute(delete(JobRecord))
-            session.add_all(JobRecord(id=row["id"], payload=_json(row)) for row in rows if isinstance(row, dict) and isinstance(row.get("id"), str))
+            # 仅更新变化的任务，避免每次进度变更删除并重插全部历史。
+            existing = {record.id: record for record in session.scalars(select(JobRecord))}
+            retained = set()
+            for row in rows:
+                if not isinstance(row, dict) or not isinstance(row.get('id'), str):
+                    continue
+                ident, payload = row['id'], _json(row)
+                retained.add(ident)
+                record = existing.get(ident)
+                if record is None:
+                    session.add(JobRecord(id=ident, payload=payload))
+                elif record.payload != payload:
+                    record.payload = payload
+            for ident in set(existing) - retained:
+                session.delete(existing[ident])
             session.commit()
 
     def get_backups(self) -> list[dict]:
@@ -179,6 +192,26 @@ class Storage:
             return self._legacy("backups", [])
         with self._session() as session:
             return [_load(row.payload) for row in session.scalars(select(BackupRecord))]
+
+    def save_backup(self, row: dict) -> None:
+        """仅更新一个恢复点；保留全量接口用于旧数据兼容。"""
+        if not self._db:
+            rows = self._legacy("backups", [])
+            for index, existing in enumerate(rows):
+                if existing.get("id") == row["id"]:
+                    rows[index] = copy.deepcopy(row)
+                    break
+            else:
+                rows.append(copy.deepcopy(row))
+            self.plugin.save_data("backups", rows)
+            return
+        with self._session() as session:
+            record = session.get(BackupRecord, row["id"])
+            if record is None:
+                session.add(BackupRecord(id=row["id"], payload=_json(row)))
+            else:
+                record.payload = _json(row)
+            session.commit()
 
     def save_backups(self, rows: list[dict]) -> None:
         if not self._db:

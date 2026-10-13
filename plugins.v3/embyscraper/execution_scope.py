@@ -35,19 +35,20 @@ def plan_selected(engine, server, api, ids, recursive=True):
         engine.scope(server, item, api)
         output[str(item['Id'])] = item
     if recursive:
-        # 递归只针对本次选中的根；Movie、Episode 等非容器不展开。
-        queue = [item for item in roots if item.get('Type') in {'Series', 'Season'}]
-        visited = {str(item['Id']) for item in roots}
-        while queue:
-            parent = queue.pop(0)
-            for child in enumerate_items(api, str(parent['Id'])):
-                if not any(descendant(api, child, str(root['Id'])) for root in roots):
+        # items 已递归返回全部后代，不能再将每季加入队列重复扫描。
+        containers = {str(item['Id']): item for item in roots
+                      if item.get('Type') in {'Series', 'Season'}}
+        for parent_id, parent in containers.items():
+            if parent.get('Type') == 'Season' and str(parent.get('SeriesId') or '') in containers:
+                continue
+            for child in enumerate_items(api, parent_id):
+                if not descendant(api, child, parent_id):
                     raise ValueError('递归范围包含其它根目录条目')
+                ident = str(child['Id'])
+                if ident in output:
+                    continue
                 engine.scope(server, child, api)
-                output[str(child['Id'])] = child
-                if child.get('Type') in {'Series', 'Season'} and str(child['Id']) not in visited:
-                    visited.add(str(child['Id']))
-                    queue.append(child)
+                output[ident] = child
     return list(output)
 
 
@@ -78,4 +79,15 @@ def inherited_locks(config, item, api):
                 raise ValueError('父剧集身份无效')
             locked |= bool(series.get('LockData'))
             fields.update(series.get('LockedFields') or [])
+    if item.get('Type') == 'Episode':
+        # 分集同时继承直接父季和父剧集锁，缺少父季身份时不能绕过保护。
+        season_id = str(item.get('SeasonId') or item.get('ParentId') or '')
+        if not season_id:
+            raise ValueError('缺少父季身份，无法核验继承锁')
+        season = api.item(season_id)
+        if (season.get('Type') != 'Season'
+                or str(season.get('SeriesId') or season.get('ParentId') or '') != str(item.get('SeriesId') or '')):
+            raise ValueError('父季身份无效')
+        locked |= bool(season.get('LockData'))
+        fields.update(season.get('LockedFields') or [])
     return locked, fields

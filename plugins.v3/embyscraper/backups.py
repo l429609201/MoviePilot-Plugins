@@ -21,9 +21,11 @@ class Backups:
                                                  for r in self.rows):
             raise ValueError('备份索引无效，禁止执行写入')
 
-    def persist(self):
-        # 限值由 Backups 自己控制；存储层保持原输入，不二次截断。
-        if self.storage:
+    def persist(self, row=None):
+        # 单个恢复点增量落盘，避免每个检查点重写全部历史备份。
+        if self.storage and row is not None:
+            self.storage.save_backup(row)
+        elif self.storage:
             self.storage.save_backups(self.rows)
         else:
             self.plugin.save_data('backups', self.rows)
@@ -53,7 +55,7 @@ class Backups:
             (directory / typ).write_bytes(data)
         with self.lock:
             self.rows.append(row)
-            self.persist()
+            self.persist(row)
         return row
 
     def checkpoint(self, row, item, api, fields=(), images=(), status='writing'):
@@ -63,7 +65,7 @@ class Backups:
             for typ in images:
                 row['after_images'][typ] = api.image_tag(item, typ)
             row['status'] = status
-            self.persist()
+            self.persist(row)
 
     def get(self, ident):
         with self.lock:
@@ -77,15 +79,32 @@ class Backups:
             return [{k: r[k] for k in ('id', 'server', 'item_id', 'title', 'created_at', 'status')}
                     for r in reversed(self.rows)]
 
+    def restore_checkpoint(self, row, progress, pending=False):
+        """先持久化未知标记再写远端，仅完整回读核验后允许继续恢复。"""
+        with self.lock:
+            candidate = copy.deepcopy(row)
+            candidate['status'] = 'restore_unknown' if pending else 'restore_partial'
+            candidate['restore_progress'] = copy.deepcopy(progress)
+            # 落盘失败时不得把内存状态推进为可重试。
+            row.update(candidate)
+            try:
+                self.persist(row)
+            except Exception:
+                row['status'] = 'restore_unknown'
+                raise
+
     def restore(self, ident, api, check):
         row = self.get(ident)
-        if row['status'] not in ('complete', 'partial', 'writing'):
-            raise ValueError('备份尚无可确认的写入，禁止盲目恢复')
+        if row['status'] not in ('complete', 'partial', 'writing', 'restore_partial'):
+            raise ValueError('备份尚无可确认的写入或恢复结果未知，禁止盲目恢复')
+        # 已核验步骤单独记录；恢复中断发生在写后回读前时禁止自动重试。
+        progress = copy.deepcopy(row.get('restore_progress') or {'fields': {}, 'images': {}})
+        blobs = {}
         current = api.item(row['item_id'])
-        for key, after in row['after_fields'].items():
+        for key, after in {**row['after_fields'], **progress['fields']}.items():
             if {'present': key in current, 'value': current.get(key)} != after:
                 raise ValueError('元数据已有新修改，拒绝恢复')
-        for typ, tag in row['after_images'].items():
+        for typ, tag in {**row['after_images'], **progress['images']}.items():
             if api.image_tag(current, typ) != tag:
                 raise ValueError('图片已有新修改，拒绝恢复')
         # 编号字段恢复前核验目标位置，避免把已被其他分集占用的编号覆盖。
@@ -112,7 +131,7 @@ class Backups:
                 if not data or len(data) > 20 * 1024 * 1024:
                     raise ValueError('备份图片无效')
                 blobs[typ] = (data, saved['mime'])
-        if row['after_fields']:
+        if row['after_fields'] and not progress['fields']:
             for key in row['after_fields']:
                 saved = row['fields'][key]
                 if saved['present']:
@@ -120,6 +139,7 @@ class Backups:
                 else:
                     current[key] = [] if key in ('Genres', 'Studios', 'Tags', 'Taglines', 'People') else {} if key == 'ProviderIds' else None
             check()
+            self.restore_checkpoint(row, progress, pending=True)
             api.update(row['item_id'], current)
             verified = api.item(row['item_id'])
             for key in row['after_fields']:
@@ -127,8 +147,14 @@ class Backups:
                 expected = saved['value'] if saved['present'] else current[key]
                 if verified.get(key) != expected:
                     raise ValueError('恢复元数据回读不一致')
+            progress['fields'] = {key: {'present': key in verified, 'value': copy.deepcopy(verified.get(key))}
+                                  for key in row['after_fields']}
+            self.restore_checkpoint(row, progress)
         for typ in row['after_images']:
+            if typ in progress['images']:
+                continue
             check()
+            self.restore_checkpoint(row, progress, pending=True)
             if typ in blobs:
                 api.upload(row['item_id'], typ, *blobs[typ])
             else:
@@ -140,7 +166,9 @@ class Backups:
                 restored, _ = api.image(row['item_id'], typ)
                 if hashlib.sha256(restored).digest() != hashlib.sha256(blobs[typ][0]).digest():
                     raise ValueError('恢复图片内容回读不一致')
+            progress['images'][typ] = tag
+            self.restore_checkpoint(row, progress)
         with self.lock:
             row['status'] = 'restored'
-            self.persist()
+            self.persist(row)
         return {'success': True}

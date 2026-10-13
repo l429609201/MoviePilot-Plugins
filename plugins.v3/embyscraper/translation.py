@@ -58,6 +58,20 @@ class Translator:
                 and sum(len(text) for text in value if isinstance(text, str)) <= MAX_TEXT
                 and all(isinstance(text, str) and text.strip() and len(text) <= MAX_TEXT for text in value))
 
+    @staticmethod
+    def _target_valid(value, target, actor=False):
+        """AI 与缓存使用相同语言下限；汉字脚本不能证明简繁地区。"""
+        texts = value if isinstance(value, list) else [value]
+        if not texts or not all(isinstance(text, str) for text in texts):
+            return False
+        if actor:
+            return len(texts) == 1 and bool(re.fullmatch(r'[\u3400-\u9fff·・‧\s]{1,120}', texts[0])) and bool(re.search(r'[\u3400-\u9fff]', texts[0]))
+        if target.lower().replace('_', '-').split('-')[0] == 'zh':
+            return all(re.search(r'[\u3400-\u9fff]', text) and not re.search(r'[\u3040-\u30ff\uac00-\ud7af]', text)
+                       for text in texts)
+        # 非中文仍沿用现有检测，不凭拉丁字母推断具体语言。
+        return all(language_status(text, target) != 'foreign' for text in texts)
+
     async def _invoke(self, fields, target, actor=False):
         helper = self.helper or LLMHelper
         if helper is None:
@@ -110,7 +124,9 @@ class Translator:
         with self.lock:
             cached = self.cache.get(key)
             if isinstance(cached, dict) and set(cached) == set(fields) and all(
-                    self._valid(cached[name], source) for name, source in fields.items()):
+                    self._valid(cached[name], source) and cached[name] != source
+                    and self._target_valid(cached[name], target, actor=kind.startswith('Person:'))
+                    for name, source in fields.items()):
                 return dict(cached), rejected_warnings, rejected
         try:
             # FastAPI 同步端点和任务线程没有运行中的事件循环；异步宿主调用拒绝嵌套。
@@ -127,7 +143,7 @@ class Translator:
             for name, source in fields.items():
                 value = result.get(name)
                 if (self._valid(value, source) and value != source
-                        and language_status(value, target) != 'foreign'):
+                        and self._target_valid(value, target, actor=kind.startswith('Person:'))):
                     translated[name] = value
         failed = set(fields) - set(translated)
         if kind.startswith('Person:') and not re.fullmatch(r'[\u3400-\u9fff·・‧\s]{1,120}', translated.get('Name', '')):

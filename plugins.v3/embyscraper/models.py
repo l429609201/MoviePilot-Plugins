@@ -104,5 +104,20 @@ class ClearCacheRequest(BaseModel):
 class CacheStatusResponse(BaseModel):
     rows: int
 
+class ScheduleResolveRequest(BaseModel):
+    server: str
+    cursor_token: str = Field(min_length=64, max_length=64, pattern=r'^[0-9a-f]{64}$')
+    confirmed: StrictBool = False
+    action: Literal['acknowledge']
+
+class ScheduleCursorsResponse(BaseModel):
+    cursors: list[dict] = Field(default_factory=list)
+
+class ScheduleResolveResponse(BaseModel):
+    success: bool
+    acknowledged_count: int
+    position: int
+    message: str
+
 class ActionResponse(BaseModel):
     success: bool
